@@ -295,7 +295,7 @@ class VS2017Generator(object):
         nested_projects = []
         for t in self._targets.itervalues():
             rp = os.path.relpath(os.path.dirname(t.base_dir), self._source_root_dir)
-            if rp:
+            if rp and rp != '.':
                 if rp not in path2guid:
                     guid = uuid.uuid4()
                     path2guid[rp] = guid
