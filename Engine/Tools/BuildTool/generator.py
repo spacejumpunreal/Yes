@@ -244,7 +244,7 @@ class VS2017Generator(object):
                     ), {"Include": os.path.relpath(f, self._build_dir)}))
                 return XmlNode("ItemGroup", children)
             item_group_sources = create_item_group_with_filter("ClCompile", sources)
-            item_group_includes = create_item_group_with_filter("ClInclude", sources)
+            item_group_includes = create_item_group_with_filter("ClInclude", headers)
 
             def create_item_group_filters():
                 children = []
