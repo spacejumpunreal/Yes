@@ -1,0 +1,12 @@
+.vs
+*.sln
+*.vcxproj
+*.lib
+*.exe
+*.obj
+*.log
+*.pyc
+*.pyo
+Engine/Build
+Engine/Binaries
+.idea
