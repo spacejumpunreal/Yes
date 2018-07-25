@@ -45,6 +45,13 @@ namespace Yes
 				mPrivate->mModules[i]->InitializeModule();
 			}
 		}
+		for (int i = 0; i < ARRAY_COUNT(mPrivate->mModules); ++i)
+		{
+			if (mPrivate->mModules[i])
+			{
+				mPrivate->mModules[i]->Start();
+			}
+		}
 	}
 
 	IModule* System::GetModule(EModuleRegistry name)
@@ -68,7 +75,7 @@ namespace Yes
 		while (true)
 		{
 			auto t = TimeStamp::Now();
-			tickModule->Execute();
+			tickModule->Tick();
 			auto dt = TimeStamp::Now() - t;
 			auto dtsec = dt.ToSeconds();
 			auto dursec = mPrivate->mFrameDuration.ToSeconds();

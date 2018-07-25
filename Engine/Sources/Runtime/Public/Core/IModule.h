@@ -5,8 +5,8 @@ namespace Yes
 	class IModule
 	{
 	public:
-		virtual void InitializeModule() {};
-		virtual void Start() {}
+		virtual void InitializeModule() {}; //self initialization, other modules not ready
+		virtual void Start() {} // other module's InitializeModule called already
 	};
 }
 

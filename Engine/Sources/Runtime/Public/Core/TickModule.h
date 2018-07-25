@@ -14,11 +14,11 @@ namespace Yes
 		virtual void AddTickable(ITickable* tickable) = 0;
 		virtual void DelTickable(ITickable* tickable) = 0;
 		template<typename Functor, typename... Args>
-		inline void AddCallback(float delay, Args&&... args)
+		void AddCallback(float delay, Functor&& f, Args&&... args)
 		{
-			_AddCallback(delay, std::bind(std::forward<Args>(args)...));
+			_AddCallback(delay, std::bind(std::forward<Functor>(f), std::forward<Args>(args)...));
 		}
-		virtual void Execute() = 0;
+		virtual void Tick() = 0;
 	private:
 		virtual void _AddCallback(float delay, std::function<void()>&& f) = 0;
 	};
