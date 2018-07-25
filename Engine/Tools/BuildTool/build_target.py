@@ -8,12 +8,16 @@ SOURCE_SUFFIXES = re.compile(r".*\.cpp"),
 HEADER_SUFFIXES = re.compile(r".*\.h"),
 
 
+def is_parent_of(directory, path):
+    return os.path.join(path, "").startswith(os.path.join(directory, ""))
+
 class BuildTarget(object):
     def __init__(self, base_dir):
         self.is_library = True
         self.base_dir = base_dir
         self.dependencies = []
         self.public_dirs = []
+        self.excluded_paths = []
         # if has Public dir, use it as public include
         public_dir = os.path.join(base_dir, "Public")
         self.guid = uuid.uuid4()
@@ -23,19 +27,29 @@ class BuildTarget(object):
     def collect_source_files(self):
         headers = []
         sources = []
+        excluded_paths = [os.path.join(self.base_dir, p) for p in self.excluded_paths]
         for root, _, files in os.walk(self.base_dir):
             for fn in files:
                 ok = False
+                rp = os.path.join(root, fn)
+                # check if is excluded
+                should_skip = False
+                for epath in excluded_paths:
+                    if is_parent_of(epath, rp):
+                        should_skip = True
+                        break
+                if should_skip:
+                    continue
                 for pat in SOURCE_SUFFIXES:
                     if pat.match(fn):
-                        sources.append(os.path.join(root, fn))
+                        sources.append(rp)
                         ok = True
                         break
                 if ok:
                     continue
                 for pat in HEADER_SUFFIXES:
                     if pat.match(fn):
-                        headers.append(os.path.join(root, fn))
+                        headers.append(rp)
                         break
         return headers, sources
 
