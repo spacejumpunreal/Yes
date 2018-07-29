@@ -12,6 +12,15 @@ namespace Yes
 		char* end = start + sizeof(T);
 		std::fill(start, end, 0);
 	}
+	inline void FillN(void* dst, size_t n, void* pattern, size_t patternSize)
+	{
+		auto bdst = (uint8*)dst;
+		for (int i = 0; i < n; ++i)
+		{
+			memcpy(bdst, pattern, patternSize);
+			bdst += patternSize;
+		}
+	}
 
 	inline void Copy(void* from, void* to, size_t bytes)
 	{

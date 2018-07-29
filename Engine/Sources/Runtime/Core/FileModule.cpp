@@ -30,7 +30,7 @@ namespace Yes
 		{
 			return mBasePath + "/" + path;
 		}
-		virtual ByteBlob ReadFileContent(const char* path)
+		virtual SharedBufferRef ReadFileContent(const char* path)
 		{
 			auto pth = GetNativePath(path);
 			std::ifstream fs(pth, std::ios::binary | std::ios::ate);
@@ -38,8 +38,8 @@ namespace Yes
 			auto ed = fs.tellg();
 			fs.seekg(0, std::ios::beg);
 			auto todo = ed - fs.tellg();
-			ByteBlob blob(todo);
-			auto rp = (char*)&blob[0];
+			auto blob = new VectorSharedBuffer (todo);
+			auto rp = (char*)&(*blob)[0];
 			while (todo > 0)
 			{
 				fs.read(rp, todo);

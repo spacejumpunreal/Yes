@@ -3,6 +3,8 @@
 #include "Core/TickModule.h"
 #include "Misc/Time.h"
 
+#include "SWR.h"
+
 #include <cstdio>
 
 class TestTick : public Yes::ITickable

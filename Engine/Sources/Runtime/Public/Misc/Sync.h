@@ -1,5 +1,7 @@
 #pragma once
+#include "Misc/Debug.h"
 #include <mutex>
+#include <condition_variable>
 
 namespace Yes
 {
@@ -94,6 +96,39 @@ namespace Yes
 			if (empty)
 				mReadCond.notify_one();
 		}
+	};
+	
+	class SyncPoint
+	{
+	public:
+		SyncPoint(size_t n)
+			: mToWait(n)
+		{
+			CheckDebug(n > 0);
+		}
+		void Sync()
+		{
+			std::unique_lock<std::mutex> lk(mLock);
+			CheckDebug(mToWait >= 1);
+			if (mToWait > 1)
+			{
+				--mToWait;
+				mCondition.wait(lk);
+				CheckDebug(mToWait == 0);
+				lk.unlock();
+			}
+			else
+			{
+				mToWait = 0;
+				lk.unlock();
+				mCondition.notify_all();
+			}
+		}
+
+	protected:
+		std::mutex mLock;
+		std::condition_variable mCondition;
+		size_t mToWait;
 	};
 
 }

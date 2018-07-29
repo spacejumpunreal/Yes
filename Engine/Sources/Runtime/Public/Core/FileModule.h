@@ -1,7 +1,7 @@
 #pragma once
 #include "Yes.h"
 #include "IModule.h"
-#include "Misc/Container.h"
+#include "Misc/SharedObject.h"
 
 namespace Yes
 {
@@ -9,6 +9,6 @@ namespace Yes
 	{
 		virtual void SetBasePath(const char* path) = 0;
 		virtual std::string GetNativePath(const char* path) = 0;
-		virtual ByteBlob ReadFileContent(const char* path) = 0;
+		virtual SharedBufferRef ReadFileContent(const char* path) = 0;
 	};
 }

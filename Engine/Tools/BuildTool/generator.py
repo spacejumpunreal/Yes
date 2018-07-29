@@ -184,6 +184,7 @@ class VS2017Generator(object):
                                 XmlNode("SDLCheck", "true"),
                                 XmlNode("ConformanceMode", "true"),
                                 XmlNode("AdditionalIncludeDirectories", ";".join(additional_include_directories)),
+                                XmlNode("LanguageStandard", "stdcpplatest"),
                             )),
                             XmlNode("Link", (
                                 XmlNode("EnableCOMDATFolding", "false" if is_debug else "true"),
@@ -238,7 +239,8 @@ class VS2017Generator(object):
                 children = []
                 for f in files:
                     rp = os.path.dirname(target.get_relative_path(f))
-                    used_filters.add(rp)
+                    if rp:
+                        used_filters.add(rp)
                     children.append(XmlNode(tag, (
                         XmlNode("Filter", rp),
                     ), {"Include": os.path.relpath(f, self._build_dir)}))

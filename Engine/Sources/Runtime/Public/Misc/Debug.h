@@ -24,3 +24,9 @@ namespace Yes
 	}
 }
 
+#define CheckAlways(cond, ...) Check(__VA_ARGS__)
+#ifdef NDEBUG
+#define CheckDebug(...) 
+#else
+#define CheckDebug(cond, ...) Check(cond, __VA_ARGS__)
+#endif
