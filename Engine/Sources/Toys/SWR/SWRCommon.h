@@ -35,8 +35,10 @@ namespace Yes::SWR
 	}
 
 	class SWRJobSystem;
+	class SWRTileBuffer;
 	struct DeviceCore
 	{
 		SWRJobSystem* JobSystem;
+		SWRTileBuffer* TileBuffer;
 	};
 }

@@ -38,7 +38,7 @@ namespace Yes
 			auto ed = fs.tellg();
 			fs.seekg(0, std::ios::beg);
 			auto todo = ed - fs.tellg();
-			auto blob = new VectorSharedBuffer (todo);
+			auto blob = new VectorSharedBuffer<uint8>(todo);
 			auto rp = (char*)&(*blob)[0];
 			while (todo > 0)
 			{

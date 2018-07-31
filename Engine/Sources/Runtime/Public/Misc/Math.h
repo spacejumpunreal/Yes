@@ -98,8 +98,8 @@ namespace Yes
 	};
 	typedef Vector4<float> V4F;
 	typedef Vector4<int32> V4I;
-	static_assert(sizeof(V4F) == 16, "sizeof(V3F) == 16");
-	static_assert(sizeof(V4I) == 16, "sizeof(V3I) == 16");
+	static_assert(sizeof(V4F) == 16, "sizeof(V4F) == 16");
+	static_assert(sizeof(V4I) == 16, "sizeof(V4I) == 16");
 
 	template<typename T>
 	struct Vector3

@@ -60,25 +60,22 @@ int main2()
 	DeviceDesc desc;
 	desc.BackBufferHeight = 800;
 	desc.BackBufferHeight = 600;
+	desc.TileCountU = 8;
+	desc.TileCountV = 4;
 	desc.NumThreads = 8;
 	auto dev = CreateSWRDevice(&desc);
 
-	dev->Test(10);
-	dev->Test(5);
+	dev->Test(1104);
+	dev->Test(2105);
+	dev->Test(3003);
 	dev->Test(-1);
-	dev->Test(4);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
+	dev->Test(4002);
+	dev->Test(5005);
+	dev->Test(6005);
 	dev->Test(-1);
-	dev->Test(-1);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
-	dev->Test(2);
+	//dev->Test(-1);
+	dev->Test(7003);
+
 	Yes::Sleep(9999);
 	return 0;
 }
@@ -103,13 +100,14 @@ int main()
 		VertexShaderDesc desc;
 		desc.InputStride = sizeof(VF_P3F_C3F);
 		desc.OutputStride = sizeof(VF_P3F_C3F);
+		desc.Function = TestVertexShader;
 		vs = dev->CreateVertexShader(&desc);
 		dev->VSSetShader(vs);
 	}
 	SWRHandle ps;
 	{
 		PixelShaderDesc desc;
-		desc.Function = TestPixelShader;
+		desc.Function = TestPixelShader;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 	}
 	dev->Draw();
 	dev->Present();

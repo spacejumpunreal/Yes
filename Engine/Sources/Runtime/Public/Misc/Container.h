@@ -73,19 +73,27 @@ namespace Yes
 		void* mData;
 	};
 
-	class VectorSharedBuffer : public ISharedBuffer, public std::vector<uint8>
+	template<typename T = uint8>
+	class VectorSharedBuffer : public ISharedBuffer, public std::vector<T>
 	{
 	public:
-		VectorSharedBuffer(size_t size)
-			: std::vector<uint8>(size)
+		VectorSharedBuffer(size_t size = 0)
+			: std::vector<T>(size)
+			, mUnitSize(sizeof(T))
 		{}
 		size_t GetSize()
 		{
-			return size();
+			return std::vector<T>::size() * mUnitSize;
 		}
 		void* GetData()
 		{
-			return data();
+			return std::vector<T>::data();
 		}
+		size_t GetCount()
+		{
+			return std::vector<T>::size();
+		}
+	private:
+		size_t mUnitSize;
 	};
 }

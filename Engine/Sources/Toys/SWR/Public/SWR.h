@@ -79,6 +79,8 @@ namespace Yes::SWR
 		size_t BackBufferWidth;
 		size_t BackBufferHeight;
 		size_t NumThreads;
+		size_t TileCountU;
+		size_t TileCountV;
 	};
 	SWRDevice* CreateSWRDevice(const DeviceDesc* desc);
 }

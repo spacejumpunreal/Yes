@@ -1,9 +1,13 @@
 #pragma once
 #include "Yes.h"
 #include "SWR.h"
+#include "SWRCommon.h"
 #include "SWRFrontEnd.h"
+#include "SWRTiles.h"
 #include "SWRShader.h"
 #include "SWRPipelineState.h"
+
+
 #include "Misc/Container.h"
 
 namespace Yes::SWR
@@ -25,10 +29,15 @@ namespace Yes::SWR
 		for (int i = 0; i < vCount; ++i)
 		{
 			vs->Function(vbd, imbd);
+			//do the divide by w thing
+			auto pos = (float*)imbd;
+			pos[0] /= pos[4];
+			pos[1] /= pos[4];
+			pos[2] /= pos[4];
 			vbd += vs->InputStride;
 			imbd += vs->OutputStride;
 		}
 		//2. foreach triangle, discard out of ndc ones, sort it to tiles
-
+		mDeviceCore->TileBuffer->BinTriangles(imb, mState, vs->OutputStride);
 	}
 }

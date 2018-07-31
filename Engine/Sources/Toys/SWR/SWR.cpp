@@ -5,6 +5,7 @@
 #include "SWRShader.h"
 #include "SWRPipelineState.h"
 #include "SWRFrontEnd.h"
+#include "SWRTiles.h"
 #include "SWRBackEnd.h"
 #include "SWRJob.h"
 
@@ -134,10 +135,8 @@ namespace Yes::SWR
 			//present related
 			, mPLimit(2)
 		{
-			mDeviceCore = DeviceCore
-			{ 
-				CreateSWRJobSystem(desc),
-			};
+			mDeviceCore.JobSystem = CreateSWRJobSystem(desc);
+			mDeviceCore.TileBuffer = CreateSWRTileBuffer(desc, mDeviceCore.JobSystem);
 		}
 
 #pragma region TEST
@@ -149,13 +148,30 @@ namespace Yes::SWR
 			}
 			else
 			{
-				mDeviceCore.JobSystem->PutBack([](int c)
+				auto js = mDeviceCore.JobSystem;
+				mDeviceCore.JobSystem->PutBack([js=js](int c)
 				{
-					for (int i = 0; i < c; ++i)
+					auto n = c / 1000;
+					auto needSub = (c / 100) % 2;
+					auto t = c % 100;
+					if (needSub)
 					{
-						printf("JobProgress:%d/%d\n", i, c);
+						js->PutFront([=]()
+						{
+							for (int i = 0; i < t / 2; ++i)
+							{
+								printf("SpawnedJobProgress(%d):%d/%d\n", n, i, t / 2);
+								Sleep(TimeDuration(0.5));
+							}
+						});
+					}
+					
+					for (int i = 0; i < t; ++i)
+					{
+						printf("JobProgress(%d):%d/%d\n", n, i, t);
 						Sleep(TimeDuration(0.5));
 					}
+
 				}, x);
 			}
 		}

@@ -1,71 +1,114 @@
 #pragma once
 #include "Yes.h"
 #include "SWRJob.h"
-#include "Misc/TaskQueue.h"
 #include "Misc/Sync.h"
 #include <thread>
+#include <deque>
 
 namespace Yes::SWR
 {
 	struct SWRJobSystemImp;
 	void _WorkerThread(size_t idx, SWRJobSystemImp* jobSystem);
-	
-	struct SharedSyncPoint : public SyncPoint, public SharedObject
+
+	struct SWRJobItem
 	{
-		SharedSyncPoint(size_t n)
-			: SyncPoint(n)
+	public:
+		std::function<void()> Function;
+		bool IsSync;
+	public:
+		SWRJobItem(std::function<void()>&& f)
+			: Function(f)
+			, IsSync(false)
 		{}
-		/*
-		void Destroy() override
-		{
-			printf("SharedSyncPoint destroyed");
-			SharedObject::Destroy();
-		}
-		*/
-	};
-	struct SyncJob
-	{
-		void operator()()
-		{
-			mSyncPoint->Sync();
-		}
-		TRef<SharedSyncPoint> mSyncPoint;
+
+		SWRJobItem()
+			: IsSync(true)
+		{}
 	};
 
-	struct SWRJobSystemImp : public SWRJobSystem, public TaskQueue
+	struct SWRJobSystemImp : public SWRJobSystem
 	{
 	public:
 		SWRJobSystemImp(const DeviceDesc* desc)
 			: mThreads(desc->NumThreads)
+			, mWaitCount(0)
 		{
 			for (size_t i = 0; i < desc->NumThreads; ++i)
 			{
 				mThreads[i] = std::thread(_WorkerThread, i, this);
 			}
 		}
-		void _Put(bool atBack, std::function<void()>&& f) override
+		void _PutBack(std::function<void()>&& f) override
 		{
-			TaskQueue::Put(atBack, std::forward<std::function<void()>>(f));
-		}
-		void PutSyncPoint() override
-		{
-			size_t nThreads = mThreads.size();
-			TRef<SharedSyncPoint> sp(new SharedSyncPoint(nThreads));
-			auto jobs = new SyncJob[mThreads.size()];
-			for (int i = 0; i < mThreads.size(); ++i)
 			{
-				jobs[i].mSyncPoint = sp;
+				std::lock_guard<std::mutex> lk(mLock);
+				mTasks.emplace_back(std::move(f));
 			}
-			TaskQueue::Put(true, &jobs[0], (&jobs[0]) + mThreads.size());
-			delete[] jobs;
+			mCondition.notify_one();
+		}
+		void _PutFront(std::function<void()>&& f) override
+		{
+			{
+				std::lock_guard<std::mutex> lk(mLock);
+				mTasks.emplace_front(std::move(f));
+			}
+			mCondition.notify_one();
+		}
+		void PutSyncPoint()
+		{
+			{
+				std::lock_guard<std::mutex> lk(mLock);
+				mTasks.emplace_back();
+			}
+			mCondition.notify_one();
+		}
+		void Execute()
+		{
+			while (true) //TODO should check a quit flag
+			{
+				std::unique_lock<std::mutex> lk(mLock);
+				if (mTasks.size() == 0)
+				{
+					++mWaitCount;
+					mCondition.wait(lk);
+					--mWaitCount;
+				}
+				if (mTasks.size() > 0)
+				{
+					if (mTasks[0].IsSync)
+					{
+						if (mWaitCount + 1 == mThreads.size())
+						{//all synced
+							mTasks.pop_front();
+							lk.unlock();
+							mCondition.notify_all();
+						}
+						else
+						{// can't just continue the loop, it won't stop there
+							++mWaitCount;
+							mCondition.wait(lk);
+							--mWaitCount;
+						}
+					}
+					else
+					{//there is a real job
+						auto f = std::move(mTasks.front().Function);
+						mTasks.pop_front();
+						lk.unlock();
+						f();
+					}
+				}
+			}
 		}
 		void Test(int x)
 		{
-			
 		}
 	protected:
-		std::vector<std::thread> mThreads;
-
+		std::mutex								mLock;
+		std::vector<std::thread>				mThreads;
+		std::deque<SWRJobItem>					mTasks;
+		std::condition_variable					mCondition;
+		int32									mWaitCount;
 		friend void _WorkerThread(size_t idx, SWRJobSystemImp* jobSystem)
 		{
 			jobSystem->Execute();
