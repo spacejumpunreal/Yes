@@ -146,7 +146,7 @@ namespace Yes::SWR
 		SWRTileQueue* mQueues;
 		SWRJobSystem* mJobSystem;
 
-		friend SWRRSTask;
+		friend class SWRRSTask;
 	};
 	SWRTileBuffer * CreateSWRTileBuffer(const DeviceDesc * desc, SWRJobSystem* jobSystem)
 	{

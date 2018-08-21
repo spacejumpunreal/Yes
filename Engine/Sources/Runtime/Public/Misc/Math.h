@@ -7,6 +7,46 @@ namespace Yes
 	const float PI = 3.14159f;
 	const float HalfPI = PI / 2.0f;
 
+
+	// miscellaneous functions
+	template<typename T>
+	T Abs(const T x)
+	{
+		if (x < 0)
+			return -x;
+		return x;
+	}
+#define BODY_FOR_FUNCTION(funcname)\
+	if constexpr (std::is_same_v<T, float>)\
+	{\
+		return std::funcname##f(x);\
+	}\
+	if constexpr (std::is_same_v<T, double>)\
+	{\
+		return std::funcname(x);\
+	}
+	template<typename T>
+	inline T Cos(T x)
+	{
+		BODY_FOR_FUNCTION(cos)
+	}
+	template<typename T>
+	inline T Sin(T x)
+	{
+		BODY_FOR_FUNCTION(sin)
+	}
+	template<typename T>
+	inline T Tan(T x)
+	{
+		BODY_FOR_FUNCTION(tan)
+	}
+	template<typename T>
+	inline T Cot(T x)
+	{
+		return 1.0f / Tan(x);
+	}
+#undef BODY_FOR_FUNCTION
+
 	template<typename T> struct Vector3;
 
 	// Geometry types
@@ -415,45 +455,6 @@ namespace Yes
 		uint8_t a;
 	};
 	static_assert(sizeof(RGBA) == 4, "size of RGBA should be 32bits");
-
-	// miscellaneous functions
-	template<typename T>
-	T Abs(const T x)
-	{
-		if (x < 0)
-			return -x;
-		return x;
-	}
-#define BODY_FOR_FUNCTION(funcname)\
-	if constexpr (std::is_same_v<T, float>)\
-	{\
-		return std::funcname##f(x);\
-	}\
-	if constexpr (std::is_same_v<T, double>)\
-	{\
-		return std::funcname(x);\
-	}
-	template<typename T>
-	inline T Cos(T x)
-	{
-		BODY_FOR_FUNCTION(cos)
-	}
-	template<typename T>
-	inline T Sin(T x)
-	{
-		BODY_FOR_FUNCTION(sin)
-	}
-	template<typename T>
-	inline T Tan(T x)
-	{
-		BODY_FOR_FUNCTION(tan)
-	}
-	template<typename T>
-	inline T Cot(T x)
-	{
-		return 1.0f / Tan(x);
-	}
-#undef BODY_FOR_FUNCTION
 }
 
 //useful macros
