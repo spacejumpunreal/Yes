@@ -6,6 +6,7 @@
 #include "SWRPipelineState.h"
 #include "SWRFrontEnd.h"
 #include "SWRTiles.h"
+#include "SWRRasterizer.h"
 #include "SWRBackEnd.h"
 #include "SWRJob.h"
 
@@ -137,6 +138,7 @@ namespace Yes::SWR
 		{
 			mDeviceCore.JobSystem = CreateSWRJobSystem(desc);
 			mDeviceCore.TileBuffer = CreateSWRTileBuffer(desc, mDeviceCore.JobSystem);
+			mDeviceCore.Rasterizer = CreateSWRRasterizer(desc, mDeviceCore.JobSystem);
 		}
 
 #pragma region TEST

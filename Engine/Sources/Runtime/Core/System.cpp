@@ -5,6 +5,7 @@
 #include "Misc/Time.h"
 
 #include "Core/ModuleRegistry.h"
+#include "Core/MemoryModule.h"
 #include "Core/FileModule.h"
 #include "Core/TickModule.h"
 
@@ -29,6 +30,7 @@ namespace Yes
 		: mPrivate(pData)
 	{
 		GSystem = this;
+		ADD_MODULE(MemoryModule);
 		ADD_MODULE(FileModule);
 		ADD_MODULE(TickModule);
 	}

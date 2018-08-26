@@ -36,9 +36,11 @@ namespace Yes::SWR
 
 	class SWRJobSystem;
 	class SWRTileBuffer;
+	class SWRRasterizer;
 	struct DeviceCore
 	{
 		SWRJobSystem* JobSystem;
 		SWRTileBuffer* TileBuffer;
+		SWRRasterizer* Rasterizer;
 	};
 }

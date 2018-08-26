@@ -76,7 +76,8 @@ namespace Yes::SWR
 			auto d = (uint8*)imb->GetData();
 			auto ed = d + imb->GetSize();
 			auto nTriangles = (uint16)((ed - d) / (stride * 3));
-			
+			//TODO:use some sort of static thread local storage?
+			//each tile may have a triangle index buffer(contain triangle indexes that belong to this tile)
 			auto p2v = new VectorSharedBuffer<uint16>*[mTileCountU * mTileCountV];
 			auto fp = (float*)d;
 			for (uint16 tri = 0; tri < nTriangles; ++tri)
@@ -99,7 +100,7 @@ namespace Yes::SWR
 					minV = std::min(minV, pos[i].y);
 					maxV = std::max(maxV, pos[i].y);
 				}
-				//TODO:if any bad things happened, we add some more space here
+				//min max UV to min max tile index
 				int32 startTileU = std::max(0, (int32)(minU * mTileCountU));
 				int32 endTileU = std::min(mTileCountU - 1, (int32)(maxU * mTileCountU));
 				int32 startTileV = std::max(0, (int32)(minV * mTileCountV));
@@ -138,6 +139,7 @@ namespace Yes::SWR
 					}
 				}
 			}
+			delete p2v;
 		}
 	protected:
 		int32 mTileCountU;

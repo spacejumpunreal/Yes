@@ -17,12 +17,15 @@
 #include <iostream>
 #include <fstream>
 
+#include <atomic>
+#include <mutex>
 #include <thread>
+
 #include <memory>
 #include <limits>
 #include <functional>
 
-#include <mutex>
+
 
 //typedef
 using uint = unsigned int;

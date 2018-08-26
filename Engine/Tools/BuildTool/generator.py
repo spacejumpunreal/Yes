@@ -235,12 +235,18 @@ class VS2017Generator(object):
             # write filter file
 
             used_filters = set()
+            def add_all_parents_for_path(pth, st):
+                while pth:
+                    st.add(pth)
+                    pth = os.path.dirname(pth)
+                return st
+
             def create_item_group_with_filter(tag, files):
                 children = []
                 for f in files:
                     rp = os.path.dirname(target.get_relative_path(f))
                     if rp:
-                        used_filters.add(rp)
+                        add_all_parents_for_path(rp, used_filters)
                     children.append(XmlNode(tag, (
                         XmlNode("Filter", rp),
                     ), {"Include": os.path.relpath(f, self._build_dir)}))
