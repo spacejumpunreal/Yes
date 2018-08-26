@@ -10,5 +10,6 @@ namespace Yes
 		virtual void Deallocate(size_t sz, void* ptr) = 0;
 		virtual size_t GetUsed() = 0;
 		virtual size_t GetReserved() = 0;
+		virtual ~IAllocator() {}
 	};
 }

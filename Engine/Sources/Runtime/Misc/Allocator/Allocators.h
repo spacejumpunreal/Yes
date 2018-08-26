@@ -6,9 +6,19 @@ namespace Yes
 {
 	class FrameAllocator : public IAllocator
 	{
+	public:
+		FrameAllocator(size_t reservedSize)
+		{
 
+		}
+	protected:
+		uint64* mBuffer;
 	};
 
+	struct AllocationHeader
+	{
+		size_t Size;
+	};
 	//all allocations are tracked and sent to malloc and free
 	class LowLevelAllocator : public IAllocator
 	{
@@ -16,12 +26,15 @@ namespace Yes
 		virtual void* Allocate(size_t sz)
 		{
 			mUsed += sz;
-			return malloc(sz);
+			auto p = (AllocationHeader*)_aligned_malloc(sizeof(AllocationHeader) + sz);
+			p->Size = sz;
+			return p + 1;
 		}
-		virtual void Deallocate(size_t sz, void* ptr)
+		virtual void Deallocate(void* ptr)
 		{
-			mUsed -= sz;
-			free(ptr);
+			auto p = ((AllocationHeader*)ptr) - 1;
+			size_t sz = p->Size;
+			_aligned_free(p);
 		}
 		virtual size_t GetUsed()
 		{
@@ -32,6 +45,6 @@ namespace Yes
 			return mUsed;
 		}
 	private:
-		std::atomic<int32> mUsed;
+		std::atomic<size_t> mUsed;
 	};
 }

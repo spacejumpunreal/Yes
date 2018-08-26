@@ -171,6 +171,7 @@ class VS2017Generator(object):
             all_deps = self.get_all_dependencies(target)
             additional_include_directories = [
                 os.path.relpath(d, self._build_dir) for t in all_deps for d in t.public_dirs]
+            additional_include_directories.append(os.path.relpath(target.base_dir, self._build_dir))  # add self root
             additional_include_directories.append("%(AdditionalIncludeDirectories)")
             for c in Configurations:
                 for p in Platforms:
