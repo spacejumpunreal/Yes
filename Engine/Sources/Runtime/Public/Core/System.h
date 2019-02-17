@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Core/ModuleRegistry.h"
+
 namespace Yes
 {
 	const size_t MaxModuleCount = 128;
@@ -25,5 +27,5 @@ namespace Yes
 		SystemPrivateData *mPrivate;
 	};
 }
-#define ADD_MODULE(TYPE) Yes::GSystem->RegisterModule(EModuleRegistry::E##TYPE, Create##TYPE())
+#define ADD_MODULE(TYPE) Yes::GSystem->RegisterModule(Yes::EModuleRegistry::E##TYPE, Yes::Create##TYPE())
 #define GET_MODULE(TYPE) (dynamic_cast<Yes::TYPE*>(Yes::GSystem->GetModule(Yes::EModuleRegistry::E##TYPE)))

@@ -20,7 +20,6 @@ namespace Yes
 		}
 		virtual void InitializeModule()
 		{
-			mBasePath = "Resource";
 		}
 		virtual std::string GetNativePath(const char* path)
 		{

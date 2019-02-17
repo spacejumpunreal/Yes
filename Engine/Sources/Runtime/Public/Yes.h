@@ -1,5 +1,7 @@
 #pragma once
 
+#define NOMINMAX
+
 // includes
 #include <cstdarg>
 #include <cassert>

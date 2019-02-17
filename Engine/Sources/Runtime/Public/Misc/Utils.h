@@ -1,5 +1,6 @@
 #pragma once
 #include "Yes.h"
+#include "Debug.h"
 
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))
 
@@ -15,7 +16,7 @@ namespace Yes
 	inline void FillN(void* dst, size_t n, void* pattern, size_t patternSize)
 	{
 		auto bdst = (uint8*)dst;
-		for (int i = 0; i < n; ++i)
+		for (size_t i = 0; i < n; ++i)
 		{
 			memcpy(bdst, pattern, patternSize);
 			bdst += patternSize;
@@ -46,23 +47,66 @@ namespace Yes
 		{}
 		COMRef(T* t)
 			: mPtr(t)
-		{}
+		{
+			if (mPtr)
+			{
+				mPtr->AddRef();
+			}
+		}
+		COMRef(COMRef& comRef)
+			: mPtr(comRef.GetPtr())
+		{
+			if (mPtr)
+			{
+				mPtr->AddRef();
+			}
+		}
+		~COMRef()
+		{
+			_ReleaseCurrent();
+		}
 		T* operator->()
 		{
 			return mPtr;
 		}
-		void operator=(T* t)
+		COMRef<T>& operator=(T* t)
 		{
 			_ReleaseCurrent();
 			mPtr = t;
+			return *this;
+		}
+		COMRef<T>& operator=(COMRef<T>& other)
+		{
+			_ReleaseCurrent();
+			mPtr = other.mPtr;
+			return *this;
+		}
+		COMRef<T>& operator=(COMRef<T>&& other)
+		{
+			_ReleaseCurrent();
+			mPtr = other.mPtr;
+			other.mPtr = nullptr;
+			return *this;
 		}
 		T** operator&()
 		{
+			CheckAlways(mPtr == nullptr);
 			return &mPtr;
 		}
 		T* GetPtr()
 		{
 			return mPtr;
+		}
+		T* Detach()
+		{
+			T* tmp = mPtr;
+			mPtr = nullptr;
+			return tmp;
+		}
+		template<typename U>
+		HRESULT As(COMRef<U>& other)
+		{
+			return mPtr->QueryInterface(__uuidof(U), (void**)&other);
 		}
 	protected:
 		void _ReleaseCurrent()

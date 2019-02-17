@@ -1,4 +1,6 @@
+#if 0
 #pragma once
+
 #include "Yes.h"
 #include "Misc/IAllocator.h"
 
@@ -11,6 +13,8 @@ namespace Yes
 		{
 
 		}
+		virtual ~FrameAllocator()
+		{}
 	protected:
 		uint64* mBuffer;
 	};
@@ -26,7 +30,7 @@ namespace Yes
 		virtual void* Allocate(size_t sz)
 		{
 			mUsed += sz;
-			auto p = (AllocationHeader*)_aligned_malloc(sizeof(AllocationHeader) + sz);
+			auto p = (AllocationHeader*)_aligned_malloc(sizeof(AllocationHeader) + sz, );
 			p->Size = sz;
 			return p + 1;
 		}
@@ -44,7 +48,10 @@ namespace Yes
 		{
 			return mUsed;
 		}
+		virtual ~LowLevelAllocator()
+		{}
 	private:
 		std::atomic<size_t> mUsed;
 	};
 }
+#endif

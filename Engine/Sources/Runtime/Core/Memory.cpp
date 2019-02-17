@@ -1,6 +1,8 @@
+#if 0
+
 #include "Yes.h"
 #include "Core/Memory.h"
-#include "..\Public\Core\Memory.h"
+#include "../Public/Core/Memory.h"
 
 namespace Yes
 {
@@ -20,3 +22,4 @@ namespace Yes
 	}
 }
 
+#endif

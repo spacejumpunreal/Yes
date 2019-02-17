@@ -66,7 +66,7 @@ EndGlobal
 
 Configurations = ("Debug", "Release")
 Platforms = ("x64", "Win32")
-WindowSDKVersion = "10.0.16299.0"
+WindowSDKVersion = "10.0.17763.0"
 PlatformToolset = "v141"
 
 
@@ -173,6 +173,8 @@ class VS2017Generator(object):
                 os.path.relpath(d, self._build_dir) for t in all_deps for d in t.public_dirs]
             additional_include_directories.append(os.path.relpath(target.base_dir, self._build_dir))  # add self root
             additional_include_directories.append("%(AdditionalIncludeDirectories)")
+            additional_link_libs = ["d3d12.lib", "dxgi.lib", "d3dcompiler.lib"]
+            additional_link_libs.append("%(AdditionalDependencies)")
             for c in Configurations:
                 for p in Platforms:
                     is_debug = c == "Debug"
@@ -190,6 +192,7 @@ class VS2017Generator(object):
                             XmlNode("Link", (
                                 XmlNode("EnableCOMDATFolding", "false" if is_debug else "true"),
                                 XmlNode("OptimizeReferences", "false" if is_debug else "true"),
+                                XmlNode("AdditionalDependencies", ";".join(additional_link_libs))
                             )),
                         ), cd)
                     )

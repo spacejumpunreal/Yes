@@ -1,3 +1,5 @@
+#if 0
+
 #pragma once
 #include "Yes.h"
 #include "Core/System.h"
@@ -26,3 +28,5 @@ namespace Yes
 		YES_FREE(al, ptr);
 	}
 }
+
+#endif

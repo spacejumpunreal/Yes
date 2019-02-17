@@ -1,0 +1,37 @@
+- DX12 example module
+	- write sample code myself
+		- device initialize
+			- factory
+			- device
+			- swapchain
+			
+		- pipeline init
+			- command queue
+			- backbuffer views
+			- event
+			- command allocator
+			- command list
+		- resources initialize
+			- heap resource
+				- vertex buffer
+				- texture
+				- constant buffer?
+				- descriptor heap
+			- pipeline resource
+				- shader
+					- VS
+					- PS
+				- root signature
+				- PSO
+		- frame action
+			- wait for last frame complete
+			- update constant buffer
+			- reset command allocator
+			- encode commands
+			- set pso states
+		
+		
+- learn from unreal
+	- how to handle resource memory allocation
+	- RHICommandlist/API command list
+- architecture design

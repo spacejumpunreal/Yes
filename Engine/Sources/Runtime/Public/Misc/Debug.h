@@ -1,5 +1,11 @@
 #pragma once
 
+#include "Yes.h"
+
+#if YES_WINDOWS
+#include "Windows.h"
+#endif
+
 namespace Yes
 {
 	template<typename T>
@@ -24,7 +30,8 @@ namespace Yes
 	}
 }
 
-#define CheckAlways(cond, ...) Check(__VA_ARGS__)
+#define CheckAlways(cond, ...) Check(cond, __VA_ARGS__)
+#define CheckSucceeded(cond, ...) Check(SUCCEEDED(cond), __VA_ARGS__)
 #ifdef NDEBUG
 #define CheckDebug(...) 
 #else

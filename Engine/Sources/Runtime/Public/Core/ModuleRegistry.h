@@ -8,6 +8,8 @@ namespace Yes
 		EJobModule,
 		ETickModule,
 		EFileModule,
+		EWindowsWindowModule,
+		EDX12Module,
 		EIntrisicModuleCount,
 	};
 }
