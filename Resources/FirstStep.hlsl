@@ -9,6 +9,12 @@
 //
 //*********************************************************
 
+cbuffer ConstnatBuffer : register(b0)
+{
+	float4 param0;
+	float4 param1;
+};
+
 struct VSInput
 {
 	float3 position : POSITION;
@@ -34,6 +40,7 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return float4(input.wpos.xy, 0.0f, 1.0f);
+	return param0 / param1.w;
+	//return float4(input.wpos.xy, 0.0f, 1.0f);
 	//return float4(1, 1, 1, 1);
 }

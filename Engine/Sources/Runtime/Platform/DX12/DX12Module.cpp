@@ -16,6 +16,11 @@
 
 namespace Yes
 {
+	struct ConstantData
+	{
+		float param0[4];
+		float param1[4];
+	};
 	DEFINE_MODULE(DX12Module), public ITickable
 	{
 	private:
@@ -40,6 +45,9 @@ namespace Yes
 		//resource
 		COMRef<ID3D12Resource> mVertexBuffer;
 		D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
+		COMRef<ID3D12Resource> mConstantBuffer;
+		COMRef<ID3D12DescriptorHeap> mCBVHeap;
+		UINT8* mCBStart;
 
 		//fence
 		UINT64 mFenceValue;
@@ -47,6 +55,7 @@ namespace Yes
 		UINT mRTVDescriptorSize;
 		float mClearColor[4];
 		int mFrameCounts;
+		int mFrameIdx;
 	private:
 		void InitDevice()
 		{
@@ -146,12 +155,29 @@ namespace Yes
 
 			//create root signature
 			{
-				CD3DX12_ROOT_SIGNATURE_DESC desc;
-				desc.Init(0, nullptr, 0, nullptr, D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT);
+				//TODO
+				D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
+				featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_1;
+				if (FAILED(mDevice->CheckFeatureSupport(D3D12_FEATURE_ROOT_SIGNATURE, &featureData, sizeof(featureData))))
+				{
+					featureData.HighestVersion = D3D_ROOT_SIGNATURE_VERSION_1_0;
+				}
+				const UINT nRootParams = 1;
+				CD3DX12_DESCRIPTOR_RANGE1 ranges[1];
+				CD3DX12_ROOT_PARAMETER1 rootParameters[nRootParams];
+				ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC);
+				rootParameters[0].InitAsDescriptorTable(1, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
+				CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 
-				COMRef<ID3DBlob> signature;
-				COMRef<ID3DBlob> error;
-				CheckSucceeded(D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &signature, &error));
+				D3D12_ROOT_SIGNATURE_FLAGS rootSignatureFlags =
+					D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
+					| D3D12_ROOT_SIGNATURE_FLAG_DENY_HULL_SHADER_ROOT_ACCESS
+					| D3D12_ROOT_SIGNATURE_FLAG_DENY_DOMAIN_SHADER_ROOT_ACCESS
+					| D3D12_ROOT_SIGNATURE_FLAG_DENY_GEOMETRY_SHADER_ROOT_ACCESS;
+				rootSignatureDesc.Init_1_1(nRootParams, rootParameters, 0, nullptr, rootSignatureFlags);
+
+				COMRef<ID3DBlob> signature, error;
+				CheckSucceeded(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 				CheckSucceeded(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
 			}
 
@@ -185,6 +211,7 @@ namespace Yes
 		}
 		void InitResources()
 		{
+			//vertex buffer
 			struct Vertex
 			{
 				float position[3];
@@ -223,6 +250,52 @@ namespace Yes
 				mVertexBufferView.StrideInBytes = sizeof(Vertex);
 				mVertexBufferView.SizeInBytes = vertexBufferSize;
 			}
+			//shader descriptor heap
+			{
+				D3D12_DESCRIPTOR_HEAP_DESC cbHeapDesc = {};
+				cbHeapDesc.NumDescriptors = 1;
+				cbHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+				cbHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+				CheckSucceeded(mDevice->CreateDescriptorHeap(&cbHeapDesc, IID_PPV_ARGS(&mCBVHeap)));
+			}
+			//constant buffer
+			{
+				UINT constantBufferSize = CalcConstantBufferSize<ConstantData>();
+				CheckSucceeded(mDevice->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					D3D12_HEAP_FLAG_NONE,
+					&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(&mConstantBuffer)));
+
+				D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
+				desc.BufferLocation = mConstantBuffer->GetGPUVirtualAddress();
+				desc.SizeInBytes = constantBufferSize;
+				mDevice->CreateConstantBufferView(&desc, mCBVHeap->GetCPUDescriptorHandleForHeapStart());
+			}
+		}
+		template<typename ConstantBufferStruct>
+		constexpr UINT CalcConstantBufferSize()
+		{
+			UINT sz = sizeof(ConstantBufferStruct);
+			UINT step = 256;
+			UINT mask = ~(step - 1);
+			return (sz + step - 1) & mask;
+		}
+		void UpdateConstantBuffer(int f)
+		{
+			const int limit = 256;
+			CD3DX12_RANGE readRange(0, 0);
+			CheckSucceeded(mConstantBuffer->Map(0, &readRange, (void**)&mCBStart));
+			ConstantData cd;
+			f = f % limit;
+			for (int i = 0; i < 8; ++i)
+			{
+				cd.param0[i] = (float)(f + i);
+			}
+			cd.param1[3] = (float)limit;
+			memcpy(mCBStart, &cd, CalcConstantBufferSize<ConstantData>());
 		}
 		void SyncGPU()
 		{
@@ -242,6 +315,10 @@ namespace Yes
 
 			UINT frameIndex = mSwapChain->GetCurrentBackBufferIndex();
 			mCommandList->SetGraphicsRootSignature(mRootSignature.GetPtr());
+			ID3D12DescriptorHeap* ppHeaps[] = { mCBVHeap.GetPtr() };
+			mCommandList->SetDescriptorHeaps(1, ppHeaps);
+			mCommandList->SetGraphicsRootDescriptorTable(0, mCBVHeap->GetGPUDescriptorHandleForHeapStart());
+
 			mCommandList->RSSetViewports(1, &mViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);
 			mCommandList->ResourceBarrier(
@@ -258,7 +335,8 @@ namespace Yes
 			mCommandList->DrawInstanced(6, 1, 0, 0);
 			mCommandList->ResourceBarrier(
 				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition(mBackbuffers[frameIndex].GetPtr(),
+				&CD3DX12_RESOURCE_BARRIER::Transition(
+					mBackbuffers[frameIndex].GetPtr(),
 					D3D12_RESOURCE_STATE_RENDER_TARGET,
 					D3D12_RESOURCE_STATE_PRESENT));
 			CheckSucceeded(mCommandList->Close());
@@ -268,6 +346,7 @@ namespace Yes
 		virtual void InitializeModule() override
 		{
 			mFrameCounts = 3;
+			mFrameIdx = 0;
 			mBackbuffers = new COMRef<ID3D12Resource>[mFrameCounts];
 			mClearColor[0] = 0.0f;
 			mClearColor[1] = 0.2f;
@@ -284,6 +363,8 @@ namespace Yes
 		}
 		virtual void Tick() override
 		{
+			++mFrameIdx;
+			UpdateConstantBuffer(mFrameIdx);
 			PopulateCommandList();
 			ID3D12CommandList* commandLists[] = { mCommandList.GetPtr() };
 			mCommandQueue->ExecuteCommandLists(ARRAY_COUNT(commandLists), commandLists);
