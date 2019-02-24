@@ -15,11 +15,15 @@ cbuffer ConstnatBuffer : register(b0)
 	float4 param1;
 };
 
+Texture2D m_texture : register(t0);
+SamplerState m_sampler : register(s0);
+
 struct VSInput
 {
 	float3 position : POSITION;
 	float2 uv : TEXCOORD;
 };
+
 struct PSInput
 {
     float4 position : SV_POSITION;
@@ -27,7 +31,6 @@ struct PSInput
     float2 uv : TEXCOORD1;
 };
 
-//PSInput VSMain(VSInput input)
 PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 {
     PSInput result;
@@ -40,7 +43,10 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return param0 / param1.w;
-	//return float4(input.wpos.xy, 0.0f, 1.0f);
-	//return float4(1, 1, 1, 1);
+	//return param0 / param1.w;
+	float2 uvOffset = input.uv;
+	float t = 0.01;
+	uvOffset.x = frac(sin(param0.x * t) + uvOffset.x);
+	uvOffset.y = frac(cos(param0.y * t) + uvOffset.y);
+	return m_texture.Sample(m_sampler, uvOffset);
 }
