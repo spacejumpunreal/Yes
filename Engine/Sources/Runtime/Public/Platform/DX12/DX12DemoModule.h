@@ -5,7 +5,7 @@
 
 namespace Yes
 {
-	DECLARE_MODULE(DX12Module)
+	DECLARE_MODULE(DX12DemoModule)
 	{
 	};
 }

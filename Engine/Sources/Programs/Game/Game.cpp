@@ -2,7 +2,7 @@
 #include "Core/ModuleRegistry.h"
 #include "Core/TickModule.h"
 #include "Platform/WindowsWindowModule.h"
-#include "Platform/DX12/DX12Module.h"
+#include "Platform/DX12/DX12DemoModule.h"
 #include "Core/FileModule.h"
 #include "Misc/Time.h"
 
@@ -35,7 +35,7 @@ int main()
 
 	auto sys = new Yes::System();
 	ADD_MODULE(WindowsWindowModule);
-	ADD_MODULE(DX12Module);
+	ADD_MODULE(DX12DemoModule);
 	Yes::FileModule* fileModule = GET_MODULE(FileModule);
 	fileModule->SetBasePath(R"(C:\checkout\Yes\Resources\)");
 	sys->Initialize();

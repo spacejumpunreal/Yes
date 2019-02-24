@@ -1,4 +1,4 @@
-#include "Platform/DX12/DX12Module.h"
+#include "Platform/DX12/DX12DemoModule.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Core/FileModule.h"
 #include "Core/TickModule.h"
@@ -21,7 +21,7 @@ namespace Yes
 		float param0[4];
 		float param1[4];
 	};
-	DEFINE_MODULE(DX12Module), public ITickable
+	DEFINE_MODULE(DX12DemoModule), public ITickable
 	{
 	private:
 		COMRef<IDXGISwapChain3> mSwapChain;
@@ -499,5 +499,5 @@ namespace Yes
 			SyncGPU();
 		}
 	};
-	DEFINE_MODULE_CREATOR(DX12Module);
+	DEFINE_MODULE_CREATOR(DX12DemoModule);
 }

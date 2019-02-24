@@ -10,6 +10,7 @@ namespace Yes
 		EFileModule,
 		EWindowsWindowModule,
 		EDX12Module,
+		EDX12DemoModule,
 		EIntrisicModuleCount,
 	};
 }

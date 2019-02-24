@@ -29,6 +29,33 @@
 			- reset command allocator
 			- encode commands
 			- set pso states
+	- 简单的render engine
+		- resource
+			- API
+				- asyc create
+				- check resource ready
+			- resource types
+				- material
+					- constants
+					- shader
+					- pso
+					- root signature
+				- texture
+				- mesh
+		- client framework
+			- prepare
+			- render
+		- 实现细节
+			- loop
+				- resource async create线程
+				- render+submit线程
+			- API 数据 descriptor heap
+				- 全局2个heap, 自己做version
+				- 用root constant来点出自己用的CB和Texture的start index
+			- material
+				- 单constant buffer
+				- 一个unbounded texture array
+				- 每个material一个
 		
 		
 - learn from unreal
