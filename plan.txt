@@ -52,6 +52,8 @@
 			- API 数据 descriptor heap
 				- 全局2个heap, 自己做version
 				- 用root constant来点出自己用的CB和Texture的start index
+			- resource memory allocation
+				- 用placed resource + 大heap
 			- material
 				- 单constant buffer
 				- 一个unbounded texture array
