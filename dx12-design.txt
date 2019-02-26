@@ -1,26 +1,28 @@
-# external API
+# function
 - 提供给外面什么功能？
 	- 能容易地表达渲染算法
 		- 比如shadowmap
 	- 资源创建
 		- 只要几行代码就行，外部不应改考虑Descriptor Heap
-		- 
-- events(user)
-	- OnRender()
-	- 不需要什么Prepare，因为资源创建是任何时候都可以进行并且纯异步的
-- resource(user)
-	- SimpleDX12Mesh
-	- SimpleDX12Texture
-	- SimpleDX12Shader
-	- SimpleDX12RenderTarget
-- draw API(user)
-	- drawcall
-		- mesh
-		- textures
-		- VS
-		- PS
-	- renderpass
-		- drawcall[]
-		- RenderTarget
+	- API抽象
+- 具体API
+	- events(user)
+		- OnRender()
+		- 不需要什么Prepare，因为资源创建是任何时候都可以进行并且纯异步的
+	- resource(user)
+		- RHIResourceMesh
+		- RHIResourceexture
+		- RHIResourceShader
+		- RHIResourceRenderTarget
+	- draw API(user)
+		- drawcall
+			- mesh
+			- textures
+			- constants
+			- VS
+			- PS
+		- renderpass
+			- drawcall[]
+			- RenderTarget
 
 # impl
