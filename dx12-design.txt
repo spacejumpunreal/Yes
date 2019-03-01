@@ -6,23 +6,23 @@
 		- 只要几行代码就行，外部不应改考虑Descriptor Heap
 	- API抽象
 - 具体API
-	- events(user)
-		- OnRender()
-		- 不需要什么Prepare，因为资源创建是任何时候都可以进行并且纯异步的
 	- resource(user)
-		- RHIResourceMesh
-		- RHIResourceexture
-		- RHIResourceShader
-		- RHIResourceRenderTarget
+		- RenderDeviceMesh
+		- RenderDeviceTexture
+		- RenderDeviceShader(VS/PS/RootSignature)
+		- RenderDeviceRenderTarget
+		- RenderDevicePSO
+		- RenderDeviceResource
 	- draw API(user)
-		- drawcall
+		- Drawcall
 			- mesh
 			- textures
 			- constants
-			- VS
-			- PS
-		- renderpass
-			- drawcall[]
+			- Shader(VS/PS/RootSignature)
+			- PSO
+		- ResourceTransition
+		- Renderpass
+			- GPUCommand[]
 			- RenderTarget
 
 # impl

@@ -1,5 +1,5 @@
 - DX12 example module
-	- write sample code myself
+	- write sample code myself 2.24 done
 		- device initialize
 			- factory
 			- device
@@ -58,8 +58,7 @@
 				- 单constant buffer
 				- 一个unbounded texture array
 				- 每个material一个
-		
-		
+- vulkan
 - learn from unreal
 	- how to handle resource memory allocation
 	- RHICommandlist/API command list
