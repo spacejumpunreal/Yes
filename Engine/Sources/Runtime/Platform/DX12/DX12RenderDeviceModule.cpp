@@ -25,9 +25,10 @@ namespace Yes
 		{
 			return RenderDeviceResourceRef();
 		}
-		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob) override
+		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
-			return RenderDeviceResourceRef();
+			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader(textBlob->GetData(), textBlob->GetSize(), registeredName);
+			return shader;
 		}
 		virtual RenderDeviceResourceRef CreateRenderTarget() override
 		{
@@ -120,12 +121,12 @@ namespace Yes
 				desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 				CheckSucceeded(mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mBackbufferHeap)));
 
-				CD3DX12_CPU_DESCRIPTOR_HANDLE heapStart(mBackbufferHeap->GetCPUDescriptorHandleForHeapStart());
+				CD3DX12_CPU_DESCRIPTOR_HANDLE heapPtr(mBackbufferHeap->GetCPUDescriptorHandleForHeapStart(), mRTVIncrementSize);
 				for (int i = 0; i < mFrameCounts; ++i)
 				{
-					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mBackbuffers[i])));
+					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&mBackBuffers[i])));
+					mDevice->CreateRenderTargetView(mBackBuffers[i].GetPtr(), nullptr, heapPtr);
 				}
-
 			}
 			
 		}
@@ -140,7 +141,7 @@ namespace Yes
 		COMRef<ID3D12CommandQueue> mCopyCommandQueue;
 
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
-		COMRef<ID3D12Resource> mBackbuffers;
+		COMRef<ID3D12Resource> mBackBuffers[3];
 
 		//descriptor consts
 		UINT mRTVIncrementSize;
@@ -151,35 +152,23 @@ namespace Yes
 		int mScreenWidth;
 		int mScreenHeight;
 
+
+	private:
+		class DX12RenderDeviceShader : public RenderDeviceShader
+		{
+			DX12RenderDeviceShader(const char* body, size_t size, const char* name)
+			{
+				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
+				mVS = DoCompileShader(body, size, name, "VSMain", "vs_5_0", compileFlags);
+				mPS = DoCompileShader(body, size, name, "PSMain", "ps_5_0", compileFlags);
+			}
+			COMRef<ID3DBlob> mVS;
+			COMRef<ID3DBlob> mPS;
+		};
+
 	};
 	IModule* CreateDX12RenderDeviceModule()
 	{
 		return new DX12RenderDeviceModule();
-	}
-	RenderDeviceResourceRef DX12RenderDeviceModule::CreateMeshSimple(SharedBufferRef& meshBlob)
-	{
-		return RenderDeviceResourceRef();
-	}
-	RenderDeviceResourceRef DX12RenderDeviceModule::CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef & vs, RenderDeviceResourceRef & ps)
-	{
-		return RenderDeviceResourceRef();
-	}
-	RenderDeviceResourceRef DX12RenderDeviceModule::CreateShaderSimple(SharedBufferRef& textBlob)
-	{
-		return RenderDeviceResourceRef();
-	}
-	RenderDeviceResourceRef DX12RenderDeviceModule::CreateRenderTarget()
-	{
-		return RenderDeviceResourceRef();
-	}
-	RenderDeviceResourceRef DX12RenderDeviceModule::CreteTextureSimple()
-	{
-		return RenderDeviceResourceRef();
-	}
-	void DX12RenderDeviceModule::BeginFrame()
-	{
-	}
-	void DX12RenderDeviceModule::EndFrame()
-	{
 	}
 }

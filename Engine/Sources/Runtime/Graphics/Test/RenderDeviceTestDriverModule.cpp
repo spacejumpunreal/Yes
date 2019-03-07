@@ -23,7 +23,7 @@ namespace Yes
 		{
 			TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);
-			mDevice = (RenderDevice*)GET_MODULE(DX12RenderDeviceModule);
+			mDevice = GET_MODULE_AS(RenderDevice, DX12RenderDeviceModule);
 			mFileModule = GET_MODULE(FileModule);
 		}
 		virtual void Tick() override
@@ -42,11 +42,11 @@ namespace Yes
 				SharedBufferRef shaderContent = mFileModule->ReadFileContent("FirstStep.hlsl");
 				mShader = mDevice->CreateShaderSimple(shaderContent);
 			}
-			//mDevice->CreateShaderSimple(&x);
+			//PSO
 			//Mesh
 			//Texture
 			//ConstantBuffer
-			//PSO
+			
 		}
 		
 		void Update()

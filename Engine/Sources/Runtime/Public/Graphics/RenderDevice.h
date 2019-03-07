@@ -26,7 +26,10 @@ namespace Yes
 	{
 
 	};
+	class RenderDeviceShader
+	{
 
+	};
 	class RenderDeviceCommand
 	{
 		virtual void Reset() = 0;
@@ -48,7 +51,7 @@ namespace Yes
 		//Resource related
 		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) = 0;
 		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef& vs, RenderDeviceResourceRef& ps) = 0;
-		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob) = 0;
+		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
 		virtual RenderDeviceResourceRef CreateRenderTarget() = 0;
 		virtual RenderDeviceResourceRef CreteTextureSimple() = 0;
 

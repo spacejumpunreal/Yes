@@ -29,3 +29,4 @@ namespace Yes
 }
 #define ADD_MODULE(TYPE) Yes::GSystem->RegisterModule(Yes::EModuleRegistry::E##TYPE, Yes::Create##TYPE())
 #define GET_MODULE(TYPE) (dynamic_cast<Yes::TYPE*>(Yes::GSystem->GetModule(Yes::EModuleRegistry::E##TYPE)))
+#define GET_MODULE_AS(TYPE, NAME) (dynamic_cast<Yes::TYPE*>(Yes::GSystem->GetModule(Yes::EModuleRegistry::E##NAME)))
