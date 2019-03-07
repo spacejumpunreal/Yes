@@ -9,7 +9,8 @@ namespace Yes
 		ETickModule,
 		EFileModule,
 		EWindowsWindowModule,
-		EDX12Module,
+		EDX12RenderDeviceModule,
+		ERenderDeviceTestDriverModule,
 		EDX12DemoModule,
 		EIntrisicModuleCount,
 	};

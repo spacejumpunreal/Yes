@@ -20,3 +20,11 @@ namespace Yes
 	}
 
 #define DECLARE_MODULE(ModuleName) IModule* Create##ModuleName(); struct ModuleName : public IModule
+
+
+#define DEFINE_MODULE_CREATOR1(ModuleName) \
+	IModule* Create##ModuleName()\
+	{\
+		return new ModuleName();\
+	}
+#define DECLARE_MODULE_CREATOR(ModuleName) IModule* Create##ModuleName();

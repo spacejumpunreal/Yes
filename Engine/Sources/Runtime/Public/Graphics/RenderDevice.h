@@ -5,7 +5,6 @@
 
 namespace Yes
 {
-	using RenderDeviceResourceRef = RenderDeviceResourceRef;
 	class RenderDeviceResource : public SharedObject
 	{
 	public:
@@ -13,6 +12,7 @@ namespace Yes
 		virtual ~RenderDeviceResource() = 0;
 		virtual bool IsReady() = 0; // check if is ready to use
 	};
+	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;
 	typedef enum class VertexFormat : byte
 	{
 		VF_P3F_T2F,
@@ -46,15 +46,15 @@ namespace Yes
 	{
 	public:
 		//Resource related
-		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef meshBlob);
-		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef& vs, RenderDeviceResourceRef& ps);
-		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef textBlob);
-		virtual RenderDeviceResourceRef CreateRenderTarget();
-		virtual RenderDeviceResourceRef CreteTextureSimple();
+		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) = 0;
+		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef& vs, RenderDeviceResourceRef& ps) = 0;
+		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob) = 0;
+		virtual RenderDeviceResourceRef CreateRenderTarget() = 0;
+		virtual RenderDeviceResourceRef CreteTextureSimple() = 0;
 
 		//Command related
-		virtual void BeginFrame();
-		virtual void EndFrame();
+		virtual void BeginFrame() = 0;
+		virtual void EndFrame() = 0;
 		virtual RenderDevicePass* AllocPass() = 0;
 		virtual RenderDeviceDrawcall* AllocDrawcall() = 0;
 		virtual RenderDeviceBarrier* AllocBarrier() = 0;

@@ -3,6 +3,8 @@
 #include "Core/TickModule.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Platform/DX12/DX12DemoModule.h"
+#include "Platform/DX12/DX12RenderDeviceModule.h"
+#include "Graphics/Test/RenderDeviceTestDriverModule.h"
 #include "Core/FileModule.h"
 #include "Misc/Time.h"
 
@@ -30,12 +32,14 @@ void func()
 		tickModule->AddCallback(1, &func);
 	}
 }
+
 int main()
 {
 
 	auto sys = new Yes::System();
 	ADD_MODULE(WindowsWindowModule);
-	ADD_MODULE(DX12DemoModule);
+	ADD_MODULE(DX12RenderDeviceModule);
+	ADD_MODULE(RenderDeviceTestDriverModule);
 	Yes::FileModule* fileModule = GET_MODULE(FileModule);
 	fileModule->SetBasePath(R"(C:\checkout\Yes\Resources\)");
 	sys->Initialize();
