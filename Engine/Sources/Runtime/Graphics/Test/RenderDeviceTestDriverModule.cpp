@@ -40,7 +40,7 @@ namespace Yes
 			//Shader
 			{
 				SharedBufferRef shaderContent = mFileModule->ReadFileContent("FirstStep.hlsl");
-				mShader = mDevice->CreateShaderSimple(shaderContent);
+				mShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
 			}
 			//PSO
 			//Mesh

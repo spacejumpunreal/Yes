@@ -6,6 +6,6 @@
 
 namespace Yes
 {
-	IModule* CreateDX12RenderDeviceModule();
 	class DX12RenderDeviceModule;
+	DECLARE_MODULE_CLASS(DX12RenderDeviceModule);
 }

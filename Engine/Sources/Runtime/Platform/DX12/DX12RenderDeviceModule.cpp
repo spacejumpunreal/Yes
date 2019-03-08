@@ -15,6 +15,8 @@ namespace Yes
 {
 	class DX12RenderDeviceModule : public IModule, public RenderDevice
 	{
+		//forward declarations
+		class DX12RenderDeviceShader;
 	public:
 		//Resource related
 		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) override
@@ -27,7 +29,7 @@ namespace Yes
 		}
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
-			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader(textBlob->GetData(), textBlob->GetSize(), registeredName);
+			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader((const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
 		virtual RenderDeviceResourceRef CreateRenderTarget() override
@@ -143,6 +145,9 @@ namespace Yes
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		COMRef<ID3D12Resource> mBackBuffers[3];
 
+		//shader management related
+		std::unordered_map<std::string, COMRef<DX12RenderDeviceShader>> mShaderMap;
+
 		//descriptor consts
 		UINT mRTVIncrementSize;
 		UINT mSRVIncrementSize;
@@ -156,19 +161,25 @@ namespace Yes
 	private:
 		class DX12RenderDeviceShader : public RenderDeviceShader
 		{
+		public:
 			DX12RenderDeviceShader(const char* body, size_t size, const char* name)
 			{
 				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 				mVS = DoCompileShader(body, size, name, "VSMain", "vs_5_0", compileFlags);
 				mPS = DoCompileShader(body, size, name, "PSMain", "ps_5_0", compileFlags);
 			}
+			bool IsReady() override
+			{
+				return true;
+			}
+			~DX12RenderDeviceShader() override
+			{
+
+			}
 			COMRef<ID3DBlob> mVS;
 			COMRef<ID3DBlob> mPS;
 		};
 
 	};
-	IModule* CreateDX12RenderDeviceModule()
-	{
-		return new DX12RenderDeviceModule();
-	}
+	DEFINE_MODULE_CLASS(DX12RenderDeviceModule);
 }

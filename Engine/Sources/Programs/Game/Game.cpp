@@ -38,7 +38,7 @@ int main()
 
 	auto sys = new Yes::System();
 	ADD_MODULE(WindowsWindowModule);
-	ADD_MODULE(DX12RenderDeviceModule);
+	ADD_MODULE2(DX12RenderDeviceModule);
 	ADD_MODULE(RenderDeviceTestDriverModule);
 	Yes::FileModule* fileModule = GET_MODULE(FileModule);
 	fileModule->SetBasePath(R"(C:\checkout\Yes\Resources\)");

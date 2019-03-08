@@ -2,16 +2,11 @@
 
 namespace Yes
 {
-	enum class EModuleRegistry : int
+	class System;
+	using ModuleCreatorFunction = IModule* (*)(System* system);
+	struct ModuleRegistry
 	{
-		EMemoryModule,
-		EJobModule,
-		ETickModule,
-		EFileModule,
-		EWindowsWindowModule,
-		EDX12RenderDeviceModule,
-		ERenderDeviceTestDriverModule,
-		EDX12DemoModule,
-		EIntrisicModuleCount,
+		const char* Name;
+		ModuleCreatorFunction CreatorFunction;
 	};
 }

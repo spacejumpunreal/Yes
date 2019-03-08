@@ -8,6 +8,8 @@ namespace Yes
 		virtual void InitializeModule() {}; //self initialization, other modules not ready
 		virtual void Start() {} // other module's InitializeModule called already
 	};
+	template<typename ModuleType>
+	ModuleType* CreateModule();
 }
 
 #define DEFINE_MODULE(ModuleName) \
@@ -28,3 +30,18 @@ namespace Yes
 		return new ModuleName();\
 	}
 #define DECLARE_MODULE_CREATOR(ModuleName) IModule* Create##ModuleName();
+
+
+
+#define DECLARE_MODULE_CLASS(ClassName)
+	template<>\
+	ClassName* CreateModule<ClassName>()
+
+#define DEFINE_MODULE_CLASS(ClassName)\
+	static ClassName* gClassInstance;\
+	template<>\
+	ClassName* CreateModule<ClassName>()\
+	{\
+		return new ClassName();\
+	}
+	

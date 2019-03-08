@@ -26,7 +26,7 @@ namespace Yes
 	{
 
 	};
-	class RenderDeviceShader
+	class RenderDeviceShader : public RenderDeviceResource
 	{
 
 	};
