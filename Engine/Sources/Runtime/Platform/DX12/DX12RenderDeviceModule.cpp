@@ -23,13 +23,20 @@ namespace Yes
 		{
 			return RenderDeviceResourceRef();
 		}
-		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef& vs, RenderDeviceResourceRef& ps) override
+		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef&) override
 		{
-			return RenderDeviceResourceRef();
+			return {};
 		}
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
+			std::string name(registeredName);
+			auto it = mShaderMap.find(name);
+			if (it != mShaderMap.end())
+			{
+				return it->second.GetPtr();
+			}
 			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader((const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
+			mShaderMap.insert(std::make_pair(name, shader));
 			return shader;
 		}
 		virtual RenderDeviceResourceRef CreateRenderTarget() override
@@ -146,7 +153,10 @@ namespace Yes
 		COMRef<ID3D12Resource> mBackBuffers[3];
 
 		//shader management related
-		std::unordered_map<std::string, COMRef<DX12RenderDeviceShader>> mShaderMap;
+		std::unordered_map<std::string, TRef<RenderDeviceResource>> mShaderMap;
+
+		//PSO cache
+		static const int wa= sizeof(D3D12_SHADER_BYTECODE);
 
 		//descriptor consts
 		UINT mRTVIncrementSize;
@@ -174,7 +184,7 @@ namespace Yes
 			}
 			~DX12RenderDeviceShader() override
 			{
-
+				CheckAlways(false);//not suppose to delete shader
 			}
 			COMRef<ID3DBlob> mVS;
 			COMRef<ID3DBlob> mPS;

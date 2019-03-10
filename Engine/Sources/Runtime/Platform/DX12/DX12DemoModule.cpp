@@ -38,6 +38,7 @@ namespace Yes
 		COMRef<ID3DBlob> mVS;
 		COMRef<ID3DBlob> mPS;
 		COMRef<ID3D12RootSignature> mRootSignature;
+		COMRef<ID3D12RootSignature> mRootSignature11;
 		COMRef<ID3D12PipelineState> mPipelineState;
 		CD3DX12_VIEWPORT mViewport;
 		CD3DX12_RECT mScissorRect;
@@ -47,6 +48,7 @@ namespace Yes
 		D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
 		COMRef<ID3D12Resource> mConstantBuffer;
 		COMRef<ID3D12DescriptorHeap> mSRVHeap;
+		const int HeapSize = 32;
 		UINT8* mCBStart;
 
 		COMRef<ID3D12Resource> mTexture;
@@ -56,6 +58,7 @@ namespace Yes
 		UINT64 mFenceValue;
 
 		UINT mRTVDescriptorSize;
+		UINT mSRVDescriptorSize;
 		float mClearColor[4];
 		int mFrameCounts;
 		int mFrameIdx;
@@ -108,6 +111,7 @@ namespace Yes
 
 			mFenceValue = 1;
 			mRTVDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
+			mSRVDescriptorSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		}
 		void InitPipeline()
 		{
@@ -147,8 +151,8 @@ namespace Yes
 			const char* shaderFileName = "FirstStep.hlsl";
 			SharedBufferRef shaderText = fm->ReadFileContent(shaderFileName);
 			UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-			mVS = DoCompileShader((const char*)shaderText->GetData(), shaderText->GetSize(), shaderFileName, "VSMain", "vs_5_0", compileFlags);
-			mPS = DoCompileShader((const char*)shaderText->GetData(), shaderText->GetSize(), shaderFileName, "PSMain", "ps_5_0", compileFlags);
+			mVS = DoCompileShader((const char*)shaderText->GetData(), shaderText->GetSize(), shaderFileName, "VSMain", "vs_5_1", compileFlags);
+			mPS = DoCompileShader((const char*)shaderText->GetData(), shaderText->GetSize(), shaderFileName, "PSMain", "ps_5_1", compileFlags);
 			// Define the vertex input layout.
 			D3D12_INPUT_ELEMENT_DESC inputElementDescs[] =
 			{
@@ -156,7 +160,13 @@ namespace Yes
 				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 			};
 
+			{//create RS from shader directly D3D_BLOB_ROOT_SIGNATURE
+				COMRef<ID3DBlob> blob;
+				D3DGetBlobPart(mPS->GetBufferPointer(), mPS->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &blob);
+				CheckSucceeded(mDevice->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&mRootSignature11)));
+			}
 			//create root signature
+#if 0
 			{
 				//TODO
 				D3D12_FEATURE_DATA_ROOT_SIGNATURE featureData = {};
@@ -169,7 +179,7 @@ namespace Yes
 				CD3DX12_DESCRIPTOR_RANGE1 ranges[2];
 				CD3DX12_ROOT_PARAMETER1 rootParameters[nRootParams];
 				ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_CBV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC, 0);
-				ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC, 1);
+				ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0, 0, D3D12_DESCRIPTOR_RANGE_FLAG_DATA_STATIC, 0);
 				rootParameters[0].InitAsDescriptorTable(2, &ranges[0], D3D12_SHADER_VISIBILITY_ALL);
 				CD3DX12_VERSIONED_ROOT_SIGNATURE_DESC rootSignatureDesc;
 
@@ -199,12 +209,12 @@ namespace Yes
 				CheckSucceeded(D3DX12SerializeVersionedRootSignature(&rootSignatureDesc, featureData.HighestVersion, &signature, &error));
 				CheckSucceeded(mDevice->CreateRootSignature(0, signature->GetBufferPointer(), signature->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
 			}
-
+#endif
 			//create pso
 			{
 				D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 				psoDesc.InputLayout = { inputElementDescs, ARRAY_COUNT(inputElementDescs) };
-				psoDesc.pRootSignature = mRootSignature.GetPtr();
+				psoDesc.pRootSignature = mRootSignature11.GetPtr();
 				psoDesc.VS = CD3DX12_SHADER_BYTECODE(mVS.GetPtr());
 				psoDesc.PS = CD3DX12_SHADER_BYTECODE(mPS.GetPtr());
 				psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
@@ -272,7 +282,7 @@ namespace Yes
 			//shader descriptor heap
 			{
 				D3D12_DESCRIPTOR_HEAP_DESC cbHeapDesc = {};
-				cbHeapDesc.NumDescriptors = 2;
+				cbHeapDesc.NumDescriptors = HeapSize;
 				cbHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 				cbHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 				CheckSucceeded(mDevice->CreateDescriptorHeap(&cbHeapDesc, IID_PPV_ARGS(&mSRVHeap)));
@@ -291,7 +301,13 @@ namespace Yes
 				D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
 				desc.BufferLocation = mConstantBuffer->GetGPUVirtualAddress();
 				desc.SizeInBytes = constantBufferSize;
-				mDevice->CreateConstantBufferView(&desc, mSRVHeap->GetCPUDescriptorHandleForHeapStart());
+				D3D12_CPU_DESCRIPTOR_HANDLE ptr = mSRVHeap->GetCPUDescriptorHandleForHeapStart();
+				for (int i = 0; i < HeapSize / 2; ++i)
+				{
+					mDevice->CreateConstantBufferView(&desc, ptr);
+					ptr.ptr += mSRVDescriptorSize;
+				}
+				
 			}
 			//texture
 			{
@@ -302,9 +318,13 @@ namespace Yes
 				desc.Format = rdesc.Format;
 				desc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 				desc.Texture2D.MipLevels = 1;
-				D3D12_CPU_DESCRIPTOR_HANDLE heapOffset = mSRVHeap->GetCPUDescriptorHandleForHeapStart();
-				heapOffset.ptr += mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-				mDevice->CreateShaderResourceView(mTexture.GetPtr(), &desc, heapOffset);
+				D3D12_CPU_DESCRIPTOR_HANDLE ptr = mSRVHeap->GetCPUDescriptorHandleForHeapStart();
+				ptr.ptr += mSRVDescriptorSize * HeapSize / 2;
+				for (int i = 0; i < HeapSize / 2; ++i)
+				{
+					mDevice->CreateShaderResourceView(mTexture.GetPtr(), &desc, ptr);
+					ptr.ptr += mSRVDescriptorSize;
+				}
 			}
 		}
 		void InitTexture()
@@ -441,10 +461,13 @@ namespace Yes
 			CheckSucceeded(mCommandList->Reset(mCommandAllocator.GetPtr(), mPipelineState.GetPtr()));
 
 			UINT frameIndex = mSwapChain->GetCurrentBackBufferIndex();
-			mCommandList->SetGraphicsRootSignature(mRootSignature.GetPtr());
-			ID3D12DescriptorHeap* ppHeaps[] = { mSRVHeap.GetPtr() };
+			mCommandList->SetGraphicsRootSignature(mRootSignature11.GetPtr());
+			ID3D12DescriptorHeap* ppHeaps[] = { mSRVHeap.GetPtr()};
 			mCommandList->SetDescriptorHeaps(1, ppHeaps);
-			mCommandList->SetGraphicsRootDescriptorTable(0, mSRVHeap->GetGPUDescriptorHandleForHeapStart());
+			D3D12_GPU_DESCRIPTOR_HANDLE handle = mSRVHeap->GetGPUDescriptorHandleForHeapStart();
+			mCommandList->SetGraphicsRootDescriptorTable(0, handle);
+			handle.ptr += HeapSize / 2 * mSRVDescriptorSize;
+			mCommandList->SetGraphicsRootDescriptorTable(1, handle);
 
 			mCommandList->RSSetViewports(1, &mViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);

@@ -34,9 +34,9 @@ int main(int argc, const char** argv)
 		"module=FileModule",
 		R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
 		"module=WindowsWindowModule",
-		"module=DX12RenderDeviceModule",
-		"module=RenderDeviceTestDriverModule",
-		//"module=DX12DemoModule",
+		//"module=DX12RenderDeviceModule",
+		//"module=RenderDeviceTestDriverModule",
+		"module=DX12DemoModule",
 	};
 	auto sys = new Yes::System((int)args.size(), args.data());
 	sys->Initialize();
