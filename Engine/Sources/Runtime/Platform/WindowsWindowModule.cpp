@@ -1,5 +1,7 @@
 #include "Yes.h"
 #include "Platform/WindowsWindowModule.h"
+
+#include "Core/System.h"
 #include "Misc/Debug.h"
 #include "Misc/Thread.h"
 #include "Misc/Sync.h"
@@ -8,7 +10,7 @@
 
 namespace Yes
 {
-	DEFINE_MODULE(WindowsWindowModule)
+	class WindowsWindowModuleImp : public WindowsWindowModule
 	{
 	private:
 		HWND mHwnd;
@@ -17,7 +19,7 @@ namespace Yes
 		int mClientHeight;
 		Semaphore<> mInitState;
 	public:
-		virtual void InitializeModule() override
+		virtual void InitializeModule(System* system) override
 		{
 			mClientWidth = 800;
 			mClientHeight = 600;
@@ -112,6 +114,7 @@ namespace Yes
 			return ::DefWindowProc(hWnd, message, wParam, lParam);
 		}
 
+		DEFINE_MODULE_IN_CLASS(WindowsWindowModule, WindowsWindowModuleImp);
 	};
-	DEFINE_MODULE_CREATOR(WindowsWindowModule);
+	DEFINE_MODULE_REGISTRY(WindowsWindowModule, WindowsWindowModuleImp, 250);
 }

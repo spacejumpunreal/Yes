@@ -6,6 +6,9 @@
 
 namespace Yes
 {
-	class DX12RenderDeviceModule;
-	DECLARE_MODULE_CLASS(DX12RenderDeviceModule);
+	class DX12RenderDeviceModule : public IModule, public RenderDevice
+	{
+
+	DECLARE_MODULE_IN_CLASS(DX12RenderDeviceModule);
+	};
 }

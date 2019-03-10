@@ -41,3 +41,5 @@ using uint8 = uint8_t;
 using int8 = int8_t;
 
 #define YES_WINDOWS 1
+
+#pragma warning (disable : 4307)

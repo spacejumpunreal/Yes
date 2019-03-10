@@ -1,33 +1,45 @@
 #pragma once
-
-#include "Core/ModuleRegistry.h"
+#include "Core/IModule.h"
 
 namespace Yes
 {
-	const size_t MaxModuleCount = 128;
-	class IModule;
-	enum class EModuleRegistry;
-	class System;
+	using ModuleCreatorFunction = IModule* (*)();
+	using ArgMap = std::multimap<std::string, std::string>;
 
 	extern System* GSystem;
 
+	struct ModuleDescription
+	{
+		ModuleDescription(const char* name, int initOrder, ModuleCreatorFunction creator, ModuleID moduleID)
+			: ModuleID(moduleID)
+			, InitOrder(initOrder)
+			, Name(name)
+			, Creator(creator)
+		{}
+		ModuleID ModuleID;
+		int InitOrder;
+		const char* Name;
+		ModuleCreatorFunction Creator;
+	};
 	class System 
 	{
 	protected:
 		struct SystemPrivateData;
-		System(SystemPrivateData* pdata);
 	public:
-		System();
+		System(int argc, const char** argv);
 		void Initialize();
-		IModule* GetModule(EModuleRegistry name);
-		void RegisterModule(EModuleRegistry name, IModule* module);
+		IModule* GetModule(ModuleID moduleID);
+		//used for pre main module registry
+		static void RegisterModule(const ModuleDescription& desc);
 		void SetFPS(float fps);
 		void Loop();
+		//get parameters
+		const ArgMap& GetArguments() const;
 	protected:
 		SystemPrivateData *mPrivate;
 	};
+
 }
-#define ADD_MODULE(TYPE) Yes::GSystem->RegisterModule(Yes::EModuleRegistry::E##TYPE, Yes::Create##TYPE())
-#define ADD_MODULE2(TYPE) Yes::GSystem->RegisterModule(Yes::EModuleRegistry::E##TYPE, Yes::CreateModule<TYPE>())
-#define GET_MODULE(TYPE) (dynamic_cast<Yes::TYPE*>(Yes::GSystem->GetModule(Yes::EModuleRegistry::E##TYPE)))
-#define GET_MODULE_AS(TYPE, NAME) (dynamic_cast<Yes::TYPE*>(Yes::GSystem->GetModule(Yes::EModuleRegistry::E##NAME)))
+
+#define GET_MODULE(TypeName) dynamic_cast<Yes::TypeName*>(Yes::GSystem->GetModule(Yes::TypeName::ModuleIdentifier))
+#define GET_MODULE_AS(TypeName, TypeAs) dynamic_cast<Yes::TypeAs*>(Yes::GSystem->GetModule(TypeName::ModuleIdentifier))

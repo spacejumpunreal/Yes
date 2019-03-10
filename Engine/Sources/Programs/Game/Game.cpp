@@ -1,14 +1,7 @@
 #include "Core/System.h"
-#include "Core/ModuleRegistry.h"
 #include "Core/TickModule.h"
-#include "Platform/WindowsWindowModule.h"
-#include "Platform/DX12/DX12DemoModule.h"
-#include "Platform/DX12/DX12RenderDeviceModule.h"
-#include "Graphics/Test/RenderDeviceTestDriverModule.h"
 #include "Core/FileModule.h"
 #include "Misc/Time.h"
-
-#include "SWR.h"
 
 #include <cstdio>
 
@@ -33,17 +26,20 @@ void func()
 	}
 }
 
-int main()
+int main(int argc, const char** argv)
 {
-
-	auto sys = new Yes::System();
-	ADD_MODULE(WindowsWindowModule);
-	ADD_MODULE2(DX12RenderDeviceModule);
-	ADD_MODULE(RenderDeviceTestDriverModule);
-	Yes::FileModule* fileModule = GET_MODULE(FileModule);
-	fileModule->SetBasePath(R"(C:\checkout\Yes\Resources\)");
+	std::vector<const char*> args
+	{
+		"module=TickModule",
+		"module=FileModule",
+		R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
+		"module=WindowsWindowModule",
+		"module=DX12RenderDeviceModule",
+		"module=RenderDeviceTestDriverModule",
+		//"module=DX12DemoModule",
+	};
+	auto sys = new Yes::System((int)args.size(), args.data());
 	sys->Initialize();
-
 	Yes::TickModule* tickModule = GET_MODULE(TickModule);
 	tickModule->AddTickable(new TestTick());
 	start = Yes::TimeStamp::Now();

@@ -6,9 +6,10 @@
 namespace Yes
 {
 	using AllocatorTag = int32;
-	DECLARE_MODULE(MemoryModule)
+	class MemoryModule : public IModule
 	{
-		IAllocator* GetAllocator(AllocatorTag tag);
-		IAllocator* CreateAllocator(AllocatorTag tag);
+		virtual IAllocator* GetAllocator(AllocatorTag tag) = 0;
+		virtual IAllocator* CreateAllocator(AllocatorTag tag) = 0;
+		DECLARE_MODULE_IN_CLASS(MemoryModule);
 	};
 }

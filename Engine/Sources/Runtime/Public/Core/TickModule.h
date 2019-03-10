@@ -8,7 +8,7 @@ namespace Yes
 	{
 		virtual void Tick() = 0;
 	};
-	DECLARE_MODULE(TickModule)
+	class TickModule : public IModule
 	{
 	public:
 		virtual void AddTickable(ITickable* tickable) = 0;
@@ -21,5 +21,7 @@ namespace Yes
 		virtual void Tick() = 0;
 	private:
 		virtual void _AddCallback(float delay, std::function<void()>&& f) = 0;
+
+	DECLARE_MODULE_IN_CLASS(TickModule)
 	};
 }

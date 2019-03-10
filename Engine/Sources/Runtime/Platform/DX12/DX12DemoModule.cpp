@@ -21,7 +21,7 @@ namespace Yes
 		float param0[4];
 		float param1[4];
 	};
-	DEFINE_MODULE(DX12DemoModule), public ITickable
+	class DX12DemoModuleImp : public IModule, public ITickable
 	{
 	private:
 		COMRef<IDXGISwapChain3> mSwapChain;
@@ -470,7 +470,7 @@ namespace Yes
 		}
 
 	public:
-		virtual void InitializeModule() override
+		virtual void InitializeModule(System* system) override
 		{
 			mFrameCounts = 3;
 			mFrameIdx = 0;
@@ -498,6 +498,7 @@ namespace Yes
 			CheckSucceeded(mSwapChain->Present(1, 0));
 			SyncGPU();
 		}
+		DEFINE_MODULE_IN_CLASS(DX12DemoModule, DX12DemoModuleImp);
 	};
-	DEFINE_MODULE_CREATOR(DX12DemoModule);
+	DEFINE_MODULE_REGISTRY(DX12DemoModule, DX12DemoModuleImp, 500);
 }

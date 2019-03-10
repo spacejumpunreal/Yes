@@ -9,63 +9,126 @@
 #include "Core/FileModule.h"
 #include "Core/TickModule.h"
 
+#include <unordered_map>
+#include <vector>
+
 namespace Yes
 {
+	struct ModuleDescriptionCmp;
+
+	using ModuleMap = std::unordered_map<ModuleID, IModule*>;
+	
+
+
+	System* GSystem = nullptr;
+
+	struct ModuleDescriptionCmp
+	{
+		bool operator() (const ModuleDescription& lhs, const ModuleDescription& rhs) const
+		{
+			return lhs.InitOrder < rhs.InitOrder;
+		}
+	};
+	using ModuleDescriptionSet = std::multiset<ModuleDescription, ModuleDescriptionCmp>;
 	struct System::SystemPrivateData
 	{
-	public:
-		IModule* mModules[MaxModuleCount];
+		ModuleDescriptionSet mRegisteredModules;
+		ModuleMap mModules;
+		ArgMap mArgs;
 		TimeDuration mFrameDuration;
-	public:
+
 		SystemPrivateData()
 			: mFrameDuration(1.0 / 60)
 		{
-			ZeroFill(mModules);
-			Check((int)EModuleRegistry::EIntrisicModuleCount < (int)MaxModuleCount);
+		}
+		void ParseArgs(int argc, const char** argv)
+		{
+			for (int i = 1; i < argc; ++i)
+			{
+				const char* p = argv[i];
+				const char* s = p;
+				while (*p != '=' && *p != 0)
+				{
+					++p;
+				}
+				const char* m = p;
+				CheckAlways(*p != 0);
+				while (*++p)
+				{
+				}
+				mArgs.insert(std::make_pair(std::string(s, m), std::string(m + 1, p)));
+			}
 		}
 	};
-
-	System* GSystem = nullptr;
-	System::System(SystemPrivateData* pData)
-		: mPrivate(pData)
+	
+	System::System(int argc, const char** argv)
+		: mPrivate(new SystemPrivateData())
 	{
+		CheckAlways(GSystem == nullptr);
 		GSystem = this;
-		ADD_MODULE(MemoryModule);
-		ADD_MODULE(FileModule);
-		ADD_MODULE(TickModule);
+		CollectAllModules();
+		
+		mPrivate->ParseArgs(argc, argv);
 	}
-	System::System()
-		: System(new SystemPrivateData())
-	{}
 
+	const ArgMap& System::GetArguments() const
+	{
+		return mPrivate->mArgs;
+	}
 	void System::Initialize()
 	{
-		for (int i = 0; i < ARRAY_COUNT(mPrivate->mModules); ++i)
+		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
+		mPrivate->mArgs.insert(std::make_pair("module", "FileModule"));
+		//find need to initialize modules from args
+		ArgMap::iterator s, e;
+		std::tie(s, e) = mPrivate->mArgs.equal_range("module");
+		std::unordered_set<std::string> toInitialize;
+		std::unordered_map<ModuleID, ModuleDescription*> initializedDescriptions;
+		while (s != e)
 		{
-			if (mPrivate->mModules[i])
-			{
-				mPrivate->mModules[i]->InitializeModule();
-			}
+			toInitialize.insert(s->second);
+			++s;
 		}
-		for (int i = 0; i < ARRAY_COUNT(mPrivate->mModules); ++i)
+		//enumerate available modules and create
+		for (auto& i : mPrivate->mRegisteredModules)
 		{
-			if (mPrivate->mModules[i])
+			std::string n = i.Name;
+			if (!toInitialize.count(n))
+				continue;
+			if (mPrivate->mModules.count(i.ModuleID) > 0)
 			{
-				mPrivate->mModules[i]->Start();
+				const char* usedName = initializedDescriptions[i.ModuleID]->Name;
+				CheckAlways(false, usedName);
 			}
+			IModule* mod = mPrivate->mModules[i.ModuleID] = i.Creator();
+			mod->InitializeModule(this);
+		}
+		//initialize
+		for (auto& i : mPrivate->mRegisteredModules)
+		{
+			std::string n = i.Name;
+			if (!toInitialize.count(n))
+				continue;
+			mPrivate->mModules[i.ModuleID]->Start(this);
 		}
 	}
 
-	IModule* System::GetModule(EModuleRegistry name)
+	IModule* System::GetModule(ModuleID moduleID)
 	{
-		int i = (int)name;
-		return mPrivate->mModules[i];
+		auto it = mPrivate->mModules.find(moduleID);
+		if (it == mPrivate->mModules.end())
+		{
+			return nullptr;
+		}
+		else
+		{
+			return it->second;
+		}
 	}
 
-	void System::RegisterModule(EModuleRegistry name, IModule* module)
+	void System::RegisterModule(const ModuleDescription& desc)
 	{
-		int idx = (int)name;
-		mPrivate->mModules[idx] = module;
+		GSystem->mPrivate->mRegisteredModules.insert(desc);
 	}
 	void System::SetFPS(float fps)
 	{

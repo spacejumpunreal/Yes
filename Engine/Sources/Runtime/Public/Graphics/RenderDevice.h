@@ -9,7 +9,8 @@ namespace Yes
 	{
 	public:
 	protected:
-		virtual ~RenderDeviceResource() = 0;
+		virtual ~RenderDeviceResource()
+		{}
 		virtual bool IsReady() = 0; // check if is ready to use
 	};
 	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;

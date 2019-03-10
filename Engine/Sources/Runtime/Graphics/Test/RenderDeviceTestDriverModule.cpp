@@ -10,8 +10,7 @@
 
 namespace Yes
 {
-	class Dx12RenderDeviceModule;
-	DEFINE_MODULE(RenderDeviceTestDriverModule), public ITickable
+	class RenderDeviceTestDriverModuleImp : public RenderDeviceTestDriverModule, public ITickable
 	{
 	private:
 		RenderDevice* mDevice = nullptr;
@@ -19,11 +18,11 @@ namespace Yes
 		RenderDeviceResourceRef mShader;
 
 	public:
-		virtual void InitializeModule() override
+		virtual void InitializeModule()
 		{
 			TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);
-			mDevice = GET_MODULE_AS(RenderDevice, DX12RenderDeviceModule);
+			mDevice = GET_MODULE_AS(DX12RenderDeviceModule, RenderDevice);
 			mFileModule = GET_MODULE(FileModule);
 		}
 		virtual void Tick() override
@@ -52,6 +51,7 @@ namespace Yes
 		void Update()
 		{
 		}
+		DEFINE_MODULE_IN_CLASS(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp);
 	};
-	DEFINE_MODULE_CREATOR(RenderDeviceTestDriverModule);
+	DEFINE_MODULE_REGISTRY(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp, 1000);
 }

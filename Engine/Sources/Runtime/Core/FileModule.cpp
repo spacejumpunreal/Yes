@@ -1,10 +1,12 @@
+#include "Yes.h"
 #include "Core/FileModule.h"
+#include "Core/System.h"
 #include "Misc/Container.h"
 #include "Misc/Debug.h"
 
 namespace Yes
 {
-	DEFINE_MODULE(FileModule)
+	struct FileModuleImp : public FileModule
 	{
 	public:
 		virtual void SetBasePath(const char* path) override
@@ -18,8 +20,10 @@ namespace Yes
 			}
 			mBasePath.push_back('/');
 		}
-		virtual void InitializeModule()
+		virtual void InitializeModule(System* system)
 		{
+			auto it = system->GetArguments().equal_range("FileModuleBasePath");
+			SetBasePath(it.first->second.c_str());
 		}
 		virtual std::string GetNativePath(const char* path)
 		{
@@ -49,6 +53,7 @@ namespace Yes
 		}
 	protected:
 		std::string mBasePath;
+	DEFINE_MODULE_IN_CLASS(FileModule, FileModuleImp);
 	};
-	DEFINE_MODULE_CREATOR(FileModule);
+	DEFINE_MODULE_REGISTRY(FileModule, FileModuleImp, -1000);
 }

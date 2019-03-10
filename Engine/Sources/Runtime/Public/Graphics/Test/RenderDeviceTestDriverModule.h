@@ -5,8 +5,9 @@
 
 namespace Yes
 {
-	DECLARE_MODULE(RenderDeviceTestDriverModule)
+	class RenderDeviceTestDriverModule : public IModule
 	{
+		DECLARE_MODULE_IN_CLASS(RenderDeviceTestDriverModule);
 	};
 }
 

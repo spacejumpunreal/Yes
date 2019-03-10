@@ -119,4 +119,5 @@ namespace Yes
 		}
 		T* mPtr;
 	};
+
 }

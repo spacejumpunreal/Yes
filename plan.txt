@@ -63,3 +63,12 @@
 	- how to handle resource memory allocation
 	- RHICommandlist/API command list
 - architecture design
+
+
+
+- doing
+	- SimpleDX12Renderer
+		- CreateResource
+			- CreateShader
+				- ModuleSystemRedesign
+					- refreshing code

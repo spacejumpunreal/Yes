@@ -5,8 +5,9 @@
 
 namespace Yes
 {
-	DECLARE_MODULE(DX12DemoModule)
+	class DX12DemoModule : public IModule
 	{
+		DECLARE_MODULE_IN_CLASS(DX12DemoModule);
 	};
 }
 

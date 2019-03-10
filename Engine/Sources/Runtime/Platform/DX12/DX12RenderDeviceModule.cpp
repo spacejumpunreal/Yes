@@ -13,7 +13,7 @@
 
 namespace Yes
 {
-	class DX12RenderDeviceModule : public IModule, public RenderDevice
+	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
 		//forward declarations
 		class DX12RenderDeviceShader;
@@ -60,7 +60,7 @@ namespace Yes
 		{
 			return nullptr;
 		}
-		virtual void Start() override
+		virtual void Start(System* system) override
 		{
 			COMRef<IDXGIFactory4> factory;
 			HWND wh;
@@ -132,7 +132,7 @@ namespace Yes
 			}
 			
 		}
-		DX12RenderDeviceModule()
+		DX12RenderDeviceModuleImp()
 		{
 			mFrameCounts = 3;
 		}
@@ -179,7 +179,7 @@ namespace Yes
 			COMRef<ID3DBlob> mVS;
 			COMRef<ID3DBlob> mPS;
 		};
-
+		DEFINE_MODULE_IN_CLASS(DX12RenderDeviceModule, DX12RenderDeviceModuleImp);
 	};
-	DEFINE_MODULE_CLASS(DX12RenderDeviceModule);
+	DEFINE_MODULE_REGISTRY(DX12RenderDeviceModule, DX12RenderDeviceModuleImp, 500);
 }
