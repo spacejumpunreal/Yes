@@ -26,14 +26,15 @@ namespace Yes
 	{
 		R8G8B8A8_UNORM,
 	};
-	static const int MaxRenderTargets = 4;
+	static const int MaxRenderTargets = 8;
 	struct RenderDevicePSODesc
 	{
 		RenderDeviceResourceRef Shader;
 		TextureFormat RTs[MaxRenderTargets];
 		PSOStateKey StateKey;
 		VertexFormat VF;
-		RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[]);
+		int RTCount;
+		RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount);
 		RenderDevicePSODesc();
 		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
 	};

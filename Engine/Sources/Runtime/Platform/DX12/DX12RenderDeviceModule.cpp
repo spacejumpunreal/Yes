@@ -30,7 +30,7 @@ namespace Yes
 		}
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
-			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader((const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
+			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
 		virtual RenderDeviceResourceRef CreateRenderTarget() override
@@ -163,11 +163,15 @@ namespace Yes
 		class DX12RenderDeviceShader : public RenderDeviceShader
 		{
 		public:
-			DX12RenderDeviceShader(const char* body, size_t size, const char* name)
+			DX12RenderDeviceShader(ID3D12Device* dev, const char* body, size_t size, const char* name)
 			{
 				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 				mVS = DoCompileShader(body, size, name, "VSMain", "vs_5_0", compileFlags);
 				mPS = DoCompileShader(body, size, name, "PSMain", "ps_5_0", compileFlags);
+				COMRef<ID3DBlob> blob;
+				CheckSucceeded(D3DGetBlobPart(mPS->GetBufferPointer(), mPS->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &blob));
+				CheckSucceeded(dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
+
 			}
 			bool IsReady() override
 			{
@@ -179,6 +183,7 @@ namespace Yes
 			}
 			COMRef<ID3DBlob> mVS;
 			COMRef<ID3DBlob> mPS;
+			COMRef<ID3D12RootSignature> mRootSignature;
 		};
 
 		class DX12RenderDevicePSO : public RenderDevicePSO
@@ -189,10 +194,35 @@ namespace Yes
 				D3D12_INPUT_ELEMENT_DESC* layout;
 				UINT count;
 				std::tie(layout, count) = GetInputLayoutForVertexFormat(desc.VF);
+				DX12RenderDeviceShader* shader = static_cast<DX12RenderDeviceShader*>(desc.Shader.GetPtr());
 
 				D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 				psoDesc.InputLayout = { layout, count};
-				DX12RenderDeviceShader* shader = static_cast<DX12RenderDeviceShader*>(desc.Shader.GetPtr());
+				psoDesc.pRootSignature = shader->mRootSignature.GetPtr();
+				psoDesc.VS = CD3DX12_SHADER_BYTECODE(shader->mVS.GetPtr());
+				psoDesc.PS = CD3DX12_SHADER_BYTECODE(shader->mPS.GetPtr());
+				if (desc.StateKey != PSOStateKey::Default)
+				{
+				}
+				else
+				{
+					psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+					psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+					psoDesc.DepthStencilState.DepthEnable = FALSE;
+					psoDesc.DepthStencilState.StencilEnable = FALSE;
+					psoDesc.SampleMask = UINT_MAX;
+					psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+					psoDesc.SampleDesc.Count = 1;
+				}
+				psoDesc.NumRenderTargets = desc.RTCount;
+				for (int i = 0; i < desc.RTCount; ++i)
+				{
+					psoDesc.RTVFormats[i] = GetTextureFormat(desc.RTs[i]);
+				}
+				
+
+				
+				
 			}
 			bool IsReady()
 			{
@@ -216,6 +246,16 @@ namespace Yes
 			default:
 				CheckAlways(false, "unknown vertex format");
 				return {};
+			}
+		}
+		static DXGI_FORMAT GetTextureFormat(TextureFormat format)
+		{
+			if (false)
+			{
+			}
+			else
+			{
+				return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
 			}
 		}
 
