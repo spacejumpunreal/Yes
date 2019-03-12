@@ -40,4 +40,6 @@
 - doing
 	- SimpleDX12Renderer
 		- CreateResource
-			- CreateShader
+			- CreatePSO
+				- PSODesc
+			- design PSO cache, where to put it?

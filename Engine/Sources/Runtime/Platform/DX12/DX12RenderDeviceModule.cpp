@@ -23,20 +23,14 @@ namespace Yes
 		{
 			return RenderDeviceResourceRef();
 		}
-		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef&) override
+		virtual RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) override
 		{
-			return {};
+			DX12RenderDevicePSO* pso = new DX12RenderDevicePSO(desc);
+			return pso;
 		}
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
-			std::string name(registeredName);
-			auto it = mShaderMap.find(name);
-			if (it != mShaderMap.end())
-			{
-				return it->second.GetPtr();
-			}
 			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader((const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
-			mShaderMap.insert(std::make_pair(name, shader));
 			return shader;
 		}
 		virtual RenderDeviceResourceRef CreateRenderTarget() override
@@ -152,10 +146,7 @@ namespace Yes
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		COMRef<ID3D12Resource> mBackBuffers[3];
 
-		//shader management related
-		std::unordered_map<std::string, TRef<RenderDeviceResource>> mShaderMap;
 
-		//PSO cache
 		static const int wa= sizeof(D3D12_SHADER_BYTECODE);
 
 		//descriptor consts
@@ -189,6 +180,46 @@ namespace Yes
 			COMRef<ID3DBlob> mVS;
 			COMRef<ID3DBlob> mPS;
 		};
+
+		class DX12RenderDevicePSO : public RenderDevicePSO
+		{
+		public:
+			DX12RenderDevicePSO(RenderDevicePSODesc& desc)
+			{
+				D3D12_INPUT_ELEMENT_DESC* layout;
+				UINT count;
+				std::tie(layout, count) = GetInputLayoutForVertexFormat(desc.VF);
+
+				D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
+				psoDesc.InputLayout = { layout, count};
+				DX12RenderDeviceShader* shader = static_cast<DX12RenderDeviceShader*>(desc.Shader.GetPtr());
+			}
+			bool IsReady()
+			{
+				return true;
+			}
+			COMRef<ID3D12PipelineState> mPSO;
+		};
+
+		//IA layouts
+		static std::pair<D3D12_INPUT_ELEMENT_DESC*, UINT> GetInputLayoutForVertexFormat(VertexFormat vf)
+		{
+			D3D12_INPUT_ELEMENT_DESC VF_P3F_T2F_LAYOUT[] =
+			{
+				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+			};
+			switch (vf)
+			{
+			case VertexFormat::VF_P3F_T2F:
+				return std::make_pair(VF_P3F_T2F_LAYOUT, (UINT)ARRAY_COUNT(VF_P3F_T2F_LAYOUT));
+			default:
+				CheckAlways(false, "unknown vertex format");
+				return {};
+			}
+		}
+
+			
 		DEFINE_MODULE_IN_CLASS(DX12RenderDeviceModule, DX12RenderDeviceModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(DX12RenderDeviceModule, DX12RenderDeviceModuleImp, 500);

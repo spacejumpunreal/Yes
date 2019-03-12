@@ -18,10 +18,24 @@ namespace Yes
 	{
 		VF_P3F_T2F,
 	} VertexFormat;
+	enum class PSOStateKey : byte
+	{
+		Default,
+	};
+	enum class TextureFormat
+	{
+		R8G8B8A8_UNORM,
+	};
+	static const int MaxRenderTargets = 4;
 	struct RenderDevicePSODesc
 	{
-		VertexFormat VertexFormat;
-		//TODO: add parameters that needs to be passed to CreatePSOSimple
+		RenderDeviceResourceRef Shader;
+		TextureFormat RTs[MaxRenderTargets];
+		PSOStateKey StateKey;
+		VertexFormat VF;
+		RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[]);
+		RenderDevicePSODesc();
+		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
 	};
 	class RenderDevicePass
 	{
@@ -30,6 +44,9 @@ namespace Yes
 	class RenderDeviceShader : public RenderDeviceResource
 	{
 
+	};
+	class RenderDevicePSO : public RenderDeviceResource
+	{
 	};
 	class RenderDeviceCommand
 	{
@@ -45,13 +62,12 @@ namespace Yes
 		std::vector<RenderDeviceResourceRef> ConstantBuffers;
 		RenderDeviceResourceRef PSO;
 	};
-
 	class RenderDevice
 	{
 	public:
 		//Resource related
 		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) = 0;
-		virtual RenderDeviceResourceRef CreatePSOSimple(VertexFormat vertexFormat, RenderDeviceResourceRef& shader) = 0;
+		virtual RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
 		virtual RenderDeviceResourceRef CreateRenderTarget() = 0;
 		virtual RenderDeviceResourceRef CreteTextureSimple() = 0;

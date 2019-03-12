@@ -121,6 +121,14 @@ namespace Yes
 			std::swap(other.mPtr, mPtr);
 			return *this;
 		}
+		friend bool operator==(const TRef& lhs, const TRef& rhs)
+		{
+			return lhs.mPtr == rhs.mPtr;
+		}
+		friend bool operator!=(const TRef& lhs, const TRef& rhs)
+		{
+			return lhs.mPtr != rhs.mPtr;
+		}
 		T* operator->()
 		{
 			return mPtr;
