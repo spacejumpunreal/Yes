@@ -25,7 +25,7 @@ namespace Yes
 		}
 		virtual RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) override
 		{
-			DX12RenderDevicePSO* pso = new DX12RenderDevicePSO(desc);
+			DX12RenderDevicePSO* pso = new DX12RenderDevicePSO(mDevice.GetPtr(), desc);
 			return pso;
 		}
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
@@ -189,7 +189,7 @@ namespace Yes
 		class DX12RenderDevicePSO : public RenderDevicePSO
 		{
 		public:
-			DX12RenderDevicePSO(RenderDevicePSODesc& desc)
+			DX12RenderDevicePSO(ID3D12Device* dev, RenderDevicePSODesc& desc)
 			{
 				D3D12_INPUT_ELEMENT_DESC* layout;
 				UINT count;
@@ -219,16 +219,23 @@ namespace Yes
 				{
 					psoDesc.RTVFormats[i] = GetTextureFormat(desc.RTs[i]);
 				}
-				
-
-				
-				
+				psoDesc.SampleDesc.Count = 1;
+				CheckSucceeded(dev->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
 			}
 			bool IsReady()
 			{
 				return true;
 			}
+			void Apply(ID3D12GraphicsCommandList* cmdList)
+			{
+				cmdList->SetGraphicsRootSignature(mRootSignature.GetPtr());
+				cmdList->SetPipelineState(mPSO.GetPtr());
+			}
+		private:
 			COMRef<ID3D12PipelineState> mPSO;
+			COMRef<ID3D12RootSignature> mRootSignature;
+			CD3DX12_VIEWPORT mViewPort;
+			CD3DX12_RECT mScissor;
 		};
 
 		//IA layouts

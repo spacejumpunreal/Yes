@@ -31,12 +31,29 @@ namespace Yes
 	{
 		RenderDeviceResourceRef Shader;
 		TextureFormat RTs[MaxRenderTargets];
+
 		PSOStateKey StateKey;
 		VertexFormat VF;
 		int RTCount;
 		RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount);
 		RenderDevicePSODesc();
 		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
+	};
+	struct RenderDeviceViewPortDesc
+	{
+		float TopLeftX;
+		float TopLeftY;
+		float Width;
+		float Height;
+		float MinDepth;
+		float MaxDepth;
+	};
+	struct RenderDeviceScissorDesc
+	{
+		int Left;
+		int Top;
+		int Right;
+		int Bottom;
 	};
 	class RenderDevicePass
 	{
@@ -76,6 +93,12 @@ namespace Yes
 		//Command related
 		virtual void BeginFrame() = 0;
 		virtual void EndFrame() = 0;
+
+		//scissor viewport
+		virtual void SetViewPort() = 0;
+		virtual void SetScissor() = 0;
+
+		//allocate related
 		virtual RenderDevicePass* AllocPass() = 0;
 		virtual RenderDeviceDrawcall* AllocDrawcall() = 0;
 		virtual RenderDeviceBarrier* AllocBarrier() = 0;
