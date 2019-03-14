@@ -24,6 +24,18 @@
 		- Renderpass
 			- GPUCommand[]
 			- RenderTarget
+	- ResourceHeapManagement
+		- memory management
+			- simple one
+				- no delete
+				- fixed sized block
+			- block linear
+				- fixed sized block
+		- uploader
+			- thread
+			- handle request queue
+	- AsyncResourceCreate
+		- request queue
 
 # impl
 - CreateShader

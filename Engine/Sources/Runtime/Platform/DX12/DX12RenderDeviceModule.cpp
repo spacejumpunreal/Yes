@@ -49,6 +49,10 @@ namespace Yes
 		virtual void EndFrame() override
 		{
 		}
+		virtual void SetViewPort() override
+		{}
+		virtual void SetScissor() override
+		{}
 		virtual RenderDevicePass * AllocPass() override
 		{
 			return nullptr;

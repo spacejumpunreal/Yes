@@ -43,3 +43,14 @@
 			- CreatePSO
 				- PSODesc
 			- design PSO cache, where to put it?
+				- no cache at this layer
+			- CreateMesh
+				- DX12RenderDeviceMesh
+					- mLocation
+					- mCPUData
+					- mGPUObject
+				- UploaderThread
+				- CreateJobQueue
+				- Callback Mechanism
+				- 
+				- CreateCallback

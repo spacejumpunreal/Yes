@@ -16,6 +16,7 @@ namespace Yes
 		RenderDevice* mDevice = nullptr;
 		FileModule* mFileModule = nullptr;
 		RenderDeviceResourceRef mShader;
+		RenderDeviceResourceRef mPSO;
 
 	public:
 		virtual void InitializeModule()
@@ -42,7 +43,19 @@ namespace Yes
 				mShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
 			}
 			//PSO
+			{
+				RenderDevicePSODesc desc;
+				desc.RTCount = 1;
+				desc.RTs[0] = TextureFormat::R8G8B8A8_UNORM;
+				desc.Shader = mShader;
+				desc.StateKey = PSOStateKey::Default;
+				desc.VF = VertexFormat::VF_P3F_T2F;
+				mPSO = mDevice->CreatePSOSimple(desc);
+			}
 			//Mesh
+			{
+
+			}
 			//Texture
 			//ConstantBuffer
 			
