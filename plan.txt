@@ -45,6 +45,9 @@
 			- design PSO cache, where to put it?
 				- no cache at this layer
 			- CreateMesh
+				- GPUMemoryAllocator
+					- LinearBlock
+					- NeverFree
 				- DX12RenderDeviceMesh
 					- mLocation
 					- mCPUData
@@ -52,5 +55,4 @@
 				- UploaderThread
 				- CreateJobQueue
 				- Callback Mechanism
-				- 
 				- CreateCallback

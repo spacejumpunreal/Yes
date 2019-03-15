@@ -39,9 +39,7 @@
 
 # impl
 - CreateShader
-	- Shader Cache
 - CreatePSO
-	- PSO cache
 - CreateMesh + MultiThreaded Upload
 - CreateTexture
 - CreateConstantBuffer

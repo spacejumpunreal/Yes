@@ -13,6 +13,47 @@
 
 namespace Yes
 {
+	struct IDX12GPUMemoryRegion
+	{
+		ID3D12Heap* Heap;
+		UINT64* Offset;
+		UINT64 Size;
+	};
+	enum class MemoryAccessCase
+	{
+		GPUAccessOnly,
+		CPUUpload,
+	};
+	class IDX12GPUMemoryAllocator
+	{
+	public:
+		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size) = 0;
+		virtual void Free(const IDX12GPUMemoryRegion* region) = 0;
+	protected:
+		ID3D12Heap
+	};
+	class DX12LinearBlockAllocator
+	{
+		struct BlockData
+		{
+			ID3D12Heap* Heap;
+			int References;
+		};
+	private:
+		UINT64 mBlockSize;
+		std::list<BlockData> mHeaps;
+		UINT64 mCurrentBlockLeftSize;
+	public:
+		DX12LinearBlockAllocator(UINT64 blockSize)
+			: mBlockSize(blockSize)
+			, mCurrentBlockLeftSize(0)
+		{
+		}
+		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size)
+		{}
+		virtual void Free(const IDX12GPUMemoryRegion* region)
+		{}
+	};
 	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
 		//forward declarations
