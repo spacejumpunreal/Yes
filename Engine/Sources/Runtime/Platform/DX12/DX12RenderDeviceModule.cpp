@@ -24,13 +24,58 @@ namespace Yes
 		GPUAccessOnly,
 		CPUUpload,
 	};
+	static ID3D12Heap* CreateHeapWithConfig(UINT64 size, MemoryAccessCase accessFlag, ID3D12Device* device)
+	{
+		D3D12_HEAP_DESC desc;
+		desc.SizeInBytes = size;
+		switch (accessFlag)
+		{
+		case MemoryAccessCase::GPUAccessOnly:
+			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
+			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE;
+			desc.Properties.CreationNodeMask = 0;
+			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L1;
+			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+			break;
+		case MemoryAccessCase::CPUUpload:
+			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD;
+			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+			desc.Properties.CreationNodeMask = 0;
+			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L0;
+			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+			break;
+		default:
+			CheckAlways(false);
+		}
+		desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		ID3D12Heap* heap;
+		CheckSucceeded(device->CreateHeap(&desc, IID_PPV_ARGS(&heap)));
+		return heap;
+	}
+	struct HeapCreator
+	{
+	public:
+		HeapCreator(UINT64 heapSize, MemoryAccessCase accessFlag, ID3D12Device* device)
+			: mSize(heapSize)
+			, mAccessFlag(accessFlag)
+			, mDevice(device)
+		{
+		}
+		HeapCreator(const HeapCreator& other) = default;
+		ID3D12Heap* CreateHeap()
+		{
+			return CreateHeapWithConfig(mSize, mAccessFlag, mDevice);
+		}
+		UINT64 mSize;
+		ID3D12Device* mDevice;
+		MemoryAccessCase mAccessFlag;
+	};
 	class IDX12GPUMemoryAllocator
 	{
 	public:
 		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size) = 0;
 		virtual void Free(const IDX12GPUMemoryRegion* region) = 0;
 	protected:
-		ID3D12Heap
 	};
 	class DX12LinearBlockAllocator
 	{
@@ -40,19 +85,36 @@ namespace Yes
 			int References;
 		};
 	private:
-		UINT64 mBlockSize;
 		std::list<BlockData> mHeaps;
 		UINT64 mCurrentBlockLeftSize;
+		HeapCreator mHeapCreator;
 	public:
-		DX12LinearBlockAllocator(UINT64 blockSize)
-			: mBlockSize(blockSize)
-			, mCurrentBlockLeftSize(0)
+		DX12LinearBlockAllocator(HeapCreator creator)
+			: mCurrentBlockLeftSize(0)
+			, mHeapCreator(creator)
 		{
 		}
 		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size)
-		{}
+		{
+			CheckAlways(size <= mHeapCreator.mSize);
+			if (size > mCurrentBlockLeftSize)
+			{
+				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(), 1 });
+				mCurrentBlockLeftSize -= size;
+			}
+		}
 		virtual void Free(const IDX12GPUMemoryRegion* region)
-		{}
+		{
+			for (auto it = mHeaps.begin(); it != mHeaps.end(); ++it)
+			{
+				--it->References;
+				if (it->References == 0)
+				{
+					it->Heap->Release();
+					mHeaps.erase(it);
+				}
+			}
+		}
 	};
 	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
