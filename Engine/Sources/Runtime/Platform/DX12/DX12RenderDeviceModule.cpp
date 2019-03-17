@@ -1,7 +1,8 @@
 #include "Platform/DX12/DX12RenderDeviceModule.h"
 #include "Platform/WindowsWindowModule.h"
-
 #include "Platform/DXUtils.h"
+#include "DX12RenderDeviceResources.h"
+#include "Memory/ObjectPool.h"
 #include "Core/System.h"
 
 #include "Windows.h"
@@ -11,14 +12,11 @@
 #include <d3dcompiler.h>
 #include "d3dx12.h"
 
+#include <cstdlib>
+#include <algorithm>
+
 namespace Yes
 {
-	struct IDX12GPUMemoryRegion
-	{
-		ID3D12Heap* Heap;
-		UINT64* Offset;
-		UINT64 Size;
-	};
 	enum class MemoryAccessCase
 	{
 		GPUAccessOnly,
@@ -47,7 +45,7 @@ namespace Yes
 		default:
 			CheckAlways(false);
 		}
-		desc.Alignment = D3D12_DEFAULT_RESOURCE_PLACEMENT_ALIGNMENT;
+		desc.Alignment = D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT;
 		ID3D12Heap* heap;
 		CheckSucceeded(device->CreateHeap(&desc, IID_PPV_ARGS(&heap)));
 		return heap;
@@ -55,29 +53,94 @@ namespace Yes
 	struct HeapCreator
 	{
 	public:
-		HeapCreator(UINT64 heapSize, MemoryAccessCase accessFlag, ID3D12Device* device)
-			: mSize(heapSize)
-			, mAccessFlag(accessFlag)
+		HeapCreator(MemoryAccessCase accessFlag, ID3D12Device* device)
+			: mAccessFlag(accessFlag)
 			, mDevice(device)
 		{
 		}
 		HeapCreator(const HeapCreator& other) = default;
-		ID3D12Heap* CreateHeap()
+		ID3D12Heap* CreateHeap(UINT64 size)
 		{
-			return CreateHeapWithConfig(mSize, mAccessFlag, mDevice);
+			return CreateHeapWithConfig(size, mAccessFlag, mDevice);
 		}
-		UINT64 mSize;
 		ID3D12Device* mDevice;
 		MemoryAccessCase mAccessFlag;
 	};
-	class IDX12GPUMemoryAllocator
+	class DX12FirstFitAllocator : public IDX12GPUMemoryAllocator
 	{
+		struct AvailableRange
+		{
+			ID3D12Heap* Heap;
+			UINT64 Start;
+		};
+		using AvailableRangeTree = std::multimap<UINT64, AvailableRange>;
+		using RangeTree = std::map<UINT64, UINT64>;
+		using HeapMap = std::unordered_map<ID3D12Heap*, RangeTree>;
+	private:
+		HeapCreator mCreator;
+		UINT64 mDefaultBlockSize;
+		AvailableRangeTree mAvailableMem;
+		HeapMap mHeapMap;
+		ObjectPool<IDX12GPUMemoryRegion> mRegionPool;
 	public:
-		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size) = 0;
-		virtual void Free(const IDX12GPUMemoryRegion* region) = 0;
-	protected:
+		DX12FirstFitAllocator(HeapCreator creator, UINT64 defaultBlockSize)
+			: mCreator(creator)
+			, mDefaultBlockSize(defaultBlockSize)
+			, mRegionPool(1024)
+		{}
+		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment)
+		{
+			auto it = mAvailableMem.lower_bound(size);
+			IDX12GPUMemoryRegion* ret = mRegionPool.Allocate();
+			ret->Allocator = this;
+			bool found = false;
+			while (it != mAvailableMem.end())
+			{
+				UINT64 alignedSize = CalcAlignedSize(it->second.Start, alignment, size);
+				if (alignedSize <= it->first)
+				{
+					UINT64 begin = ret->Start = it->second.Start;
+					ret->Offset = GetNextAlignedOffset(it->second.Start, alignment);
+					ret->Size = alignedSize;
+					ID3D12Heap* heap = ret->Heap = it->second.Heap;
+					UINT64 leftSize = it->first - alignedSize;
+					mAvailableMem.erase(it);
+					mHeapMap[heap].erase(begin);
+					//add modified region
+					if (leftSize > 0)
+					{
+						UINT64 newStart = ret->Start + alignedSize;
+						mAvailableMem.insert(std::make_pair(leftSize, AvailableRange{ heap, newStart }));
+						mHeapMap[heap].insert(std::make_pair(newStart, leftSize));
+					}
+					return ret;
+				}
+			}
+			//no available block, need to add new Heap
+			ret->Offset = 0;
+			ret->Start = 0;
+			ret->Size = size;
+			ID3D12Heap* heap;
+			if (size >= mDefaultBlockSize)
+			{//no need to add to free list
+				heap = mCreator.CreateHeap(size);
+			}
+			else
+			{//need to add to free list
+				heap = mCreator.CreateHeap(mDefaultBlockSize);
+				//need add left range
+				UINT64 leftSize = mDefaultBlockSize - size;
+				mAvailableMem.insert(std::make_pair(leftSize, AvailableRange {heap, size}));
+				mHeapMap[heap].insert(std::make_pair(size, leftSize));
+			}
+			ret->Heap = heap;
+			return ret;
+		}
+		virtual void Free(const IDX12GPUMemoryRegion* region)
+		{}
+
 	};
-	class DX12LinearBlockAllocator
+	class DX12LinearBlockAllocator : public IDX12GPUMemoryAllocator
 	{
 		struct BlockData
 		{
@@ -85,44 +148,73 @@ namespace Yes
 			int References;
 		};
 	private:
+		UINT64 mBlockSize;
 		std::list<BlockData> mHeaps;
 		UINT64 mCurrentBlockLeftSize;
 		HeapCreator mHeapCreator;
+		ObjectPool<IDX12GPUMemoryRegion> mRegionPool;
 	public:
-		DX12LinearBlockAllocator(HeapCreator creator)
-			: mCurrentBlockLeftSize(0)
+		DX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize)
+			: mBlockSize(blockSize)
+			, mCurrentBlockLeftSize(0)
 			, mHeapCreator(creator)
+			, mRegionPool(1024)
+		{}
+		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment)
 		{
-		}
-		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size)
-		{
-			CheckAlways(size <= mHeapCreator.mSize);
+			CheckAlways(size <= mBlockSize);
+			size = CalcAlignedSize(mBlockSize - mCurrentBlockLeftSize, alignment, size);
 			if (size > mCurrentBlockLeftSize)
 			{
-				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(), 1 });
-				mCurrentBlockLeftSize -= size;
+				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(size), 1 });
+				mCurrentBlockLeftSize = mBlockSize;
 			}
+			IDX12GPUMemoryRegion* ret = mRegionPool.Allocate();
+			ret->Heap = mHeaps.back().Heap;
+			ret->Start = mBlockSize - mCurrentBlockLeftSize;
+			ret->Offset = GetNextAlignedOffset(ret->Start, alignment);
+			ret->Size = size;
+			ret->Allocator = this;
+			return ret;
 		}
 		virtual void Free(const IDX12GPUMemoryRegion* region)
 		{
 			for (auto it = mHeaps.begin(); it != mHeaps.end(); ++it)
 			{
-				--it->References;
-				if (it->References == 0)
+				if (it->Heap == region->Heap)
 				{
-					it->Heap->Release();
-					mHeaps.erase(it);
+					--it->References;
+					if (it->References == 0)
+					{
+						it->Heap->Release();
+						mHeaps.erase(it);
+					}
+					mRegionPool.Deallocate(const_cast<IDX12GPUMemoryRegion*>(region));
+					return;
 				}
 			}
+			CheckAlways(false, "freeing non existing");
 		}
 	};
+	
+	class DX12AsyncResourceCreator
+	{
+	public:
+
+	};
+	
 	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
 		//forward declarations
-		class DX12RenderDeviceShader;
+		
 	public:
 		//Resource related
-		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) override
+		virtual RenderDeviceResourceRef CreateConstantBufferSimple(size_t size) override
+		{
+			DX12RenderDeviceConstantBuffer* cb = new DX12RenderDeviceConstantBuffer(size);
+			return cb;
+		}
+		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index) override
 		{
 			return RenderDeviceResourceRef();
 		}
@@ -238,11 +330,23 @@ namespace Yes
 					mDevice->CreateRenderTargetView(mBackBuffers[i].GetPtr(), nullptr, heapPtr);
 				}
 			}
-			
+			{//allocator
+				mFrameTempAllocator = new DX12LinearBlockAllocator(
+					HeapCreator(MemoryAccessCase::CPUUpload, mDevice.GetPtr()), 
+					mAllocatorBlockSize);
+				mUploadTempBufferAllocator = new DX12LinearBlockAllocator(
+					HeapCreator(MemoryAccessCase::CPUUpload, mDevice.GetPtr()),
+					mAllocatorBlockSize);
+				mPersistentAllocator = new DX12FirstFitAllocator(
+					HeapCreator(MemoryAccessCase::GPUAccessOnly, mDevice.GetPtr()),
+					mAllocatorBlockSize);
+			}
+			mAsyncResourceCreator = new DX12AsyncResourceCreator();
 		}
 		DX12RenderDeviceModuleImp()
 		{
 			mFrameCounts = 3;
+			mAllocatorBlockSize = 32 * 1024 * 1024;
 		}
 	private:
 		COMRef<IDXGISwapChain3> mSwapChain;
@@ -252,10 +356,14 @@ namespace Yes
 
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		COMRef<ID3D12Resource> mBackBuffers[3];
+		
+		DX12LinearBlockAllocator* mFrameTempAllocator;
+		DX12LinearBlockAllocator* mUploadTempBufferAllocator;
+		DX12FirstFitAllocator* mPersistentAllocator;
 
-
-		static const int wa= sizeof(D3D12_SHADER_BYTECODE);
-
+		//submodules
+		DX12AsyncResourceCreator* mAsyncResourceCreator;
+		
 		//descriptor consts
 		UINT mRTVIncrementSize;
 		UINT mSRVIncrementSize;
@@ -264,117 +372,13 @@ namespace Yes
 		int mFrameCounts;
 		int mScreenWidth;
 		int mScreenHeight;
-
+		size_t mAllocatorBlockSize;
 
 	private:
-		class DX12RenderDeviceShader : public RenderDeviceShader
-		{
-		public:
-			DX12RenderDeviceShader(ID3D12Device* dev, const char* body, size_t size, const char* name)
-			{
-				UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
-				mVS = DoCompileShader(body, size, name, "VSMain", "vs_5_0", compileFlags);
-				mPS = DoCompileShader(body, size, name, "PSMain", "ps_5_0", compileFlags);
-				COMRef<ID3DBlob> blob;
-				CheckSucceeded(D3DGetBlobPart(mPS->GetBufferPointer(), mPS->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &blob));
-				CheckSucceeded(dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
-
-			}
-			bool IsReady() override
-			{
-				return true;
-			}
-			~DX12RenderDeviceShader() override
-			{
-				CheckAlways(false);//not suppose to delete shader
-			}
-			COMRef<ID3DBlob> mVS;
-			COMRef<ID3DBlob> mPS;
-			COMRef<ID3D12RootSignature> mRootSignature;
-		};
-
-		class DX12RenderDevicePSO : public RenderDevicePSO
-		{
-		public:
-			DX12RenderDevicePSO(ID3D12Device* dev, RenderDevicePSODesc& desc)
-			{
-				D3D12_INPUT_ELEMENT_DESC* layout;
-				UINT count;
-				std::tie(layout, count) = GetInputLayoutForVertexFormat(desc.VF);
-				DX12RenderDeviceShader* shader = static_cast<DX12RenderDeviceShader*>(desc.Shader.GetPtr());
-
-				D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
-				psoDesc.InputLayout = { layout, count};
-				psoDesc.pRootSignature = shader->mRootSignature.GetPtr();
-				psoDesc.VS = CD3DX12_SHADER_BYTECODE(shader->mVS.GetPtr());
-				psoDesc.PS = CD3DX12_SHADER_BYTECODE(shader->mPS.GetPtr());
-				if (desc.StateKey != PSOStateKey::Default)
-				{
-				}
-				else
-				{
-					psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-					psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-					psoDesc.DepthStencilState.DepthEnable = FALSE;
-					psoDesc.DepthStencilState.StencilEnable = FALSE;
-					psoDesc.SampleMask = UINT_MAX;
-					psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
-					psoDesc.SampleDesc.Count = 1;
-				}
-				psoDesc.NumRenderTargets = desc.RTCount;
-				for (int i = 0; i < desc.RTCount; ++i)
-				{
-					psoDesc.RTVFormats[i] = GetTextureFormat(desc.RTs[i]);
-				}
-				psoDesc.SampleDesc.Count = 1;
-				CheckSucceeded(dev->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
-			}
-			bool IsReady()
-			{
-				return true;
-			}
-			void Apply(ID3D12GraphicsCommandList* cmdList)
-			{
-				cmdList->SetGraphicsRootSignature(mRootSignature.GetPtr());
-				cmdList->SetPipelineState(mPSO.GetPtr());
-			}
-		private:
-			COMRef<ID3D12PipelineState> mPSO;
-			COMRef<ID3D12RootSignature> mRootSignature;
-			CD3DX12_VIEWPORT mViewPort;
-			CD3DX12_RECT mScissor;
-		};
-
-		//IA layouts
-		static std::pair<D3D12_INPUT_ELEMENT_DESC*, UINT> GetInputLayoutForVertexFormat(VertexFormat vf)
-		{
-			D3D12_INPUT_ELEMENT_DESC VF_P3F_T2F_LAYOUT[] =
-			{
-				{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-				{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
-			};
-			switch (vf)
-			{
-			case VertexFormat::VF_P3F_T2F:
-				return std::make_pair(VF_P3F_T2F_LAYOUT, (UINT)ARRAY_COUNT(VF_P3F_T2F_LAYOUT));
-			default:
-				CheckAlways(false, "unknown vertex format");
-				return {};
-			}
-		}
-		static DXGI_FORMAT GetTextureFormat(TextureFormat format)
-		{
-			if (false)
-			{
-			}
-			else
-			{
-				return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
-			}
-		}
-
-			
+	public:
 		DEFINE_MODULE_IN_CLASS(DX12RenderDeviceModule, DX12RenderDeviceModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(DX12RenderDeviceModule, DX12RenderDeviceModuleImp, 500);
+
+
 }

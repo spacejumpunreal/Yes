@@ -63,9 +63,15 @@ namespace Yes
 	{
 
 	};
+	class RenderDeviceConstantBuffer : public RenderDeviceResource
+	{
+
+	};
 	class RenderDevicePSO : public RenderDeviceResource
 	{
 	};
+	class RenderDeviceMesh : public RenderDeviceResource
+	{};
 	class RenderDeviceCommand
 	{
 		virtual void Reset() = 0;
@@ -84,7 +90,8 @@ namespace Yes
 	{
 	public:
 		//Resource related
-		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& meshBlob) = 0;
+		virtual RenderDeviceResourceRef CreateConstantBufferSimple(size_t size) = 0;
+		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index) = 0;
 		virtual RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
 		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
 		virtual RenderDeviceResourceRef CreateRenderTarget() = 0;

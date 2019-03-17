@@ -569,7 +569,7 @@ struct CD3DX12_RANGE : public D3D12_RANGE
         SIZE_T begin, 
         SIZE_T end )
     {
-        Begin = begin;
+		Begin = begin;
         End = end;
     }
 };

@@ -47,9 +47,29 @@
 			- CreateMesh
 				- GPUMemoryAllocator
 					- LinearBlock
-					- NeverFree
+					- FirstFit
+				- control flow
+					- uploader
+						- during loop
+							- check previous events, fire if ready
+							- get job
+							- prepare upload job
+							- submit job
+							- insert event when necessary
+						- on queue empty
+							- wait on event and job
+							- on event, fire event
+							- on job, back to loop
+					- user
+						- user call into API
+						- create initial resource
+						- create item in async upload queue
+						- return DX12RenderDeviceMesh
+						- check IsReady
+
+
+
 				- DX12RenderDeviceMesh
-					- mLocation
 					- mCPUData
 					- mGPUObject
 				- UploaderThread
