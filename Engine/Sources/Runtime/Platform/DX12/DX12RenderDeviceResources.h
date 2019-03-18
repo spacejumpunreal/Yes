@@ -1,6 +1,7 @@
 #pragma once
 #include "Yes.h"
-#include "Misc/Thread.h"
+#include "Concurrency/Thread.h"
+#include "Concurrency/MultiThreadQueue.h"
 
 #include <deque>
 #include "Windows.h"
@@ -71,13 +72,26 @@ namespace Yes
 
 	};
 
+	class IDX12ResourceCreateRequest
+	{
+	public:
+		virtual void Start() = 0;
+		virtual void Finish() = 0;
+	};
+
 	class DX12AsyncResourceCreator
 	{
+		const size_t MAX_BATCH_SIZE = 16;
 	public:
 		DX12AsyncResourceCreator(ID3D12Device* dev)
 			: mDevice(dev)
+			, mPopResults(MAX_BATCH_SIZE)
+			, mResourceWorker(Entry, this)
 		{
-
+		}
+		void AddRequest(IDX12ResourceCreateRequest* request)
+		{
+			mStartQueue.PushBack(request);
 		}
 		static void Entry(void* s)
 		{
@@ -86,11 +100,31 @@ namespace Yes
 		}
 		void Loop()
 		{
-
+			D3D12_COMMAND_QUEUE_DESC queueDesc = {};
+			queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
+			queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
+			CheckSucceeded(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCopyCommandQueue)));
+			CheckSucceeded(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCommandAllocator)));
+			CheckSucceeded(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCommandAllocator.GetPtr(), nullptr, IID_PPV_ARGS(&mCommandList)));
+			CheckSucceeded(mCommandList->Close());
+			CheckSucceeded(mDevice->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&mFence)));
+			while (true)
+			{
+				mPopResults.clear();
+				mStartQueue.Pop(MAX_BATCH_SIZE, mPopResults);
+			}
 		}
 	private:
 		ID3D12Device* mDevice;
-		//a queue with wakeup: concurrent queue
+		COMRef<ID3D12Fence> mFence;
+		COMRef<ID3D12CommandQueue> mCopyCommandQueue;
+		COMRef<ID3D12CommandAllocator> mCommandAllocator;
+		COMRef<ID3D12GraphicsCommandList> mCommandList;
+		std::vector<IDX12ResourceCreateRequest*> mPopResults;
+		MultiThreadQueue<IDX12ResourceCreateRequest*> mStartQueue;
+		std::deque<IDX12ResourceCreateRequest*> mFinishQueue;
+		UINT64 mPendingBegin;
+		UINT64 mPendingEnd;
 		Thread mResourceWorker;
 	};
 
@@ -199,7 +233,7 @@ namespace Yes
 			: mIsReady(false)
 		{
 			//create cpu writable buffer
-			dev->CreatePlacedResource()
+			//dev->CreatePlacedResource()
 			//write to cpu buffer
 			//create gpu buffer
 			//queue things

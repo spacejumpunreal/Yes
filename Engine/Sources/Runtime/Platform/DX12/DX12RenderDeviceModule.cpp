@@ -197,12 +197,6 @@ namespace Yes
 		}
 	};
 	
-	class DX12AsyncResourceCreator
-	{
-	public:
-
-	};
-	
 	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
 		//forward declarations
@@ -292,8 +286,6 @@ namespace Yes
 				queueDesc.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 				CheckSucceeded(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&m3DCommandQueue)));
 
-				queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
-				CheckSucceeded(mDevice->CreateCommandQueue(&queueDesc, IID_PPV_ARGS(&mCopyCommandQueue)));
 			}
 			{//swapchain
 				DXGI_SWAP_CHAIN_DESC1 swapChainDesc = {};
@@ -341,7 +333,7 @@ namespace Yes
 					HeapCreator(MemoryAccessCase::GPUAccessOnly, mDevice.GetPtr()),
 					mAllocatorBlockSize);
 			}
-			mAsyncResourceCreator = new DX12AsyncResourceCreator();
+			mAsyncResourceCreator = new DX12AsyncResourceCreator(mDevice.GetPtr());
 		}
 		DX12RenderDeviceModuleImp()
 		{
@@ -352,7 +344,6 @@ namespace Yes
 		COMRef<IDXGISwapChain3> mSwapChain;
 		COMRef<ID3D12Device> mDevice;
 		COMRef<ID3D12CommandQueue> m3DCommandQueue;
-		COMRef<ID3D12CommandQueue> mCopyCommandQueue;
 
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		COMRef<ID3D12Resource> mBackBuffers[3];

@@ -1,6 +1,6 @@
-#include "Public/Misc/Thread.h"
+#include "Concurrency/Thread.h"
 
-#include "Public/Misc/Debug.h"
+#include "Misc/Debug.h"
 #include "Windows.h"
 
 namespace Yes

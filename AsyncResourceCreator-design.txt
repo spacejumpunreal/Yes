@@ -1,0 +1,6 @@
+# loop
+- wait for job
+- foreach job
+	- job.Start()
+- wait for last event singal
+- close commandlist

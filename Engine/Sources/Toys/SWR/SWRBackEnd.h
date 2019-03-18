@@ -1,7 +1,7 @@
 #pragma once
 #include "Yes.h"
 #include "SWR.h"
-#include "Misc/Sync.h"
+#include "Concurrency/Sync.h"
 
 namespace Yes::SWR
 {

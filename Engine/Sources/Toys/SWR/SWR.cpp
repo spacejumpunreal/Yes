@@ -12,7 +12,7 @@
 
 #include "Misc/Container.h"
 #include "Misc/Time.h"
-#include "Misc/Sync.h"
+#include "Concurrency/Sync.h"
 
 #include <cstdio>
 

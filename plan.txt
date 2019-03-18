@@ -66,9 +66,6 @@
 						- create item in async upload queue
 						- return DX12RenderDeviceMesh
 						- check IsReady
-
-
-
 				- DX12RenderDeviceMesh
 					- mCPUData
 					- mGPUObject

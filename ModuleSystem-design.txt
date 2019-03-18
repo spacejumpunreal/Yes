@@ -1,29 +1,4 @@
-# scope
-- 只考虑静态链接
-
-# use
-## wish
-- 提供CreateFunction
-- 顶多在class前后加些宏
-- 考虑后续修改扩展容易，不要每次扩展就要把所有代码改一遍
-## detail
-AModule.h
-class AModule : public IModule, public SomeInterface
-{
-public:
-	SOME_IN_CLASS_MACRO(AModule);
-public:
-	void SomeMethod0();
-	void SomeMethod1();
-}
-SOME_OUT_OF_CLASS_MACRO(AModule);
-
-
-AModule.cpp
-void AModule::SomeMethod0()
-{}
-void AModule::SomeMethod1()
-{}
-SOME_IMP_CLASS_MACRO(AModule);
-
-# imp
+# what happened
+- 用global variable初始化触发注册的话得保证variable都被链接了
+	- 可以靠在main文件里include头文件的方式注入依赖
+- 目前使用了比较老的在exe里调用lib的某个init函数，lib的init函数里调用各个模块的注册函数的方法
