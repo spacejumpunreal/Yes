@@ -46,8 +46,8 @@ namespace Yes
 		template<typename Container>
 		void Pop(size_t popLimit, Container& container)
 		{
-			std::lock_guard<std::mutex> lk(mLock);
-			mCondition.wait(lk, [this] { return mTasks.size() > 0; });
+			std::unique_lock<std::mutex> lk(mLock);
+			mCondition.wait(lk, [this] { return mData.size() > 0; });
 			while (popLimit > 0 && mData.size() > 0)
 			{
 				container.push_back(std::move(mData.front()));

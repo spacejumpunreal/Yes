@@ -4,3 +4,13 @@
 	- job.Start()
 - wait for last event singal
 - close commandlist
+
+
+# mesh creation
+## input
+- vertex/index buffer
+## process
+- get persistent buffer for final resource(from device thread heap)
+- get temp buffer for itermediate data(from AsyncResourceCreator private heap)
+- copy data to temp buffer on cpu
+- build command list to copy

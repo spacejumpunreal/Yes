@@ -96,20 +96,20 @@ namespace Yes
 			bool found = false;
 			while (it != mAvailableMem.end())
 			{
-				UINT64 alignedSize = CalcAlignedSize(it->second.Start, alignment, size);
+				UINT64 alignedSize = CalcAlignedSize(it->second.mStart, alignment, size);
 				if (alignedSize <= it->first)
 				{
-					UINT64 begin = ret->Start = it->second.Start;
-					ret->Offset = GetNextAlignedOffset(it->second.Start, alignment);
-					ret->Size = alignedSize;
-					ID3D12Heap* heap = ret->Heap = it->second.Heap;
+					UINT64 begin = ret->mStart = it->second.mStart;
+					ret->mOffset = GetNextAlignedOffset(it->second.mStart, alignment);
+					ret->mSize = alignedSize;
+					ID3D12Heap* heap = ret->mHeap = it->second.mHeap;
 					UINT64 leftSize = it->first - alignedSize;
 					mAvailableMem.erase(it);
 					mHeapMap[heap].erase(begin);
 					//add modified region
 					if (leftSize > 0)
 					{
-						UINT64 newStart = ret->Start + alignedSize;
+						UINT64 newStart = ret->mStart + alignedSize;
 						mAvailableMem.insert(std::make_pair(leftSize, AvailableRange{ heap, newStart }));
 						mHeapMap[heap].insert(std::make_pair(newStart, leftSize));
 					}
@@ -117,9 +117,9 @@ namespace Yes
 				}
 			}
 			//no available block, need to add new Heap
-			ret->Offset = 0;
-			ret->Start = 0;
-			ret->Size = size;
+			ret->mOffset = 0;
+			ret->mStart = 0;
+			ret->mSize = size;
 			ID3D12Heap* heap;
 			if (size >= mDefaultBlockSize)
 			{//no need to add to free list
@@ -133,7 +133,7 @@ namespace Yes
 				mAvailableMem.insert(std::make_pair(leftSize, AvailableRange {heap, size}));
 				mHeapMap[heap].insert(std::make_pair(size, leftSize));
 			}
-			ret->Heap = heap;
+			ret->mHeap = heap;
 			return ret;
 		}
 		virtual void Free(const IDX12GPUMemoryRegion* region)
@@ -170,10 +170,10 @@ namespace Yes
 				mCurrentBlockLeftSize = mBlockSize;
 			}
 			IDX12GPUMemoryRegion* ret = mRegionPool.Allocate();
-			ret->Heap = mHeaps.back().Heap;
-			ret->Start = mBlockSize - mCurrentBlockLeftSize;
-			ret->Offset = GetNextAlignedOffset(ret->Start, alignment);
-			ret->Size = size;
+			ret->mHeap = mHeaps.back().mHeap;
+			ret->mStart = mBlockSize - mCurrentBlockLeftSize;
+			ret->mOffset = GetNextAlignedOffset(ret->mStart, alignment);
+			ret->mSize = size;
 			ret->Allocator = this;
 			return ret;
 		}
@@ -181,12 +181,12 @@ namespace Yes
 		{
 			for (auto it = mHeaps.begin(); it != mHeaps.end(); ++it)
 			{
-				if (it->Heap == region->Heap)
+				if (it->mHeap == region->mHeap)
 				{
 					--it->References;
 					if (it->References == 0)
 					{
-						it->Heap->Release();
+						it->mHeap->Release();
 						mHeaps.erase(it);
 					}
 					mRegionPool.Deallocate(const_cast<IDX12GPUMemoryRegion*>(region));
@@ -326,9 +326,6 @@ namespace Yes
 				mFrameTempAllocator = new DX12LinearBlockAllocator(
 					HeapCreator(MemoryAccessCase::CPUUpload, mDevice.GetPtr()), 
 					mAllocatorBlockSize);
-				mUploadTempBufferAllocator = new DX12LinearBlockAllocator(
-					HeapCreator(MemoryAccessCase::CPUUpload, mDevice.GetPtr()),
-					mAllocatorBlockSize);
 				mPersistentAllocator = new DX12FirstFitAllocator(
 					HeapCreator(MemoryAccessCase::GPUAccessOnly, mDevice.GetPtr()),
 					mAllocatorBlockSize);
@@ -349,7 +346,6 @@ namespace Yes
 		COMRef<ID3D12Resource> mBackBuffers[3];
 		
 		DX12LinearBlockAllocator* mFrameTempAllocator;
-		DX12LinearBlockAllocator* mUploadTempBufferAllocator;
 		DX12FirstFitAllocator* mPersistentAllocator;
 
 		//submodules

@@ -43,13 +43,22 @@ namespace Yes
 		}
 	}
 	class IDX12GPUMemoryAllocator;
-	struct IDX12GPUMemoryRegion
+	class IDX12GPUMemoryRegion
 	{
-		ID3D12Heap* Heap;
-		UINT64 Offset;
-		UINT64 Start;
-		UINT64 Size;
+	public:
+		ID3D12Heap* GetHeap() { return mHeap; }
+		UINT64 GetOffset() { return mOffset; }
+		void Free()
+		{
+			Allocator->Free(this);
+		}
+	protected:
+		ID3D12Heap* mHeap;
+		UINT64 mOffset;
+		UINT64 mStart;
+		UINT64 mSize;
 		IDX12GPUMemoryAllocator* Allocator;
+		friend IDX12GPUMemoryAllocator;
 	};
 	class IDX12GPUMemoryAllocator
 	{
@@ -75,19 +84,30 @@ namespace Yes
 	class IDX12ResourceCreateRequest
 	{
 	public:
-		virtual void Start() = 0;
-		virtual void Finish() = 0;
+		virtual void StartCreation() = 0;
+		virtual void FinishCreation() = 0;
+		virtual ~IDX12ResourceCreateRequest() = 0;
 	};
 
 	class DX12AsyncResourceCreator
 	{
 		const size_t MAX_BATCH_SIZE = 16;
+		const size_t AllocatorBlockSize = 16 * 1024 * 1024;
 	public:
 		DX12AsyncResourceCreator(ID3D12Device* dev)
 			: mDevice(dev)
 			, mPopResults(MAX_BATCH_SIZE)
+			, mFenceEvent(CreateEvent(nullptr, FALSE, FALSE, L"AsyncResourceCreator::mFenceEvent"))
 			, mResourceWorker(Entry, this)
 		{
+			if (mFenceEvent == nullptr)
+			{
+				HRESULT_FROM_WIN32(GetLastError());
+				CheckAlways(false);
+			}
+			mUploadTempBufferAllocator = new DX12LinearBlockAllocator(
+				HeapCreator(MemoryAccessCase::CPUUpload, dev),
+				AllocatorBlockSize);
 		}
 		void AddRequest(IDX12ResourceCreateRequest* request)
 		{
@@ -100,6 +120,7 @@ namespace Yes
 		}
 		void Loop()
 		{
+			mExpectedFenceValue = 0;
 			D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 			queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
 			queueDesc.Type = D3D12_COMMAND_LIST_TYPE_COPY;
@@ -107,24 +128,54 @@ namespace Yes
 			CheckSucceeded(mDevice->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_COPY, IID_PPV_ARGS(&mCommandAllocator)));
 			CheckSucceeded(mDevice->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_COPY, mCommandAllocator.GetPtr(), nullptr, IID_PPV_ARGS(&mCommandList)));
 			CheckSucceeded(mCommandList->Close());
-			CheckSucceeded(mDevice->CreateFence(0, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&mFence)));
+			CheckSucceeded(mDevice->CreateFence(mExpectedFenceValue, D3D12_FENCE_FLAG_SHARED, IID_PPV_ARGS(&mFence)));
+
+			std::vector<IDX12ResourceCreateRequest*> waitFinishQueue;
+
 			while (true)
 			{
 				mPopResults.clear();
 				mStartQueue.Pop(MAX_BATCH_SIZE, mPopResults);
+				CheckSucceeded(mCommandList->Reset(mCommandAllocator.GetPtr(), nullptr));
+				for (auto it = mPopResults.begin(); it != mPopResults.end(); ++it)
+				{
+					(*it)->StartCreation();
+				}
+				{//wait for last operation to finish
+					if (mFence->GetCompletedValue() != mExpectedFenceValue)
+					{
+						CheckSucceeded(mFence->SetEventOnCompletion(mExpectedFenceValue, mFenceEvent));
+					}
+				}
+				{//finish them
+					for (auto it = waitFinishQueue.begin(); it != waitFinishQueue.end(); ++it)
+					{
+						(*it)->FinishCreation();
+						delete (*it);
+					}
+				}
+				{//send command list to gpu
+					CheckSucceeded(mCommandAllocator->Reset());
+					CheckSucceeded(mCommandList->Close());
+				}
+				
 			}
+		}
+		DX12LinearBlockAllocator& GetTempBufferAllocator()
+		{
+			return *mUploadTempBufferAllocator;
 		}
 	private:
 		ID3D12Device* mDevice;
+		DX12LinearBlockAllocator* mUploadTempBufferAllocator;
 		COMRef<ID3D12Fence> mFence;
 		COMRef<ID3D12CommandQueue> mCopyCommandQueue;
 		COMRef<ID3D12CommandAllocator> mCommandAllocator;
 		COMRef<ID3D12GraphicsCommandList> mCommandList;
 		std::vector<IDX12ResourceCreateRequest*> mPopResults;
 		MultiThreadQueue<IDX12ResourceCreateRequest*> mStartQueue;
-		std::deque<IDX12ResourceCreateRequest*> mFinishQueue;
-		UINT64 mPendingBegin;
-		UINT64 mPendingEnd;
+		UINT64 mExpectedFenceValue;
+		HANDLE mFenceEvent;
 		Thread mResourceWorker;
 	};
 
@@ -244,6 +295,25 @@ namespace Yes
 		COMRef<ID3D12Resource> mVertexBuffer;
 		COMRef<ID3D12Resource> mIndexBuffer;
 		bool mIsReady;
+	};
+	class DX12AsyncResourceCreator;
+	class DX12RenderDeviceMeshCreateRequest : public IDX12ResourceCreateRequest
+	{
+	public:
+		DX12RenderDeviceMeshCreateRequest()
+		{}
+		virtual void StartCreation(DX12AsyncResourceCreator* creator)
+		{
+		}
+		virtual void FinishCreation(DX12AsyncResourceCreator* creator)
+		{
+		}
+		virtual ~DX12RenderDeviceMeshCreateRequest()
+		{
+		}
+	private:
+		ID3D12Device* mDevice;
+		IDX12GPUMemoryRegion
 	};
 
 }
