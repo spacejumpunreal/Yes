@@ -1,7 +1,8 @@
 #include "Platform/DX12/DX12RenderDeviceModule.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Platform/DXUtils.h"
-#include "DX12RenderDeviceResources.h"
+#include "Platform/DX12/DX12RenderDeviceResources.h"
+#include "Platform/DX12/DX12Allocators.h"
 #include "Memory/ObjectPool.h"
 #include "Core/System.h"
 
@@ -17,186 +18,6 @@
 
 namespace Yes
 {
-	enum class MemoryAccessCase
-	{
-		GPUAccessOnly,
-		CPUUpload,
-	};
-	static ID3D12Heap* CreateHeapWithConfig(UINT64 size, MemoryAccessCase accessFlag, ID3D12Device* device)
-	{
-		D3D12_HEAP_DESC desc;
-		desc.SizeInBytes = size;
-		switch (accessFlag)
-		{
-		case MemoryAccessCase::GPUAccessOnly:
-			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
-			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE;
-			desc.Properties.CreationNodeMask = 0;
-			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L1;
-			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
-			break;
-		case MemoryAccessCase::CPUUpload:
-			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD;
-			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
-			desc.Properties.CreationNodeMask = 0;
-			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L0;
-			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
-			break;
-		default:
-			CheckAlways(false);
-		}
-		desc.Alignment = D3D12_DEFAULT_MSAA_RESOURCE_PLACEMENT_ALIGNMENT;
-		ID3D12Heap* heap;
-		CheckSucceeded(device->CreateHeap(&desc, IID_PPV_ARGS(&heap)));
-		return heap;
-	}
-	struct HeapCreator
-	{
-	public:
-		HeapCreator(MemoryAccessCase accessFlag, ID3D12Device* device)
-			: mAccessFlag(accessFlag)
-			, mDevice(device)
-		{
-		}
-		HeapCreator(const HeapCreator& other) = default;
-		ID3D12Heap* CreateHeap(UINT64 size)
-		{
-			return CreateHeapWithConfig(size, mAccessFlag, mDevice);
-		}
-		ID3D12Device* mDevice;
-		MemoryAccessCase mAccessFlag;
-	};
-	class DX12FirstFitAllocator : public IDX12GPUMemoryAllocator
-	{
-		struct AvailableRange
-		{
-			ID3D12Heap* Heap;
-			UINT64 Start;
-		};
-		using AvailableRangeTree = std::multimap<UINT64, AvailableRange>;
-		using RangeTree = std::map<UINT64, UINT64>;
-		using HeapMap = std::unordered_map<ID3D12Heap*, RangeTree>;
-	private:
-		HeapCreator mCreator;
-		UINT64 mDefaultBlockSize;
-		AvailableRangeTree mAvailableMem;
-		HeapMap mHeapMap;
-		ObjectPool<IDX12GPUMemoryRegion> mRegionPool;
-	public:
-		DX12FirstFitAllocator(HeapCreator creator, UINT64 defaultBlockSize)
-			: mCreator(creator)
-			, mDefaultBlockSize(defaultBlockSize)
-			, mRegionPool(1024)
-		{}
-		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment)
-		{
-			auto it = mAvailableMem.lower_bound(size);
-			IDX12GPUMemoryRegion* ret = mRegionPool.Allocate();
-			ret->Allocator = this;
-			bool found = false;
-			while (it != mAvailableMem.end())
-			{
-				UINT64 alignedSize = CalcAlignedSize(it->second.mStart, alignment, size);
-				if (alignedSize <= it->first)
-				{
-					UINT64 begin = ret->mStart = it->second.mStart;
-					ret->mOffset = GetNextAlignedOffset(it->second.mStart, alignment);
-					ret->mSize = alignedSize;
-					ID3D12Heap* heap = ret->mHeap = it->second.mHeap;
-					UINT64 leftSize = it->first - alignedSize;
-					mAvailableMem.erase(it);
-					mHeapMap[heap].erase(begin);
-					//add modified region
-					if (leftSize > 0)
-					{
-						UINT64 newStart = ret->mStart + alignedSize;
-						mAvailableMem.insert(std::make_pair(leftSize, AvailableRange{ heap, newStart }));
-						mHeapMap[heap].insert(std::make_pair(newStart, leftSize));
-					}
-					return ret;
-				}
-			}
-			//no available block, need to add new Heap
-			ret->mOffset = 0;
-			ret->mStart = 0;
-			ret->mSize = size;
-			ID3D12Heap* heap;
-			if (size >= mDefaultBlockSize)
-			{//no need to add to free list
-				heap = mCreator.CreateHeap(size);
-			}
-			else
-			{//need to add to free list
-				heap = mCreator.CreateHeap(mDefaultBlockSize);
-				//need add left range
-				UINT64 leftSize = mDefaultBlockSize - size;
-				mAvailableMem.insert(std::make_pair(leftSize, AvailableRange {heap, size}));
-				mHeapMap[heap].insert(std::make_pair(size, leftSize));
-			}
-			ret->mHeap = heap;
-			return ret;
-		}
-		virtual void Free(const IDX12GPUMemoryRegion* region)
-		{}
-
-	};
-	class DX12LinearBlockAllocator : public IDX12GPUMemoryAllocator
-	{
-		struct BlockData
-		{
-			ID3D12Heap* Heap;
-			int References;
-		};
-	private:
-		UINT64 mBlockSize;
-		std::list<BlockData> mHeaps;
-		UINT64 mCurrentBlockLeftSize;
-		HeapCreator mHeapCreator;
-		ObjectPool<IDX12GPUMemoryRegion> mRegionPool;
-	public:
-		DX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize)
-			: mBlockSize(blockSize)
-			, mCurrentBlockLeftSize(0)
-			, mHeapCreator(creator)
-			, mRegionPool(1024)
-		{}
-		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment)
-		{
-			CheckAlways(size <= mBlockSize);
-			size = CalcAlignedSize(mBlockSize - mCurrentBlockLeftSize, alignment, size);
-			if (size > mCurrentBlockLeftSize)
-			{
-				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(size), 1 });
-				mCurrentBlockLeftSize = mBlockSize;
-			}
-			IDX12GPUMemoryRegion* ret = mRegionPool.Allocate();
-			ret->mHeap = mHeaps.back().mHeap;
-			ret->mStart = mBlockSize - mCurrentBlockLeftSize;
-			ret->mOffset = GetNextAlignedOffset(ret->mStart, alignment);
-			ret->mSize = size;
-			ret->Allocator = this;
-			return ret;
-		}
-		virtual void Free(const IDX12GPUMemoryRegion* region)
-		{
-			for (auto it = mHeaps.begin(); it != mHeaps.end(); ++it)
-			{
-				if (it->mHeap == region->mHeap)
-				{
-					--it->References;
-					if (it->References == 0)
-					{
-						it->mHeap->Release();
-						mHeaps.erase(it);
-					}
-					mRegionPool.Deallocate(const_cast<IDX12GPUMemoryRegion*>(region));
-					return;
-				}
-			}
-			CheckAlways(false, "freeing non existing");
-		}
-	};
-	
 	class DX12RenderDeviceModuleImp : DX12RenderDeviceModule
 	{
 		//forward declarations
@@ -323,10 +144,10 @@ namespace Yes
 				}
 			}
 			{//allocator
-				mFrameTempAllocator = new DX12LinearBlockAllocator(
+				mFrameTempAllocator = CreateDX12LinearBlockAllocator(
 					HeapCreator(MemoryAccessCase::CPUUpload, mDevice.GetPtr()), 
 					mAllocatorBlockSize);
-				mPersistentAllocator = new DX12FirstFitAllocator(
+				mPersistentAllocator = CreateDX12FirstFitAllocator(
 					HeapCreator(MemoryAccessCase::GPUAccessOnly, mDevice.GetPtr()),
 					mAllocatorBlockSize);
 			}
@@ -345,8 +166,8 @@ namespace Yes
 		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		COMRef<ID3D12Resource> mBackBuffers[3];
 		
-		DX12LinearBlockAllocator* mFrameTempAllocator;
-		DX12FirstFitAllocator* mPersistentAllocator;
+		IDX12GPUMemoryAllocator* mFrameTempAllocator;
+		IDX12GPUMemoryAllocator* mPersistentAllocator;
 
 		//submodules
 		DX12AsyncResourceCreator* mAsyncResourceCreator;
