@@ -44,7 +44,7 @@ namespace Yes
 		if (FAILED(D3DCompile(text, size, shaderName, nullptr, nullptr, entry, target, flags1, 0, &blob, &error)))
 		{
 			const char* errorMsg = (const char*)error->GetBufferPointer();
-			errorMsg = errorMsg;
+			CheckAlways(false);
 		}
 #endif
 		return blob;

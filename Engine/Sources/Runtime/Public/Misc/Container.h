@@ -2,6 +2,8 @@
 #include "Yes.h"
 #include "Misc/SharedObject.h"
 
+#include <vector>
+
 namespace Yes
 {
 	/*

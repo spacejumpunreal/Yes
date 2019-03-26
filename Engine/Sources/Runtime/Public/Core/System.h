@@ -1,6 +1,8 @@
 #pragma once
 #include "Core/IModule.h"
 
+#include <map>
+
 namespace Yes
 {
 	using ModuleCreatorFunction = IModule* (*)();

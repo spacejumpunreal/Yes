@@ -2,9 +2,15 @@
 
 #include "Yes.h"
 
+#include <cassert>
+#include <cstdarg>
+#include <cstdio>
+
 #if YES_WINDOWS
 #include "Windows.h"
 #endif
+
+
 
 namespace Yes
 {
@@ -17,6 +23,7 @@ namespace Yes
 			va_start(args, fmt);
 			vprintf(fmt, args);
 			va_end(args);
+			assert(0);
 		}
 
 	}

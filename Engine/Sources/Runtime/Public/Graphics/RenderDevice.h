@@ -2,16 +2,21 @@
 
 #include "Yes.h"
 #include "Misc/SharedObject.h"
+#include "Misc/Math.h"
+#include <vector>
 
 namespace Yes
 {
+	struct RenderDeviceDrawcall;
+
 	class RenderDeviceResource : public SharedObject
 	{
 	public:
-	protected:
 		virtual ~RenderDeviceResource()
 		{}
 		virtual bool IsReady() = 0; // check if is ready to use
+	protected:
+
 	};
 	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;
 	typedef enum class VertexFormat : byte
@@ -55,37 +60,53 @@ namespace Yes
 		int Right;
 		int Bottom;
 	};
-	class RenderDevicePass
-	{
-
-	};
 	class RenderDeviceShader : public RenderDeviceResource
 	{
-
 	};
 	class RenderDeviceConstantBuffer : public RenderDeviceResource
 	{
-
 	};
 	class RenderDevicePSO : public RenderDeviceResource
 	{
 	};
 	class RenderDeviceMesh : public RenderDeviceResource
 	{};
+	class RenderDeviceTexture : public RenderDeviceResource
+	{};
+	class RenderDeviceRenderTarget : public RenderDeviceResource
+	{};
+	class RenderDeviceDepthStencil : public RenderDeviceResource
+	{};
 	class RenderDeviceCommand
 	{
 		virtual void Reset() = 0;
-		virtual void Execute() = 0;
+	};
+	class RenderDevicePass
+	{
+	public:
+		void SetName(const char* name)
+		{
+			mName = name;
+		}
+		virtual void Reset() = 0;
+		virtual void AddCommand(RenderDeviceCommand* drawcall) = 0;
+		virtual void SetOutput(TRef<RenderDeviceRenderTarget>& renderTarget, int idx) = 0;
+		virtual void SetDepthStencil(TRef<RenderDeviceDepthStencil>& depthStencil) = 0;
+		virtual void SetClearValue(bool needClearColor, const V3F& clearColor, bool needClearDepth, float depth) = 0;
+		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
+	protected:
+		std::string mName;
+	};
+	struct RenderDeviceDrawcall : public RenderDeviceCommand
+	{
+	public:
+		virtual void SetMesh(RenderDeviceMesh* mesh) = 0;
+		virtual void SetTextures(int idx, RenderDeviceTexture* texture) = 0;
+		virtual void SetConstantBuffer(void* data, size_t size) = 0;
+		virtual void SetPSO(RenderDevicePSO* pso) = 0;
 	};
 	class RenderDeviceBarrier : public RenderDeviceCommand
 	{};
-	class  RenderDeviceDrawcall : public RenderDeviceCommand
-	{
-		RenderDeviceResourceRef Mesh;
-		std::vector<RenderDeviceResourceRef> Textures;
-		std::vector<RenderDeviceResourceRef> ConstantBuffers;
-		RenderDeviceResourceRef PSO;
-	};
 	class RenderDevice
 	{
 	public:
@@ -99,11 +120,8 @@ namespace Yes
 
 		//Command related
 		virtual void BeginFrame() = 0;
+		virtual void ExecutePass(RenderDevicePass* pass) = 0;
 		virtual void EndFrame() = 0;
-
-		//scissor viewport
-		virtual void SetViewPort() = 0;
-		virtual void SetScissor() = 0;
 
 		//allocate related
 		virtual RenderDevicePass* AllocPass() = 0;

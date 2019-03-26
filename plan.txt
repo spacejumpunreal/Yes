@@ -1,75 +1,28 @@
-- DX12 example module
-	- write sample code myself 2.24 done
-	- 简单的render engine
-		- resource
-			- API
-				- asyc create
-				- check resource ready
-			- resource types
-				- material
-					- constants
-					- shader
-					- pso
-					- root signature
-				- texture
-				- mesh
-		- client framework
-			- prepare
-			- render
-		- 实现细节
-			- loop
-				- resource async create线程
-				- render+submit线程
-			- API 数据 descriptor heap
-				- 全局2个heap, 自己做version
-				- 用root constant来点出自己用的CB和Texture的start index
-			- resource memory allocation
-				- 用placed resource + 大heap
-			- material
-				- 单constant buffer
-				- 一个unbounded texture array
-				- 每个material一个
-- vulkan
-- learn from unreal
-	- how to handle resource memory allocation
-	- RHICommandlist/API command list
-- architecture design
-
-
-
 - doing
 	- SimpleDX12Renderer
-		- CreateResource
-			- CreatePSO
-				- PSODesc
-			- design PSO cache, where to put it?
-				- no cache at this layer
-			- CreateMesh
-				- GPUMemoryAllocator
-					- LinearBlock
-					- FirstFit
-				- control flow
-					- uploader
-						- during loop
-							- check previous events, fire if ready
-							- get job
-							- prepare upload job
-							- submit job
-							- insert event when necessary
-						- on queue empty
-							- wait on event and job
-							- on event, fire event
-							- on job, back to loop
-					- user
-						- user call into API
-						- create initial resource
-						- create item in async upload queue
-						- return DX12RenderDeviceMesh
-						- check IsReady
-				- DX12RenderDeviceMesh
-					- mCPUData
-					- mGPUObject
-				- UploaderThread
-				- CreateJobQueue
-				- Callback Mechanism
-				- CreateCallback
+		- 改名DX12Allocator->DX12MemoryAllocator
+		- 改DX12DescirptorHeapManager->DX12DescriptorHeapAllocator
+		- 增加FirstFitAllocator
+
+		- Create Depth/Stencil
+		- Create RenderTarget
+		- DescriptorHeapAllocator
+			- Heap: buffer/nonRTDS/RTDS
+			- DescriptorHeap: CBVSRVUAV/RTV/DSV
+		- execute renderpass
+			- RenderPass::ExecutePass
+				- initial setup
+					- add stencil/create stencil
+					- RT(Multiple) setup/ stencil setup   *GOONGOONGOON
+					- clear color stencil
+					- scissor + viewport
+				- render command
+					- apply pso
+					- fill parameters
+					- set mesh
+				- execute commandlist
+			- EndFrame
+				- RT State Transition
+			- cleanup
+				- objects back to pool
+		

@@ -1,7 +1,7 @@
 #pragma once
 #include "Yes.h"
 #include "SWRJob.h"
-#include "Misc/Sync.h"
+#include "Concurrency/Sync.h"
 #include <thread>
 #include <deque>
 

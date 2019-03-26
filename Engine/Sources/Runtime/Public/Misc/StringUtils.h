@@ -2,6 +2,9 @@
 
 #include "Yes.h"
 
+#include <string>
+#include <cstdarg>
+
 namespace Yes
 {
 	inline std::string FormatString(const char* fmt, ...)

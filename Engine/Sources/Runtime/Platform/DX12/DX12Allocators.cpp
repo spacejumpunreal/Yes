@@ -1,31 +1,53 @@
 #include "Platform/DX12/DX12Allocators.h"
 #include "Misc/Debug.h"
+#include "Misc/Math.h"
 #include "Memory/ObjectPool.h"
 
 #include <d3d12.h>
 #include "d3dx12.h"
 
+#include <unordered_map>
+#include <map>
+#include <algorithm>
+
 namespace Yes
 {
-	static ID3D12Heap* CreateHeapWithConfig(UINT64 size, MemoryAccessCase accessFlag, ID3D12Device* device)
+	
+	static ID3D12Heap* CreateHeapWithConfig(UINT64 size, MemoryAccessCase accessFlag, ID3D12Device* device, ResourceType resourceType)
 	{
-		D3D12_HEAP_DESC desc;
+		D3D12_HEAP_DESC desc = {};
 		desc.SizeInBytes = size;
+		D3D12_HEAP_FLAGS resType;
+		switch (resourceType)
+		{
+		case ResourceType::Buffer:
+			resType = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
+			break;
+		case ResourceType::Texture:
+			resType = D3D12_HEAP_FLAG_ALLOW_ONLY_NON_RT_DS_TEXTURES;
+			break;
+		case ResourceType::RenderTarget:
+			resType = D3D12_HEAP_FLAG_ALLOW_ONLY_RT_DS_TEXTURES;
+			break;
+		default:
+			resType = D3D12_HEAP_FLAG_NONE;
+			break;
+		}
 		switch (accessFlag)
 		{
 		case MemoryAccessCase::GPUAccessOnly:
 			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_DEFAULT;
-			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_WRITE_COMBINE;
+			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 			desc.Properties.CreationNodeMask = 0;
-			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L1;
-			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
+			desc.Flags = resType;
 			break;
 		case MemoryAccessCase::CPUUpload:
 			desc.Properties.Type = D3D12_HEAP_TYPE::D3D12_HEAP_TYPE_UPLOAD;
-			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_NOT_AVAILABLE;
+			desc.Properties.CPUPageProperty = D3D12_CPU_PAGE_PROPERTY::D3D12_CPU_PAGE_PROPERTY_UNKNOWN;
 			desc.Properties.CreationNodeMask = 0;
-			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_L0;
-			desc.Flags = D3D12_HEAP_FLAG_ALLOW_ALL_BUFFERS_AND_TEXTURES;
+			desc.Properties.MemoryPoolPreference = D3D12_MEMORY_POOL::D3D12_MEMORY_POOL_UNKNOWN;
+			desc.Flags = resType;
 			break;
 		default:
 			CheckAlways(false);
@@ -37,7 +59,7 @@ namespace Yes
 	}
 	ID3D12Heap* HeapCreator::CreateHeap(UINT64 size)
 	{
-		return CreateHeapWithConfig(size, mAccessFlag, mDevice);
+		return CreateHeapWithConfig(size, mAccessFlag, mDevice, mResourceType);
 	}
 	class DX12GPUMemoryRegion : public IDX12GPUMemoryRegion
 	{
@@ -144,6 +166,9 @@ namespace Yes
 		};
 	private:
 		UINT64 mBlockSize;
+		size_t mAllocationCount;
+		size_t mAllocationUsed;
+		size_t mAllocationTotal;
 		std::list<BlockData> mHeaps;
 		UINT64 mCurrentBlockLeftSize;
 		HeapCreator mHeapCreator;
@@ -151,18 +176,22 @@ namespace Yes
 	public:
 		DX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize)
 			: mBlockSize(blockSize)
+			, mAllocationCount(0)
+			, mAllocationUsed(0)
+			, mAllocationTotal(0)
 			, mCurrentBlockLeftSize(0)
 			, mHeapCreator(creator)
 			, mRegionPool(1024)
 		{}
-		virtual const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment)
+		const IDX12GPUMemoryRegion* Allocate(UINT64 size, UINT64 alignment) override
 		{
 			CheckAlways(size <= mBlockSize);
-			size = CalcAlignedSize(mBlockSize - mCurrentBlockLeftSize, alignment, size);
+			UINT64 sizeAfterAlign = CalcAlignedSize(mBlockSize - mCurrentBlockLeftSize, alignment, size);
 			if (size > mCurrentBlockLeftSize)
 			{
-				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(size), 1 });
+				mHeaps.push_front(BlockData{ mHeapCreator.CreateHeap(mBlockSize), 1 });
 				mCurrentBlockLeftSize = mBlockSize;
+				mAllocationTotal += mBlockSize;
 			}
 			DX12GPUMemoryRegion* ret = mRegionPool.Allocate();
 			ret->mHeap = mHeaps.back().Heap;
@@ -170,26 +199,37 @@ namespace Yes
 			ret->mOffset = GetNextAlignedOffset(ret->mStart, alignment);
 			ret->mSize = size;
 			ret->mAllocator = this;
+			++mAllocationCount;
+			mAllocationUsed += size;
 			return ret;
 		}
-		virtual void Free(const IDX12GPUMemoryRegion* reg)
+		void Free(const IDX12GPUMemoryRegion* reg) override
 		{
 			const DX12GPUMemoryRegion* region = (const DX12GPUMemoryRegion*)reg;
 			for (auto it = mHeaps.begin(); it != mHeaps.end(); ++it)
 			{
 				if (it->Heap == region->mHeap)
 				{
+					--mAllocationUsed;
+					--mAllocationCount;
 					--it->References;
 					if (it->References == 0)
 					{
 						it->Heap->Release();
 						mHeaps.erase(it);
+						mAllocationTotal -= mBlockSize;
 					}
 					mRegionPool.Deallocate(const_cast<DX12GPUMemoryRegion*>(region));
 					return;
 				}
 			}
 			CheckAlways(false, "freeing non existing");
+		}
+		void GetAllocationStats(size_t& count, size_t& used, size_t& total) override
+		{
+			count = mAllocationCount;
+			used = mAllocationUsed;
+			total = mAllocationTotal;
 		}
 	};
 	IDX12GPUMemoryAllocator* CreateDX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize)

@@ -46,9 +46,9 @@ namespace Yes
 		//resource
 		COMRef<ID3D12Resource> mVertexBuffer;
 		D3D12_VERTEX_BUFFER_VIEW mVertexBufferView;
-		COMRef<ID3D12Resource> mConstantBuffer;
+		COMRef<ID3D12Resource> mConstantBuffer[2];
 		COMRef<ID3D12DescriptorHeap> mSRVHeap;
-		const int HeapSize = 32;
+		const int HeapSize = 16;
 		UINT8* mCBStart;
 
 		COMRef<ID3D12Resource> mTexture;
@@ -296,8 +296,16 @@ namespace Yes
 					&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
-					IID_PPV_ARGS(&mConstantBuffer)));
+					IID_PPV_ARGS(&mConstantBuffer[0])));
 
+				CheckSucceeded(mDevice->CreateCommittedResource(
+					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					D3D12_HEAP_FLAG_NONE,
+					&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+					D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(&mConstantBuffer[1])));
+				/*
 				D3D12_CONSTANT_BUFFER_VIEW_DESC desc = {};
 				desc.BufferLocation = mConstantBuffer->GetGPUVirtualAddress();
 				desc.SizeInBytes = constantBufferSize;
@@ -307,7 +315,7 @@ namespace Yes
 					mDevice->CreateConstantBufferView(&desc, ptr);
 					ptr.ptr += mSRVDescriptorSize;
 				}
-				
+				*/
 			}
 			//texture
 			{
@@ -434,15 +442,21 @@ namespace Yes
 		{
 			const int limit = 256;
 			CD3DX12_RANGE readRange(0, 0);
-			CheckSucceeded(mConstantBuffer->Map(0, &readRange, (void**)&mCBStart));
-			ConstantData cd;
-			f = f % limit;
-			for (int i = 0; i < 8; ++i)
+			for (int j = 0; j < 2; ++j)
 			{
-				cd.param0[i] = (float)(f + i);
+				CheckSucceeded(mConstantBuffer[j]->Map(0, &readRange, (void**)&mCBStart));
+				ConstantData cd;
+				f = f % limit;
+				int sign = j == 0 ? -1 : 1;
+				for (int i = 0; i < 8; ++i)
+				{
+					cd.param0[i] = (float)(sign * (f + i));
+				}
+				cd.param1[3] = (float)limit;
+				memcpy(mCBStart, &cd, CalcConstantBufferSize<ConstantData>());
+				mConstantBuffer[j]->Unmap(0, &readRange);
 			}
-			cd.param1[3] = (float)limit;
-			memcpy(mCBStart, &cd, CalcConstantBufferSize<ConstantData>());
+			
 		}
 		void SyncGPU()
 		{
@@ -465,9 +479,12 @@ namespace Yes
 			ID3D12DescriptorHeap* ppHeaps[] = { mSRVHeap.GetPtr()};
 			mCommandList->SetDescriptorHeaps(1, ppHeaps);
 			D3D12_GPU_DESCRIPTOR_HANDLE handle = mSRVHeap->GetGPUDescriptorHandleForHeapStart();
-			mCommandList->SetGraphicsRootDescriptorTable(0, handle);
+			mCommandList->SetGraphicsRootConstantBufferView(0, mConstantBuffer[0]->GetGPUVirtualAddress());
+			mCommandList->SetGraphicsRootConstantBufferView(1, mConstantBuffer[1]->GetGPUVirtualAddress());
+			//mCommandList->SetGraphicsRootConstantBufferView(0, handle.ptr);
+			//mCommandList->SetGraphicsRootConstantBufferView(1, handle.ptr);
 			handle.ptr += HeapSize / 2 * mSRVDescriptorSize;
-			mCommandList->SetGraphicsRootDescriptorTable(1, handle);
+			mCommandList->SetGraphicsRootDescriptorTable(2, handle);
 
 			mCommandList->RSSetViewports(1, &mViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);

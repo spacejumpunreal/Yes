@@ -5,6 +5,7 @@
 #include "Misc/Container.h"
 #include <algorithm>
 #include <deque>
+#include <mutex>
 
 namespace Yes::SWR
 {

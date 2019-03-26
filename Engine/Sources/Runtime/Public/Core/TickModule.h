@@ -2,6 +2,8 @@
 #include "Yes.h"
 #include "Core/IModule.h"
 
+#include <functional>
+
 namespace Yes
 {
 	struct ITickable

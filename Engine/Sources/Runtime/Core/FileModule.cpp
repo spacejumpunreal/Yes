@@ -4,6 +4,8 @@
 #include "Misc/Container.h"
 #include "Misc/Debug.h"
 
+#include <fstream>
+
 namespace Yes
 {
 	struct FileModuleImp : public FileModule

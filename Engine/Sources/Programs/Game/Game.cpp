@@ -26,6 +26,8 @@ void func()
 	}
 }
 
+#define DEMO 1
+
 int main(int argc, const char** argv)
 {
 	std::vector<const char*> args
@@ -34,17 +36,18 @@ int main(int argc, const char** argv)
 		"module=FileModule",
 		R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
 		"module=WindowsWindowModule",
-		//"module=DX12RenderDeviceModule",
-		//"module=RenderDeviceTestDriverModule",
+#if DEMO
 		"module=DX12DemoModule",
+#else
+		"module=DX12RenderDeviceModule",
+		"module=RenderDeviceTestDriverModule",
+#endif	
 	};
 	auto sys = new Yes::System((int)args.size(), args.data());
 	sys->Initialize();
 	Yes::TickModule* tickModule = GET_MODULE(TickModule);
 	tickModule->AddTickable(new TestTick());
 	start = Yes::TimeStamp::Now();
-	func();
-
 	sys->Loop();
 	
 	return 0;

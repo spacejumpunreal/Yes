@@ -3,8 +3,8 @@
 
 #include "Core/System.h"
 #include "Misc/Debug.h"
-#include "Misc/Thread.h"
-#include "Misc/Sync.h"
+#include "Concurrency/Thread.h"
+#include "Concurrency/Sync.h"
 
 #include "Windows.h"
 
