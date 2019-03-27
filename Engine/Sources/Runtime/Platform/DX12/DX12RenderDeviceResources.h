@@ -4,7 +4,7 @@
 #include "Misc/Utils.h"
 #include "Concurrency/Thread.h"
 #include "Concurrency/MultiThreadQueue.h"
-#include "Platform/DX12/DX12Allocators.h"
+#include "Platform/DX12/DX12MemAllocators.h"
 
 #include <deque>
 #include "Windows.h"

@@ -1,5 +1,6 @@
 #include "Platform/DX12/DX12FrameState.h"
-#include "Platform/DX12/DX12Allocators.h"
+#include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12DescriptorHeapAllocators.h"
 #include "Platform/DX12/DX12RenderDeviceResources.h"
 
 namespace Yes
@@ -60,11 +61,15 @@ namespace Yes
 
 	//DX12FrameState
 	static int HeapSlotBlockCount = 2048;
-	DX12FrameState::DX12FrameState(ID3D12Device* dev, UINT64 slotSize, DX12RenderDeviceRenderTarget* frameBuffer)
+	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12RenderDeviceRenderTarget* frameBuffer)
 		: mFrameBuffer(frameBuffer)
 		, mExpectedValue(0)
 		, mConstantBufferManager(dev)
-		, mDescriptorHeapManager(dev, slotSize, HeapSlotBlockCount)
+		, mLinearDescriptorHeapAllocator(
+			CreateDX12LinearDescriptorHeapAllocator(
+				dev, 
+				D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+				HeapSlotBlockCount))
 		, mCommandManager(dev)
 	{
 		CheckSucceeded(dev->CreateFence(mExpectedValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
@@ -86,7 +91,7 @@ namespace Yes
 			CheckAlways(mFence->SetEventOnCompletion(mExpectedValue, mEvent));
 		}
 		mConstantBufferManager.Reset();
-		mDescriptorHeapManager.Reset();
+		mLinearDescriptorHeapAllocator->Reset();
 		mCommandManager.Reset();
 	}
 

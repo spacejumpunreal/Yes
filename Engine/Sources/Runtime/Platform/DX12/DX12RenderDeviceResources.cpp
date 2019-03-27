@@ -1,5 +1,5 @@
 #include "Platform/DX12/DX12RenderDeviceResources.h"
-#include "Platform/DX12/DX12Allocators.h"
+#include "Platform/DX12/DX12MemAllocators.h"
 #include "Platform/DXUtils.h"
 #include "Graphics/RenderDevice.h"
 #include "Misc/Utils.h"

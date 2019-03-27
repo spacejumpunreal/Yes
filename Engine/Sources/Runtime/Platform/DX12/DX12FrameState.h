@@ -2,7 +2,6 @@
 #include "Yes.h"
 
 #include "Misc/Utils.h"
-#include "Platform/DX12/DX12DescriptorHeapManager.h"
 
 #include "Windows.h"
 #include <dxgi1_2.h>
@@ -21,6 +20,7 @@ namespace Yes
 	class DX12RenderDeviceRenderTarget;
 	class IDX12GPUMemoryAllocator;
 	class IDX12GPUMemoryRegion;
+	class IDX12DescriptorHeapAllocator;
 
 	struct AllocatedCBV
 	{
@@ -51,16 +51,16 @@ namespace Yes
 	class DX12FrameState
 	{
 	public:
-		DX12FrameState(ID3D12Device* dev, UINT64 slotSize, DX12RenderDeviceRenderTarget* frameBuffer);
+		DX12FrameState(ID3D12Device* dev, DX12RenderDeviceRenderTarget* frameBuffer);
 		~DX12FrameState();
 		void Finish();
 		DX12ConstantBufferManager& GetConstantBufferManager()
 		{
 			return mConstantBufferManager;
 		}
-		DX12DescriptorHeapManager& GetDescriptorHeapManager()
+		IDX12DescriptorHeapAllocator& GetTempDescriptorHeapAllocator()
 		{
-			return mDescriptorHeapManager;
+			return *mLinearDescriptorHeapAllocator;
 		}
 		ID3D12GraphicsCommandList* GetCommandList()
 		{
@@ -73,7 +73,7 @@ namespace Yes
 		UINT64 mExpectedValue;
 		HANDLE mEvent;
 		DX12ConstantBufferManager mConstantBufferManager;
-		DX12DescriptorHeapManager mDescriptorHeapManager;
+		IDX12DescriptorHeapAllocator* mLinearDescriptorHeapAllocator;
 		DX12CommandManager mCommandManager;
 		
 	};

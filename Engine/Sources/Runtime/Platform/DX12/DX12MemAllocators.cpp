@@ -1,4 +1,4 @@
-#include "Platform/DX12/DX12Allocators.h"
+#include "Platform/DX12/DX12MemAllocators.h"
 #include "Misc/Debug.h"
 #include "Misc/Math.h"
 #include "Memory/ObjectPool.h"

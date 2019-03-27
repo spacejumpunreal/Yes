@@ -1,7 +1,8 @@
 #include "Platform/DX12/DX12RenderDeviceModule.h"
+#include "Platform/DX12/DX12Parameters.h"
 #include "Platform/DX12/DX12RenderDeviceResources.h"
 #include "Platform/DX12/DX12FrameState.h"
-#include "Platform/DX12/DX12Allocators.h"
+#include "Platform/DX12/DX12MemAllocators.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Platform/DXUtils.h"
 #include "Memory/ObjectPool.h"
@@ -202,10 +203,7 @@ namespace Yes
 				GetHardwareAdapter(factory.GetPtr(), &hardwareAdapter, featureLevel);
 				CheckSucceeded(D3D12CreateDevice(hardwareAdapter.GetPtr(), featureLevel, IID_PPV_ARGS(&mDevice)));
 			}
-			{//init descriptor heap offsets
-				mSRVIncrementSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
-				mRTVIncrementSize = mDevice->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
-			}
+			InitDX12RuntimeParameters(mDevice.GetPtr());
 			{//command queue: 2 queues, 1 for command, 1 for resource copy
 				D3D12_COMMAND_QUEUE_DESC queueDesc = {};
 				queueDesc.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
@@ -258,12 +256,10 @@ namespace Yes
 				{
 					mFrameStates[i] = new DX12FrameState(
 						mDevice.GetPtr(), 
-						mSRVIncrementSize, 
 						nullptr);
 				}
 			}
 		}
-
 		void ExecutePass(RenderDevicePass* renderPass) override
 		{
 			auto pass = (DX12RenderDevicePass*)renderPass;
@@ -286,7 +282,6 @@ namespace Yes
 				}
 				cmdList->OMSetRenderTargets(count, handles, false, nullptr);
 			}
-
 			//GOONGOONGOON
 			//when done, reset pass and free it
 			pass->Reset();
