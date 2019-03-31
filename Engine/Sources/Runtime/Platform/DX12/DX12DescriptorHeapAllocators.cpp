@@ -1,79 +1,198 @@
 #include "Platform/DX12/DX12DescriptorHeapAllocators.h"
 #include "Platform/DX12/DX12Parameters.h"
+#include "Memory/RangeAllocator.h"
 #include "Misc/Debug.h"
 
 namespace Yes
 {
-	class DX12LinearDescriptorHeapAllocator : public IDX12DescriptorHeapAllocator
+	enum class DescriptorHeapType
 	{
-	public:
-		DX12LinearDescriptorHeapAllocator(ID3D12Device* dev, D3D12_DESCRIPTOR_HEAP_TYPE heapType, size_t defaultHeapSlots)
-			: mCurrentHeap(nullptr)
-			, mCurrentHeapLeftSlots(0)
-			, mCurrentHeapOffset(0)
-			, mSlotSize(GetDX12RuntimeParameters().DescriptorHeapHandleSizes[heapType])
-			, mDefaultHeapSlots(defaultHeapSlots)
-			, mDevice(dev)
+		SRV,
+		RTV,
+		DSV,
+		DescriptorHeapTypeCount,
+	};
+	D3D12_DESCRIPTOR_HEAP_TYPE DescriptorHeapType2D3D12_DESCRIPTOR_HEAP_TYPE[] =
+	{
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
+		D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
+	};
+	size_t GetDescriptorHeapTypeCount()
+	{
+		return (size_t)DescriptorHeapType::DescriptorHeapTypeCount;
+	}
+	static DescriptorHeapType ResourceType2AllocatorIndex[] =
+	{
+		DescriptorHeapType::SRV,
+		DescriptorHeapType::SRV,
+		DescriptorHeapType::RTV,
+		DescriptorHeapType::DSV,
+	};
+	size_t GetDescriptorHeapAllocatorIndex(ResourceType type)
+	{
+		return (size_t)ResourceType2AllocatorIndex[(int)type];
+	}
+	void CreateDescriptorHeapAllocators(
+		ID3D12Device* dev,
+		bool isTemp,
+		IDX12DescriptorHeapAllocator* outAllocators[])
+	{
+		const size_t Size16K = 16 * 1024;
+		if (isTemp)
 		{
-		}
-		AllocatedDescriptorHeapSpace Allocate(size_t count) override
-		{
-			CheckAlways(count < mDefaultHeapSlots);
-			if (mCurrentHeapLeftSlots < count)
+			for (int i = 0; i < (int)DescriptorHeapType::DescriptorHeapTypeCount; ++i)
 			{
-				D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-				desc.NumDescriptors = (UINT)mDefaultHeapSlots;
-				desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-				desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-				CheckSucceeded(mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mCurrentHeap)));
-				mHeaps.push_back(mCurrentHeap);
-				mCurrentHeapLeftSlots = mDefaultHeapSlots;
-				mCurrentHeapOffset = 0;
+				outAllocators[i] = CreateDX12LinearBlockDescriptorHeapAllocator(
+					dev,
+					DescriptorHeapType2D3D12_DESCRIPTOR_HEAP_TYPE[i],
+					Size16K,
+					Size16K);
 			}
-			AllocatedDescriptorHeapSpace ret = {
-				mCurrentHeap,
-				mCurrentHeapOffset,
-			};
-			mCurrentHeapOffset += mSlotSize * count;
-			mCurrentHeapLeftSlots -= count;
+		}
+		else
+		{
+			for (int i = 0; i < (int)DescriptorHeapType::DescriptorHeapTypeCount; ++i)
+			{
+				outAllocators[i] = CreateDX12BestFitDescriptorHeapAllocator(
+					dev,
+					DescriptorHeapType2D3D12_DESCRIPTOR_HEAP_TYPE[i],
+					Size16K,
+					Size16K);
+			}
+		}
+	}
+	struct DescriptorHeapCreator
+	{
+		using RangePtr = UINT64;
+		using RangeKey = ID3D12DescriptorHeap*;
+		DescriptorHeapCreator() = default;
+		DescriptorHeapCreator(D3D12_DESCRIPTOR_HEAP_TYPE heapType, ID3D12Device* device)
+			: mDevice(device)
+			, mHeapType(heapType)
+		{}
+		ID3D12DescriptorHeap* AllocRange(UINT64 size)
+		{
+			ID3D12DescriptorHeap* ret;
+			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
+			desc.Type = mHeapType;
+			desc.NumDescriptors = (UINT)size;
+			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			desc.NodeMask = 0;
+			mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&ret));
 			return ret;
 		}
-		void Free(const AllocatedDescriptorHeapSpace& space)
+		void FreeRange(ID3D12DescriptorHeap* key)
 		{
-			CheckAlways(false, "you do not need to call this");
+			key->Release();
 		}
-		void Reset() override
+		DescriptorHeapCreator& operator=(const DescriptorHeapCreator&) = default;
+		void SetConfig(const DescriptorHeapCreator& other)
 		{
-			mCurrentHeap = nullptr;
-			mCurrentHeapLeftSlots = 0;
-			for (auto heap : mHeaps)
-			{
-				heap->Release();
-			}
+			(*this) = other;
 		}
 	private:
-		ID3D12DescriptorHeap* mCurrentHeap;
-		size_t mCurrentHeapLeftSlots;
-		UINT64 mCurrentHeapOffset;
-		UINT64 mSlotSize;
-		size_t mDefaultHeapSlots;
 		ID3D12Device* mDevice;
-		std::deque<ID3D12DescriptorHeap*> mHeaps;
+		D3D12_DESCRIPTOR_HEAP_TYPE mHeapType;
 	};
-	IDX12DescriptorHeapAllocator* CreateDX12LinearDescriptorHeapAllocator(ID3D12Device* dev, D3D12_DESCRIPTOR_HEAP_TYPE heapType, size_t defaultHeapSlots)
-	{
-		return new DX12LinearDescriptorHeapAllocator(dev, heapType, defaultHeapSlots);
-	}
 
-	class DX12BestFitDescritorHeapAllocator
+	class DX12LinearBlockDescriptorHeapAllocator : public IDX12DescriptorHeapAllocator
 	{
 	public:
-		DX12BestFitDescritorHeapAllocator(ID3D12Device* dev, D3D12_DESCRIPTOR_HEAP_TYPE type, size_t defaultHeapSlots);
-		AllocatedDescriptorHeapSpace Allocate(size_t count);
-		void Reset();
+		DX12LinearBlockDescriptorHeapAllocator(UINT64 blockSize, UINT64 maxReservation, UINT64 handleSize)
+			: mImp(blockSize, maxReservation)
+		{}
+		virtual DX12DescriptorHeapSpace Allocate(size_t count) override
+		{ 
+			DX12DescriptorHeapSpace ret;
+			UINT64 offset;
+			mImp.Allocate(ret.Heap, offset, count, 1);
+			ret.Offset.ptr = offset * mHandleSize;
+			return ret;
+		}
+		virtual void Free(const DX12DescriptorHeapSpace& space) override
+		{
+			mImp.Free(space.Heap, space.Offset.ptr / mHandleSize);
+		}
+		virtual void Reset() override 
+		{ 
+			mImp.Reset(); 
+		}
+		void GetAllocationStats(size_t& count, size_t& used, size_t& total) override
+		{
+			mImp.Stats(count, used, total);
+		}
+		void SetConfig(const DescriptorHeapCreator& creator)
+		{
+			mImp.SetConfig(creator);
+		}
+	private:
+		LinearBlockRangeAllocator<ID3D12DescriptorHeap*, UINT64, DescriptorHeapCreator> mImp;
+		UINT64 mHandleSize;
 	};
-	IDX12DescriptorHeapAllocator* CreateDX12BestFitDescriptorHeapAllocator(ID3D12Device* dev, D3D12_DESCRIPTOR_HEAP_TYPE heapType, size_t defaultHeapSlots)
+
+	IDX12DescriptorHeapAllocator* CreateDX12LinearBlockDescriptorHeapAllocator(
+		ID3D12Device* dev, 
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
+		size_t blockSize, 
+		size_t maxReservation)
 	{
-		return new DX12LinearDescriptorHeapAllocator(dev, heapType, defaultHeapSlots);
+		auto a = new DX12LinearBlockDescriptorHeapAllocator(
+			blockSize, 
+			maxReservation, 
+			GetDX12RuntimeParameters().DescriptorHeapHandleSizes[heapType]);
+		a->SetConfig(DescriptorHeapCreator{ heapType , dev });
+		return a;
+	}
+
+	class DX12BestFitDescriptorHeapAllocator : public IDX12DescriptorHeapAllocator
+	{
+	public:
+		DX12BestFitDescriptorHeapAllocator(UINT64 blockSize, UINT64 maxReservation, UINT64 handleSize)
+			: mImp(blockSize, maxReservation)
+			, mHandleSize(handleSize)
+		{}
+		virtual DX12DescriptorHeapSpace Allocate(size_t count) override
+		{
+			DX12DescriptorHeapSpace ret;
+			UINT64 offset;
+			mImp.Allocate(ret.Heap, offset, count, 1);
+			ret.Offset.ptr = mHandleSize * offset;
+			return ret;
+		}
+		virtual void Free(const DX12DescriptorHeapSpace& space) override
+		{
+			mImp.Free(space.Heap, space.Offset.ptr / mHandleSize);
+		}
+		virtual void Reset() override
+		{
+			mImp.Reset();
+		}
+		void GetAllocationStats(size_t& count, size_t& used, size_t& total) override
+		{
+			mImp.Stats(count, used, total);
+		}
+		void SetConfig(const DescriptorHeapCreator& creator)
+		{
+			mImp.SetConfig(creator);
+		}
+	private:
+		BestFitRangeAllocator<ID3D12DescriptorHeap*, UINT64, DescriptorHeapCreator> mImp;
+		UINT64 mHandleSize;
+	};
+
+
+	IDX12DescriptorHeapAllocator* CreateDX12BestFitDescriptorHeapAllocator(
+		ID3D12Device* dev, 
+		D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
+		size_t blockSize, 
+		size_t maxReservation)
+	{
+		auto a = new DX12BestFitDescriptorHeapAllocator(
+			blockSize,
+			maxReservation,
+			GetDX12RuntimeParameters().DescriptorHeapHandleSizes[heapType]);
+		a->SetConfig(DescriptorHeapCreator{ heapType , dev });
+		return a;
 	}
 }

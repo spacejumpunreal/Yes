@@ -5,6 +5,7 @@
 #include "Concurrency/Thread.h"
 #include "Concurrency/MultiThreadQueue.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12DescriptorHeapAllocators.h"
 
 #include <deque>
 #include "Windows.h"
@@ -18,53 +19,63 @@ namespace Yes
 {
 	//forward declaration
 	class IDX12GPUMemoryAllocator;
-	class IDX12GPUMemoryRegion;
-	class DX12AsyncResourceCreator;
+	class DX12DeviceResourceManager;
 
-	class IDX12ResourceCreateRequest
+	static const size_t MemoryAllocatorTypeCount = 3;
+	static const size_t DescriptorHeapAllocatorTypeCount = 4;
+
+
+	class IDX12ResourceRequest
 	{
 	public:
-		virtual void StartCreation(DX12AsyncResourceCreator* creator) = 0;
-		virtual void FinishCreation(DX12AsyncResourceCreator* creator) = 0;
+		virtual void StartRequest(DX12DeviceResourceManager* creator) = 0;
+		virtual void FinishRequest(DX12DeviceResourceManager* creator) = 0;
 	};
 
-	class DX12AsyncResourceCreator
+	class DX12DeviceResourceManager
 	{
 		const size_t MAX_BATCH_SIZE = 16;
 		const size_t AllocatorBlockSize = 16 * 1024 * 1024;
 	public:
-		DX12AsyncResourceCreator(ID3D12Device* dev);
-		void AddRequest(IDX12ResourceCreateRequest* request);
+		static DX12DeviceResourceManager& GetDX12DeviceResourceManager()
+		{
+			return *Instance;
+		}
+		DX12DeviceResourceManager(ID3D12Device* dev);
+		void AddRequest(IDX12ResourceRequest* request);
 		static void Entry(void* s);
 		void Loop();
-		IDX12GPUMemoryAllocator& GetTempBufferAllocator(ResourceType resourceType)
-		{
-			return *mUploadTempBufferAllocator[(int)resourceType];
-		}
-		IDX12GPUMemoryAllocator& GetPersistentAllocator(ResourceType resourceType)
-		{
-			return *mPersistentAllocator[(int)resourceType];
-		}
-		ID3D12GraphicsCommandList* GetCommandList()
-		{
-			return mCommandList.GetPtr();
-		}
-		ID3D12Device* GetDevice() { return mDevice; }
+		IDX12GPUMemoryAllocator& GetTempBufferAllocator(ResourceType resourceType);
+		IDX12GPUMemoryAllocator& GetAsyncPersistentAllocator(ResourceType resourceType);
+		IDX12GPUMemoryAllocator& GetSyncPersistentAllocator(ResourceType resourceType);
+		IDX12DescriptorHeapAllocator& GetAsyncDescriptorHeapAllocator(ResourceType resourceType);
+		IDX12DescriptorHeapAllocator& GetSyncDescriptorHeapAllocator(ResourceType resourceType);
+		ID3D12GraphicsCommandList* GetCommandList() { return mCommandList.GetPtr(); }
+		ID3D12Device* GetDevice()                       { return mDevice; }
 	private:
-		ID3D12Device* mDevice;
-		IDX12GPUMemoryAllocator* mUploadTempBufferAllocator[3];
-		IDX12GPUMemoryAllocator* mPersistentAllocator[3];
-		COMRef<ID3D12Fence> mFence;
-		COMRef<ID3D12CommandQueue> mCopyCommandQueue;
-		COMRef<ID3D12CommandAllocator> mCommandAllocator;
-		COMRef<ID3D12GraphicsCommandList> mCommandList;
-		
-		MultiThreadQueue<IDX12ResourceCreateRequest*> mStartQueue;
-		UINT64 mExpectedFenceValue;
-		HANDLE mFenceEvent;
-		Thread mResourceWorker;
+		ID3D12Device*									mDevice;
+		//async creator side allocators
+		IDX12GPUMemoryAllocator*                        mUploadTempBufferAllocator[MemoryAllocatorTypeCount];
+		IDX12GPUMemoryAllocator*                        mAsyncMemoryAllocator[MemoryAllocatorTypeCount];
+		IDX12DescriptorHeapAllocator*					mAsyncDescriptorHeapAllocator[DescriptorHeapAllocatorTypeCount];
+		//render thread side allocators
+		IDX12GPUMemoryAllocator*                        mSyncMemoryAllocator[MemoryAllocatorTypeCount];
+		IDX12DescriptorHeapAllocator*					mSyncDescriptorHeapAllocator[DescriptorHeapAllocatorTypeCount];
+
+		//only used in async creator thread
+		COMRef<ID3D12Fence>                             mFence;
+		COMRef<ID3D12CommandQueue>                      mCopyCommandQueue;
+		COMRef<ID3D12CommandAllocator>                  mCommandAllocator;
+		COMRef<ID3D12GraphicsCommandList>               mCommandList;
+		MultiThreadQueue<IDX12ResourceRequest*>			mStartQueue;
+		UINT64											mExpectedFenceValue;
+		HANDLE											mFenceEvent;
+
+		Thread											mResourceWorker;
+		static DX12DeviceResourceManager*				Instance;
 	};
 
+	//non GPU resources
 	class DX12RenderDeviceConstantBuffer : public RenderDeviceConstantBuffer
 	{
 	public:
@@ -97,7 +108,6 @@ namespace Yes
 		COMRef<ID3DBlob> mPS;
 		COMRef<ID3D12RootSignature> mRootSignature;
 	};
-
 	class DX12RenderDevicePSO : public RenderDevicePSO
 	{
 	public:
@@ -108,52 +118,52 @@ namespace Yes
 		}
 		void Apply(ID3D12GraphicsCommandList* cmdList);
 	private:
-		COMRef<ID3D12PipelineState> mPSO;
-		COMRef<ID3D12RootSignature> mRootSignature;
-		CD3DX12_VIEWPORT mViewPort;
+		COMRef<ID3D12PipelineState>           mPSO;
+		COMRef<ID3D12RootSignature>           mRootSignature;
+		CD3DX12_VIEWPORT                      mViewPort;
 		CD3DX12_RECT mScissor;
 	};
 
-	struct DX12DeviceResourceWithMemoryRegion
-	{
-		DX12DeviceResourceWithMemoryRegion(ID3D12Resource* resource, const IDX12GPUMemoryRegion* region);
-		DX12DeviceResourceWithMemoryRegion()
-			: Resource(nullptr)
-			, MemoryRegion(nullptr)
-		{}
-		~DX12DeviceResourceWithMemoryRegion();
-		ID3D12Resource* Resource;
-		const IDX12GPUMemoryRegion* MemoryRegion;
-	};
-
+	//GPU resources: need to care about memory and maybe DescriptorHeap
 	class DX12RenderDeviceMesh : public RenderDeviceMesh
 	{
 	public:
-		DX12RenderDeviceMesh(DX12AsyncResourceCreator* creator, ISharedBuffer* CPUData[2]);
+		DX12RenderDeviceMesh(DX12DeviceResourceManager* creator, ISharedBuffer* CPUData[2]);
+		void Destroy() override;
 		void Apply(ID3D12GraphicsCommandList* cmdList);
 		bool IsReady() override { return mIsReady; }
 	private:
-		bool mIsReady;
-		DX12DeviceResourceWithMemoryRegion mVertexBuffer;
-		DX12DeviceResourceWithMemoryRegion mIndexBuffer;
-		friend class DX12RenderDeviceMeshCreateRequest;
+		bool                                            mIsReady;
+		ID3D12Resource*                                 mDeviceResource[2];
+		DX12GPUMemoryRegion                             mMemoryRegion[2];
+		DX12DescriptorHeapSpace                         mHeapSpace;
+		friend class                                    DX12RenderDeviceMeshCreateRequest;
 	};
-	class DX12RenderDeviceRenderTarget : public RenderDeviceRenderTarget
+	class IDX12RenderDeviceRenderTarget : public RenderDeviceRenderTarget
 	{
 	public:
-		DX12RenderDeviceRenderTarget(ID3D12Resource* resource, D3D12_CPU_DESCRIPTOR_HANDLE handle, D3D12_RESOURCE_STATES state)
-			: mRenderTarget(resource)
-			, mHandle(handle)
-			, mState(state)
-		{}
-		~DX12RenderDeviceRenderTarget();
+		virtual ~IDX12RenderDeviceRenderTarget();
 		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		bool IsReady() override { return true; }
-		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle() { return mHandle; }
+		D3D12_RESOURCE_STATES GetState() { return mState; }
+		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle();
+	protected:
 		D3D12_RESOURCE_STATES mState;
-	private:
 		ID3D12Resource* mRenderTarget;
-		D3D12_CPU_DESCRIPTOR_HANDLE mHandle;
+		DX12DescriptorHeapSpace	mHeapSpace;
+	};
+	class DX12RenderTarget : IDX12RenderDeviceRenderTarget
+	{};
+	class DX12Backbuffer : public IDX12RenderDeviceRenderTarget
+	{
+	public:
+		DX12Backbuffer(ID3D12Resource* backbuffer, const DX12DescriptorHeapSpace& heapSpace)
+		{
+			mRenderTarget = backbuffer;
+			mHeapSpace = heapSpace;
+			mState = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+		}
+		void Destroy() override;
 	};
 
 	class DX12RenderDeviceDepthStencil : public RenderDeviceDepthStencil

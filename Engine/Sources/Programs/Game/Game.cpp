@@ -2,7 +2,9 @@
 #include "Core/TickModule.h"
 #include "Core/FileModule.h"
 #include "Misc/Time.h"
-
+#include "Memory/RangeAllocator.h"
+#include <map>
+#include <list>
 #include <cstdio>
 
 class TestTick : public Yes::ITickable
@@ -28,8 +30,14 @@ void func()
 
 #define DEMO 1
 
+namespace Yes
+{
+	void TestRangeAllocators();
+}
 int main(int argc, const char** argv)
 {
+	Yes::TestRangeAllocators();
+	return 0;
 	std::vector<const char*> args
 	{
 		"module=TickModule",

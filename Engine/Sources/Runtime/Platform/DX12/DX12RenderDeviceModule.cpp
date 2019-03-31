@@ -51,7 +51,7 @@ namespace Yes
 		}
 		void SetOutput(TRef<RenderDeviceRenderTarget>& renderTarget, int idx) override
 		{
-			DX12RenderDeviceRenderTarget* rt = dynamic_cast<DX12RenderDeviceRenderTarget*>(renderTarget.GetPtr());
+			IDX12RenderDeviceRenderTarget* rt = dynamic_cast<IDX12RenderDeviceRenderTarget*>(renderTarget.GetPtr());
 			OutputTarget[idx] = rt;
 		}
 		void SetDepthStencil(TRef<RenderDeviceDepthStencil>& depthStencil)
@@ -73,7 +73,7 @@ namespace Yes
 		}
 	public:
 		std::deque<RenderDeviceCommand*> Commands;
-		TRef<DX12RenderDeviceRenderTarget> OutputTarget[8];
+		TRef<IDX12RenderDeviceRenderTarget> OutputTarget[8];
 		TRef<DX12RenderDeviceDepthStencil> DepthStencil;
 		bool NeedClearColor;
 		bool NeedClearDepth;
@@ -133,7 +133,7 @@ namespace Yes
 		RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index) override
 		{
 			ISharedBuffer* buffers[] = {vertex.GetPtr(), index.GetPtr()};
-			DX12RenderDeviceMesh* mesh = new DX12RenderDeviceMesh(mAsyncResourceCreator, buffers);
+			DX12RenderDeviceMesh* mesh = new DX12RenderDeviceMesh(mResourceManager, buffers);
 			return mesh;
 		}
 		RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) override
@@ -218,7 +218,7 @@ namespace Yes
 				swapChainDesc.Height = mScreenHeight;
 				swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
 				swapChainDesc.SampleDesc.Count = 1;
 				COMRef<IDXGISwapChain1> sc;
 				CheckSucceeded(
@@ -232,31 +232,21 @@ namespace Yes
 				sc.As(mSwapChain);
 				CheckSucceeded(factory->MakeWindowAssociation(wh, DXGI_MWA_NO_ALT_ENTER));
 			}
-			std::vector<ID3D12Resource*> backBuffers;
-			{//backbuffersviews and descriptor heap
-				D3D12_DESCRIPTOR_HEAP_DESC desc = {};
-				desc.NumDescriptors = mFrameCounts;
-				desc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_RTV;
-				desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
-				CheckSucceeded(mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&mBackbufferHeap)));
-				
-				CD3DX12_CPU_DESCRIPTOR_HANDLE heapPtr(mBackbufferHeap->GetCPUDescriptorHandleForHeapStart());
+			mResourceManager = new DX12DeviceResourceManager(mDevice.GetPtr());
+			std::vector<DX12Backbuffer*> backBuffers;
+			{
 				for (int i = 0; i < mFrameCounts; ++i)
 				{
-					ID3D12Resource* backBuffer;
-					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&backBuffer)));
-					mDevice->CreateRenderTargetView(backBuffer, nullptr, heapPtr);
-					backBuffers.push_back(backBuffer);
-					heapPtr.Offset(1, mRTVIncrementSize);
+					ID3D12Resource* resource;
+					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&resource)));
+					DX12DescriptorHeapSpace space = mResourceManager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Allocate(1);
+					backBuffers.push_back(new DX12Backbuffer(resource, space));
 				}
 			}
-			mAsyncResourceCreator = new DX12AsyncResourceCreator(mDevice.GetPtr());
 			{//setup frame states
 				for (int i = 0; i < NFrames; ++i)
 				{
-					mFrameStates[i] = new DX12FrameState(
-						mDevice.GetPtr(), 
-						nullptr);
+					mFrameStates[i] = new DX12FrameState(mDevice.GetPtr(), backBuffers[i]);
 				}
 			}
 		}
@@ -305,8 +295,6 @@ namespace Yes
 		COMRef<IDXGISwapChain3> mSwapChain;
 		COMRef<ID3D12Device> mDevice;
 		COMRef<ID3D12CommandQueue> m3DCommandQueue;
-
-		COMRef<ID3D12DescriptorHeap> mBackbufferHeap;
 		
 		//frame stats
 		int mCurrentFrameIndex = 0;
@@ -318,7 +306,7 @@ namespace Yes
 		ObjectPool<DX12RenderDeviceDrawcall> mDrawcallPool;
 
 		//submodules
-		DX12AsyncResourceCreator* mAsyncResourceCreator;
+		DX12DeviceResourceManager* mResourceManager;
 		
 		//descriptor consts
 		UINT mRTVIncrementSize;
