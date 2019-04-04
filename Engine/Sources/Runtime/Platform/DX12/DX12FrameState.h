@@ -21,7 +21,7 @@ namespace Yes
 	class IDX12GPUMemoryAllocator;
 	class IDX12DescriptorHeapAllocator;
 	class DX12Backbuffer;
-	class IDX12RenderDeviceRenderTarget;
+	class IDX12RenderTarget;
 
 	struct AllocatedCBV
 	{
@@ -41,17 +41,19 @@ namespace Yes
 	class DX12CommandManager
 	{
 	public:
-		DX12CommandManager(ID3D12Device* dev);
+		DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq);
 		void Reset();
-		ID3D12GraphicsCommandList* GetCommandList() { return mCommandList; }
+		ID3D12GraphicsCommandList* ResetAndGetCommandList();
+		void CloseAndExecuteCommandList();
 	private:
 		ID3D12CommandAllocator* mAllocator;
 		ID3D12GraphicsCommandList* mCommandList;
+		ID3D12CommandQueue* mCommandQueue;
 	};
 	class DX12FrameState
 	{
 	public:
-		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer);
+		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq);
 		~DX12FrameState();
 		void Finish();
 		DX12ConstantBufferManager& GetConstantBufferManager()
@@ -62,12 +64,16 @@ namespace Yes
 		{
 			return *mLinearDescriptorHeapAllocator;
 		}
-		ID3D12GraphicsCommandList* GetCommandList()
+		ID3D12GraphicsCommandList* ResetAndGetCommandList()
 		{
-			return mCommandManager.GetCommandList();
+			return mCommandManager.ResetAndGetCommandList();
+		}
+		void CloseAndExecuteCommandList()
+		{
+			return mCommandManager.CloseAndExecuteCommandList();
 		}
 		void WaitForFrame();
-		IDX12RenderDeviceRenderTarget* GetBackbuffer() { return (IDX12RenderDeviceRenderTarget*)mFrameBuffer; }
+		IDX12RenderTarget* GetBackbuffer() { return (IDX12RenderTarget*)mFrameBuffer; }
 	private:
 		COMRef<ID3D12Fence> mFence;
 		UINT64 mExpectedValue;

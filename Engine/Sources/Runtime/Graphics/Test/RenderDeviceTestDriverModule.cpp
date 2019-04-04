@@ -62,7 +62,10 @@ namespace Yes
 			{
 				auto vb = mFileModule->ReadFileContent("Mesh/box_vb.bin");
 				auto ib = mFileModule->ReadFileContent("Mesh/box_ib.bin");
-				mMesh = mDevice->CreateMeshSimple(vb, ib);
+				size_t vertexStride = 8 * 4;//P3FN3FUV2F
+				size_t indexStride = 4;
+				size_t indexCount = ib->GetSize() / indexStride;
+				mMesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 			}
 			//Texture
 			//ConstantBuffer

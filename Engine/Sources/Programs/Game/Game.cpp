@@ -28,7 +28,7 @@ void func()
 	}
 }
 
-#define DEMO 1
+#define DEMO 0
 
 namespace Yes
 {
@@ -36,8 +36,6 @@ namespace Yes
 }
 int main(int argc, const char** argv)
 {
-	Yes::TestRangeAllocators();
-	return 0;
 	std::vector<const char*> args
 	{
 		"module=TickModule",

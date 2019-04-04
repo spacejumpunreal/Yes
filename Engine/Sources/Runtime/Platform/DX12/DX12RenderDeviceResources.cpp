@@ -1,5 +1,6 @@
 #include "Platform/DX12/DX12RenderDeviceResources.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12Parameters.h"
 #include "Platform/DXUtils.h"
 #include "Graphics/RenderDevice.h"
 #include "Misc/Utils.h"
@@ -28,13 +29,16 @@ namespace Yes
 	//texture format
 	static DXGI_FORMAT GetTextureFormat(TextureFormat format)
 	{
-		if (false)
+		switch (format)
 		{
-		}
-		else
-		{
+		case TextureFormat::R8G8B8A8_UNORM:
 			return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+		case TextureFormat::R24_UNORM_X8_TYPELESS:
+			return DXGI_FORMAT::DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		default:
+			CheckAlways(false);
 		}
+		return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
 	}
 
 	struct DX12ReleaseSpaceRequest : public IDX12ResourceRequest
@@ -46,17 +50,17 @@ namespace Yes
 		{
 			for (int i = 0; i < count; ++i)
 			{
-				mMemoryRegions[i] = regions[i];
+				mMemoryRegions.push_back(regions[i]);
 			}
 		}
 		void AddDescriptorSpaces(const DX12DescriptorHeapSpace* spaces, size_t count)
 		{
 			for (int i = 0; i < count; ++i)
 			{
-				mDescriptorSpaces[i] = spaces[i];
+				mDescriptorSpaces.push_back(spaces[i]);
 			}
 		}
-		virtual void StartRequest(DX12DeviceResourceManager* creator)
+		virtual void StartRequest(DX12ResourceManager* creator)
 		{
 			IDX12GPUMemoryAllocator& mem = creator->GetAsyncPersistentAllocator(mResourceType);
 			for (auto& region : mMemoryRegions)
@@ -65,7 +69,7 @@ namespace Yes
 			}
 
 		}
-		virtual void FinishRequest(DX12DeviceResourceManager* creator)
+		virtual void FinishRequest(DX12ResourceManager* creator)
 		{}
 	private:
 		ResourceType mResourceType;
@@ -73,8 +77,8 @@ namespace Yes
 		std::deque<DX12DescriptorHeapSpace> mDescriptorSpaces;
 	};
 
-	DX12DeviceResourceManager* DX12DeviceResourceManager::Instance;
-	DX12DeviceResourceManager::DX12DeviceResourceManager(ID3D12Device* dev)
+	DX12ResourceManager* DX12ResourceManager::Instance;
+	DX12ResourceManager::DX12ResourceManager(ID3D12Device* dev)
 		: mDevice(dev)
 		, mFenceEvent(CreateEvent(nullptr, FALSE, FALSE, L"AsyncResourceCreator::mFenceEvent"))
 	{
@@ -97,16 +101,16 @@ namespace Yes
 
 		mResourceWorker = std::move(Thread(Entry, this));
 	}
-	void DX12DeviceResourceManager::AddRequest(IDX12ResourceRequest* request)
+	void DX12ResourceManager::AddRequest(IDX12ResourceRequest* request)
 	{
 		mStartQueue.PushBack(request);
 	}
-	void DX12DeviceResourceManager::Entry(void* s)
+	void DX12ResourceManager::Entry(void* s)
 	{
-		auto self = (DX12DeviceResourceManager*)s;
+		auto self = (DX12ResourceManager*)s;
 		self->Loop();
 	}
-	void DX12DeviceResourceManager::Loop()
+	void DX12ResourceManager::Loop()
 	{
 		mExpectedFenceValue                = 0;
 		D3D12_COMMAND_QUEUE_DESC queueDesc = {};
@@ -151,33 +155,33 @@ namespace Yes
 		}
 	}
 
-	IDX12GPUMemoryAllocator & DX12DeviceResourceManager::GetTempBufferAllocator(ResourceType resourceType)
+	IDX12GPUMemoryAllocator & DX12ResourceManager::GetTempBufferAllocator(ResourceType resourceType)
 	{
 		return *mUploadTempBufferAllocator[GetGPUMemoryAllocatorIndex(resourceType)];
 	}
 
-	IDX12GPUMemoryAllocator & DX12DeviceResourceManager::GetAsyncPersistentAllocator(ResourceType resourceType)
+	IDX12GPUMemoryAllocator & DX12ResourceManager::GetAsyncPersistentAllocator(ResourceType resourceType)
 	{
 		return *mAsyncMemoryAllocator[GetGPUMemoryAllocatorIndex(resourceType)];
 	}
 
-	IDX12GPUMemoryAllocator & DX12DeviceResourceManager::GetSyncPersistentAllocator(ResourceType resourceType)
+	IDX12GPUMemoryAllocator & DX12ResourceManager::GetSyncPersistentAllocator(ResourceType resourceType)
 	{
 		return *mSyncMemoryAllocator[GetGPUMemoryAllocatorIndex(resourceType)];
 	}
 
-	IDX12DescriptorHeapAllocator & DX12DeviceResourceManager::GetAsyncDescriptorHeapAllocator(ResourceType resourceType)
+	IDX12DescriptorHeapAllocator & DX12ResourceManager::GetAsyncDescriptorHeapAllocator(ResourceType resourceType)
 	{
 		return *mAsyncDescriptorHeapAllocator[GetDescriptorHeapAllocatorIndex(resourceType)];
 	}
 
-	IDX12DescriptorHeapAllocator & DX12DeviceResourceManager::GetSyncDescriptorHeapAllocator(ResourceType resourceType)
+	IDX12DescriptorHeapAllocator & DX12ResourceManager::GetSyncDescriptorHeapAllocator(ResourceType resourceType)
 	{
 		return *mSyncDescriptorHeapAllocator[GetDescriptorHeapAllocatorIndex(resourceType)];
 	}
 
 	//shader
-	DX12RenderDeviceShader::DX12RenderDeviceShader(ID3D12Device* dev, const char* body, size_t size, const char* name)
+	DX12Shader::DX12Shader(ID3D12Device* dev, const char* body, size_t size, const char* name)
 	{
 		UINT compileFlags = D3DCOMPILE_DEBUG | D3DCOMPILE_SKIP_OPTIMIZATION;
 		mVS               = DoCompileShader(body, size, name, "VSMain", "vs_5_1", compileFlags);
@@ -186,18 +190,18 @@ namespace Yes
 		CheckSucceeded(D3DGetBlobPart(mPS->GetBufferPointer(), mPS->GetBufferSize(), D3D_BLOB_ROOT_SIGNATURE, 0, &blob));
 		CheckSucceeded(dev->CreateRootSignature(0, blob->GetBufferPointer(), blob->GetBufferSize(), IID_PPV_ARGS(&mRootSignature)));
 	}
-	DX12RenderDeviceShader::~DX12RenderDeviceShader()
+	DX12Shader::~DX12Shader()
 	{
 		CheckAlways(false);//not suppose to delete shader
 	}
 
 	//pso
-	DX12RenderDevicePSO::DX12RenderDevicePSO(ID3D12Device* dev, RenderDevicePSODesc& desc)
+	DX12PSO::DX12PSO(ID3D12Device* dev, RenderDevicePSODesc& desc)
 	{
 		D3D12_INPUT_ELEMENT_DESC* layout;
 		UINT count;
 		std::tie(layout, count)        = GetInputLayoutForVertexFormat(desc.VF);
-		DX12RenderDeviceShader* shader = static_cast<DX12RenderDeviceShader*>(desc.Shader.GetPtr());
+		DX12Shader* shader = static_cast<DX12Shader*>(desc.Shader.GetPtr());
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout                        = { layout, count };
@@ -226,7 +230,7 @@ namespace Yes
 		CheckSucceeded(dev->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
 	}
 	//PSO
-	void DX12RenderDevicePSO::Apply(ID3D12GraphicsCommandList* cmdList)
+	void DX12PSO::Apply(ID3D12GraphicsCommandList* cmdList)
 	{
 		cmdList->SetGraphicsRootSignature(mRootSignature.GetPtr());
 		cmdList->SetPipelineState(mPSO.GetPtr());
@@ -237,23 +241,27 @@ namespace Yes
 	{
 	public:
 		DX12RenderDeviceMeshCreateRequest(
-			DX12RenderDeviceMesh* resource,
-			ISharedBuffer* CPUData[2])
+			DX12Mesh* resource,
+			ISharedBuffer* CPUData[2],
+			size_t vertexStride,
+			size_t indexStride)
 			: mResource(resource)
+			, mVertexStride(vertexStride)
+			, mIndexStride(indexStride)
 		{
 			for (int i = 0; i < 2; ++i)
 			{
 				mCPUData[i] = CPUData[i];
 			}
 		}
-		virtual void StartRequest(DX12DeviceResourceManager* creator) override
+		virtual void StartRequest(DX12ResourceManager* creator) override
 		{
 			ID3D12Device* device                                   = creator->GetDevice();
 			IDX12GPUMemoryAllocator& tempAllocator                 = creator->GetTempBufferAllocator(ResourceType::Buffer);
 			IDX12GPUMemoryAllocator& persistentAllocator           = creator->GetAsyncPersistentAllocator(ResourceType::Buffer);
 			IDX12DescriptorHeapAllocator& descriptorHeapAllocator  = creator->GetAsyncDescriptorHeapAllocator(ResourceType::Buffer);
 			ID3D12GraphicsCommandList* commandList                 = creator->GetCommandList();
-			DX12RenderDeviceMesh* mesh                             = mResource.GetPtr();
+			DX12Mesh* mesh                             = mResource.GetPtr();
 			for (int i = 0; i < 2; ++i)
 			{
 				CD3DX12_RESOURCE_DESC desc          = CD3DX12_RESOURCE_DESC::Buffer(mCPUData[i]->GetSize());
@@ -290,11 +298,29 @@ namespace Yes
 					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST,
 					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
 				commandList->ResourceBarrier(1, &barrier);
-				//DescriptorHeap
-				mesh->mHeapSpace = descriptorHeapAllocator.Allocate(1);
 			}
+			mesh->mVertexBufferView = {};
+			mesh->mVertexBufferView.BufferLocation = mesh->mDeviceResource[0]->GetGPUVirtualAddress();
+			mesh->mVertexBufferView.SizeInBytes = (UINT)mCPUData[0]->GetSize();
+			mesh->mVertexBufferView.StrideInBytes = (UINT)mVertexStride;
+
+			mesh->mIndexBufferView = {};
+			mesh->mIndexBufferView.BufferLocation = mesh->mDeviceResource[1]->GetGPUVirtualAddress();
+			mesh->mIndexBufferView.SizeInBytes = (UINT)mCPUData[1]->GetSize();
+			DXGI_FORMAT indexFormat = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+			switch (mIndexStride)
+			{
+			case 2:
+				indexFormat = DXGI_FORMAT::DXGI_FORMAT_R16_UINT;
+				break;
+			case 4:
+			default:
+				indexFormat = DXGI_FORMAT::DXGI_FORMAT_R32_UINT;
+				break;
+			}
+			mesh->mIndexBufferView.Format = indexFormat;
 		}
-		virtual void FinishRequest(DX12DeviceResourceManager* creator) override
+		virtual void FinishRequest(DX12ResourceManager* creator) override
 		{
 			mResource->mIsReady = true;
 			for (int i = 0; i < 2; ++i)
@@ -305,38 +331,44 @@ namespace Yes
 			delete this;
 		}
 	private:
-		TRef<DX12RenderDeviceMesh>         mResource;
+		TRef<DX12Mesh>         mResource;
 		ID3D12Resource* mTempResource[2];
 		DX12GPUMemoryRegion mTempMemRegion[2];
 		SharedBufferRef                    mCPUData[2];
+		size_t mVertexStride;
+		size_t mIndexStride;
 	};
 	
-	DX12RenderDeviceMesh::DX12RenderDeviceMesh(DX12DeviceResourceManager* creator, ISharedBuffer* buffers[2])
+	DX12Mesh::DX12Mesh(DX12ResourceManager* creator, ISharedBuffer* CPUData[2], size_t vertexStride, size_t indexCount, size_t indexStride)
 		: mIsReady(false)
+		, mIndexCount((UINT)indexCount)
 	{
-		DX12RenderDeviceMeshCreateRequest* req = new DX12RenderDeviceMeshCreateRequest(this, buffers);
+		DX12RenderDeviceMeshCreateRequest* req = new DX12RenderDeviceMeshCreateRequest(this, CPUData, vertexStride, indexStride);
 		creator->AddRequest(req);
 	}
-	void DX12RenderDeviceMesh::Apply(ID3D12GraphicsCommandList* cmdList)
-	{}
-	void DX12RenderDeviceMesh::Destroy()
+	void DX12Mesh::Apply(ID3D12GraphicsCommandList* cmdList)
 	{
-		DX12DeviceResourceManager& manager = DX12DeviceResourceManager::GetDX12DeviceResourceManager();
+		cmdList->IASetIndexBuffer(&mIndexBufferView);
+		cmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
+	}
+	void DX12Mesh::Destroy()
+	{
+		DX12ResourceManager& manager = DX12ResourceManager::GetDX12DeviceResourceManager();
 		DX12ReleaseSpaceRequest* req = new DX12ReleaseSpaceRequest(ResourceType::Buffer);
 		for (int i = 0; i < 2; ++i)
 		{
 			mDeviceResource[i]->Release();
-			req->AddMemoryRegions(mMemoryRegion, 2);
-			req->AddDescriptorSpaces(&mHeapSpace, 1);
 		}
+		req->AddMemoryRegions(mMemoryRegion, 2);
 		manager.AddRequest(req);
+		SharedObject::Destroy();
 	}
-
-	IDX12RenderDeviceRenderTarget::~IDX12RenderDeviceRenderTarget()
+	//IDX12RenderTarget
+	IDX12RenderTarget::~IDX12RenderTarget()
 	{
 		mRenderTarget->Release();
 	}
-	void IDX12RenderDeviceRenderTarget::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
+	void IDX12RenderTarget::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
 	{
 		if (newState != mState)
 		{
@@ -349,13 +381,126 @@ namespace Yes
 			mState = newState;
 		}
 	}
-	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderDeviceRenderTarget::GetHandle()
+	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderTarget::GetHandle()
 	{
 		return D3D12_CPU_DESCRIPTOR_HANDLE();
 	}
+	//DX12RenderTarget
+	DX12RenderTarget::DX12RenderTarget(
+		size_t width, 
+		size_t height, 
+		TextureFormat format, 
+		ID3D12Device* device)
+	{
+		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
+		DXGI_FORMAT texFormat = GetTextureFormat(format);
+		CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+			texFormat,
+			(UINT64)width,
+			(UINT)height,
+			1,
+			1,
+			1,
+			0,
+			D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET,
+			D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			0);
+		D3D12_CLEAR_VALUE ocv = {};
+		ocv.Format = texFormat;
+		for (int i = 0; i < 4; ++i)
+		{
+			ocv.Color[i] = 0.0f;
+		}
+		D3D12_RESOURCE_ALLOCATION_INFO ainfo = device->GetResourceAllocationInfo(0, 1, &desc);
+		IDX12GPUMemoryAllocator& ma = manager->GetSyncPersistentAllocator(ResourceType::RenderTarget);
+		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget);
+		mMemoryRegion = ma.Allocate(ainfo.SizeInBytes, ainfo.Alignment);
+		device->CreatePlacedResource(
+			mMemoryRegion.Heap,
+			mMemoryRegion.Offset,
+			&desc,
+			D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
+			&ocv,
+			IID_PPV_ARGS(&mRenderTarget));
+		size_t srvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
+		size_t rtvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+
+		mHeapSpace[0] = manager->GetSyncDescriptorHeapAllocator(ResourceType::Texture).Allocate(srvStep);
+		mHeapSpace[1] = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Allocate(rtvStep);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle0(mHeapSpace[0].Heap->GetCPUDescriptorHandleForHeapStart(), (UINT)mHeapSpace[0].Offset);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle1(mHeapSpace[1].Heap->GetCPUDescriptorHandleForHeapStart(), (UINT)mHeapSpace[1].Offset);
+		device->CreateShaderResourceView(mRenderTarget, nullptr, handle0);
+		device->CreateRenderTargetView(mRenderTarget, nullptr, handle1);
+	}
+	void DX12RenderTarget::Destroy()
+	{
+		DX12ResourceManager& manager = DX12ResourceManager::GetDX12DeviceResourceManager();
+		manager.GetSyncDescriptorHeapAllocator(ResourceType::Texture).Free(mHeapSpace[0]);
+		manager.GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace[1]);
+		manager.GetSyncPersistentAllocator(ResourceType::RenderTarget).Free(mMemoryRegion);
+		SharedObject::Destroy();
+	}
+	//DX12Backbuffer
+	DX12Backbuffer::DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device)
+	{
+		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
+		mRenderTarget = backbuffer;
+		mHeapSpace[0] = {};
+		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget);
+		size_t rtvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
+		mHeapSpace[1] = ha.Allocate(rtvStep);
+		CD3DX12_CPU_DESCRIPTOR_HANDLE handle(
+			mHeapSpace[1].Heap->GetCPUDescriptorHandleForHeapStart(),
+			(UINT)mHeapSpace[1].Offset);
+		device->CreateRenderTargetView(mRenderTarget, nullptr, handle);
+		mState = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+	}
 	void DX12Backbuffer::Destroy()
 	{
-		DX12DeviceResourceManager& manager = DX12DeviceResourceManager::GetDX12DeviceResourceManager();
-		manager.GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace);
+		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
+		manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace[1]);
+		SharedObject::Destroy();
+	}
+	DX12DepthStencil::DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device)
+	{
+		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
+		DXGI_FORMAT texFormat = GetTextureFormat(format);
+		CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+			texFormat,
+			(UINT64)width,
+			(UINT)height,
+			1,
+			1,
+			1,
+			0,
+			D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL,
+			D3D12_TEXTURE_LAYOUT::D3D12_TEXTURE_LAYOUT_UNKNOWN,
+			0);
+		D3D12_CLEAR_VALUE ocv = {};
+		ocv.DepthStencil.Depth = 1.0f;
+		ocv.DepthStencil.Stencil = 0;
+
+		D3D12_RESOURCE_ALLOCATION_INFO ainfo = device->GetResourceAllocationInfo(0, 1, &desc);
+		IDX12GPUMemoryAllocator& ma = manager->GetSyncPersistentAllocator(ResourceType::RenderTarget);
+		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget);
+		mMemoryRegion = ma.Allocate(ainfo.SizeInBytes, ainfo.Alignment);
+		device->CreatePlacedResource(
+			mMemoryRegion.Heap,
+			mMemoryRegion.Offset,
+			&desc,
+			D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
+			&ocv,
+			IID_PPV_ARGS(&mBuffer));
+		size_t dsvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV];
+		mHeapSpace = manager->GetSyncDescriptorHeapAllocator(ResourceType::DepthStencil).Allocate(dsvStep);
+	}
+	void DX12DepthStencil::Destroy()
+	{
+		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
+		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::DepthStencil);
+		ha.Free(mHeapSpace);
+		IDX12GPUMemoryAllocator& ma = manager->GetSyncPersistentAllocator(ResourceType::DepthStencil);
+		ma.Free(mMemoryRegion);
+		SharedObject::Destroy();
 	}
 }

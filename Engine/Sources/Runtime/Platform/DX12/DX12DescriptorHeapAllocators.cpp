@@ -107,12 +107,12 @@ namespace Yes
 			DX12DescriptorHeapSpace ret;
 			UINT64 offset;
 			mImp.Allocate(ret.Heap, offset, count, 1);
-			ret.Offset.ptr = offset * mHandleSize;
+			ret.Offset = offset * mHandleSize;
 			return ret;
 		}
 		virtual void Free(const DX12DescriptorHeapSpace& space) override
 		{
-			mImp.Free(space.Heap, space.Offset.ptr / mHandleSize);
+			mImp.Free(space.Heap, space.Offset / mHandleSize);
 		}
 		virtual void Reset() override 
 		{ 
@@ -157,12 +157,12 @@ namespace Yes
 			DX12DescriptorHeapSpace ret;
 			UINT64 offset;
 			mImp.Allocate(ret.Heap, offset, count, 1);
-			ret.Offset.ptr = mHandleSize * offset;
+			ret.Offset = mHandleSize * offset;
 			return ret;
 		}
 		virtual void Free(const DX12DescriptorHeapSpace& space) override
 		{
-			mImp.Free(space.Heap, space.Offset.ptr / mHandleSize);
+			mImp.Free(space.Heap, space.Offset / mHandleSize);
 		}
 		virtual void Reset() override
 		{

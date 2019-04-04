@@ -19,7 +19,7 @@ namespace Yes
 {
 	//forward declaration
 	class IDX12GPUMemoryAllocator;
-	class DX12DeviceResourceManager;
+	class DX12ResourceManager;
 
 	static const size_t MemoryAllocatorTypeCount = 3;
 	static const size_t DescriptorHeapAllocatorTypeCount = 4;
@@ -28,20 +28,20 @@ namespace Yes
 	class IDX12ResourceRequest
 	{
 	public:
-		virtual void StartRequest(DX12DeviceResourceManager* creator) = 0;
-		virtual void FinishRequest(DX12DeviceResourceManager* creator) = 0;
+		virtual void StartRequest(DX12ResourceManager* creator) = 0;
+		virtual void FinishRequest(DX12ResourceManager* creator) = 0;
 	};
 
-	class DX12DeviceResourceManager
+	class DX12ResourceManager
 	{
 		const size_t MAX_BATCH_SIZE = 16;
 		const size_t AllocatorBlockSize = 16 * 1024 * 1024;
 	public:
-		static DX12DeviceResourceManager& GetDX12DeviceResourceManager()
+		static DX12ResourceManager& GetDX12DeviceResourceManager()
 		{
 			return *Instance;
 		}
-		DX12DeviceResourceManager(ID3D12Device* dev);
+		DX12ResourceManager(ID3D12Device* dev);
 		void AddRequest(IDX12ResourceRequest* request);
 		static void Entry(void* s);
 		void Loop();
@@ -72,18 +72,18 @@ namespace Yes
 		HANDLE											mFenceEvent;
 
 		Thread											mResourceWorker;
-		static DX12DeviceResourceManager*				Instance;
+		static DX12ResourceManager*				Instance;
 	};
 
 	//non GPU resources
-	class DX12RenderDeviceConstantBuffer : public RenderDeviceConstantBuffer
+	class DX12ConstantBuffer : public RenderDeviceConstantBuffer
 	{
 	public:
-		DX12RenderDeviceConstantBuffer(size_t size)
+		DX12ConstantBuffer(size_t size)
 			: mData(malloc(size))
 		{
 		}
-		~DX12RenderDeviceConstantBuffer()
+		~DX12ConstantBuffer()
 		{
 			free(mData);
 		}
@@ -95,23 +95,23 @@ namespace Yes
 	private:
 		void* mData;
 	};
-	class DX12RenderDeviceShader : public RenderDeviceShader
+	class DX12Shader : public RenderDeviceShader
 	{
 	public:
-		DX12RenderDeviceShader(ID3D12Device* dev, const char* body, size_t size, const char* name);
+		DX12Shader(ID3D12Device* dev, const char* body, size_t size, const char* name);
 		bool IsReady() override
 		{
 			return true;
 		}
-		~DX12RenderDeviceShader() override;
+		~DX12Shader() override;
 		COMRef<ID3DBlob> mVS;
 		COMRef<ID3DBlob> mPS;
 		COMRef<ID3D12RootSignature> mRootSignature;
 	};
-	class DX12RenderDevicePSO : public RenderDevicePSO
+	class DX12PSO : public RenderDevicePSO
 	{
 	public:
-		DX12RenderDevicePSO(ID3D12Device* dev, RenderDevicePSODesc& desc);
+		DX12PSO(ID3D12Device* dev, RenderDevicePSODesc& desc);
 		bool IsReady()
 		{
 			return true;
@@ -125,24 +125,27 @@ namespace Yes
 	};
 
 	//GPU resources: need to care about memory and maybe DescriptorHeap
-	class DX12RenderDeviceMesh : public RenderDeviceMesh
+	class DX12Mesh : public RenderDeviceMesh
 	{
 	public:
-		DX12RenderDeviceMesh(DX12DeviceResourceManager* creator, ISharedBuffer* CPUData[2]);
+		DX12Mesh(DX12ResourceManager* creator, ISharedBuffer* CPUData[2], size_t vertexStride, size_t indexCount, size_t indexStride);
 		void Destroy() override;
 		void Apply(ID3D12GraphicsCommandList* cmdList);
+		UINT GetIndexCount() { return mIndexCount; }
 		bool IsReady() override { return mIsReady; }
 	private:
 		bool                                            mIsReady;
 		ID3D12Resource*                                 mDeviceResource[2];
 		DX12GPUMemoryRegion                             mMemoryRegion[2];
-		DX12DescriptorHeapSpace                         mHeapSpace;
+		D3D12_VERTEX_BUFFER_VIEW						mVertexBufferView;
+		D3D12_INDEX_BUFFER_VIEW							mIndexBufferView;
+		UINT											mIndexCount;
 		friend class                                    DX12RenderDeviceMeshCreateRequest;
 	};
-	class IDX12RenderDeviceRenderTarget : public RenderDeviceRenderTarget
+	class IDX12RenderTarget : public RenderDeviceRenderTarget
 	{
 	public:
-		virtual ~IDX12RenderDeviceRenderTarget();
+		virtual ~IDX12RenderTarget();
 		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		bool IsReady() override { return true; }
 		D3D12_RESOURCE_STATES GetState() { return mState; }
@@ -150,22 +153,29 @@ namespace Yes
 	protected:
 		D3D12_RESOURCE_STATES mState;
 		ID3D12Resource* mRenderTarget;
-		DX12DescriptorHeapSpace	mHeapSpace;
+		DX12DescriptorHeapSpace	mHeapSpace[2];//SRV + RTV
 	};
-	class DX12RenderTarget : IDX12RenderDeviceRenderTarget
-	{};
-	class DX12Backbuffer : public IDX12RenderDeviceRenderTarget
+	class DX12RenderTarget : public IDX12RenderTarget
 	{
 	public:
-		DX12Backbuffer(ID3D12Resource* backbuffer, const DX12DescriptorHeapSpace& heapSpace)
-		{
-			mRenderTarget = backbuffer;
-			mHeapSpace = heapSpace;
-			mState = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
-		}
+		DX12RenderTarget(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
+		void Destroy() override;
+		DX12GPUMemoryRegion mMemoryRegion;
+	};
+	class DX12Backbuffer : public IDX12RenderTarget
+	{
+	public:
+		DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device);
 		void Destroy() override;
 	};
 
-	class DX12RenderDeviceDepthStencil : public RenderDeviceDepthStencil
-	{};
+	class DX12DepthStencil : public RenderDeviceDepthStencil
+	{
+	public:
+		DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
+		void Destroy() override;
+		ID3D12Resource* mBuffer;
+		DX12DescriptorHeapSpace	mHeapSpace;
+		DX12GPUMemoryRegion mMemoryRegion;
+	};
 }

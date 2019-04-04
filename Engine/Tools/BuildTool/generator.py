@@ -186,6 +186,7 @@ class VS2017Generator(object):
                                 XmlNode("Optimization", "Disabled" if is_debug else "MaxSpeed"),
                                 XmlNode("SDLCheck", "true"),
                                 XmlNode("ConformanceMode", "true"),
+								XmlNode("MultiProcessorCompilation", "true"),
                                 XmlNode("AdditionalIncludeDirectories", ";".join(additional_include_directories)),
                                 XmlNode("LanguageStandard", "stdcpplatest"),
                             )),

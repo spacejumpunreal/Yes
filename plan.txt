@@ -1,23 +1,12 @@
 - doing
 	- SimpleDX12Renderer
-		- Create Backbuffer RenderTarget
-		- Create RenderTarget
-		- Create Depth/Stencil
-		
 		- execute renderpass
 			- RenderPass::ExecutePass
-				- initial setup
-					- add stencil/create stencil
-					- RT(Multiple) setup/ stencil setup   *GOONGOONGOON
-					- clear color stencil
-					- scissor + viewport
-				- render command
-					- apply pso
-					- fill parameters
-					- set mesh
-				- execute commandlist
+				- render command: texture
+					- allocate temp Descriptor heap space
+					- copy desciptor heap to temp table
+					- SetGraphicsRootDescriptorTable
+				- render command: RenderTarget rw
+					- barrier
 			- EndFrame
-				- RT State Transition
-			- cleanup
-				- objects back to pool
 		

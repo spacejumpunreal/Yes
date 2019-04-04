@@ -3,6 +3,9 @@
 #include "Platform/DX12/DX12RenderDeviceResources.h"
 #include "Platform/DX12/DX12FrameState.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12RenderPass.h"
+#include "Platform/DX12/DX12ExecuteContext.h"
+#include "Platform/DX12/DX12RenderCommand.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Platform/DXUtils.h"
 #include "Memory/ObjectPool.h"
@@ -22,103 +25,6 @@
 
 namespace Yes
 {
-	class DX12RenderDevicePass : public RenderDevicePass
-	{
-	public:
-		void Init(DX12FrameState* state)
-		{
-			FrameState = state;
-		}
-		void Reset() override
-		{
-			CheckAlways(Commands.empty());
-			Commands.clear();
-			mName.clear();
-			NeedClearColor = true;
-			ClearColor = V3F(0, 0, 0);
-			NeedClearDepth = true;
-			ClearDepth = 1.0f;
-			for (int i = 0; i < MaxRenderTargets; ++i)
-			{
-				OutputTarget[i] = nullptr;
-			}
-			FrameState = nullptr;
-			ConstantBuffer = {};
-		}
-		void AddCommand(RenderDeviceCommand* cmd) override
-		{
-			Commands.push_back(cmd);
-		}
-		void SetOutput(TRef<RenderDeviceRenderTarget>& renderTarget, int idx) override
-		{
-			IDX12RenderDeviceRenderTarget* rt = dynamic_cast<IDX12RenderDeviceRenderTarget*>(renderTarget.GetPtr());
-			OutputTarget[idx] = rt;
-		}
-		void SetDepthStencil(TRef<RenderDeviceDepthStencil>& depthStencil)
-		{
-		}
-		void SetClearValue(bool needClearColor, const V3F& clearColor, bool needClearDepth, float depth)
-		{
-			NeedClearColor = needClearColor;
-			NeedClearDepth = needClearDepth;
-			ClearColor = clearColor;
-			ClearDepth = depth;
-		}
-		void SetGlobalConstantBuffer(void* data, size_t size)
-		{
-			ConstantBuffer = FrameState->GetConstantBufferManager().Allocate(size);
-			void* wptr;
-			CheckSucceeded(ConstantBuffer.Buffer->Map(0, nullptr, &wptr));
-			memcpy(wptr, data, size);
-		}
-	public:
-		std::deque<RenderDeviceCommand*> Commands;
-		TRef<IDX12RenderDeviceRenderTarget> OutputTarget[8];
-		TRef<DX12RenderDeviceDepthStencil> DepthStencil;
-		bool NeedClearColor;
-		bool NeedClearDepth;
-		V3F ClearColor;
-		float ClearDepth;
-		DX12FrameState* FrameState;
-		AllocatedCBV ConstantBuffer;
-	};
-	class DX12RenderDeviceDrawcall : public RenderDeviceDrawcall
-	{
-	public:
-		void Init(DX12FrameState* state)
-		{
-			FrameState = state;
-		}
-		void Reset()
-		{
-			Mesh = nullptr;
-			ConstantBuffer = {};
-			PSO = nullptr;
-		}
-		void SetMesh(RenderDeviceMesh* mesh) override
-		{
-			Mesh = mesh;
-		}
-		void SetTextures(int idx, RenderDeviceTexture* texture) override
-		{}
-		void SetConstantBuffer(void* data, size_t size)
-		{
-			ConstantBuffer = FrameState->GetConstantBufferManager().Allocate(size);
-			void* wptr;
-			CheckSucceeded(ConstantBuffer.Buffer->Map(0, nullptr, &wptr));
-			memcpy(wptr, data, size);
-		}
-		void SetPSO(RenderDevicePSO* pso) override
-		{
-			PSO = pso;
-		}
-	public:
-		TRef<DX12RenderDeviceMesh> Mesh;
-		AllocatedCBV ConstantBuffer;
-		TRef<DX12RenderDevicePSO> PSO;
-		DX12FrameState* FrameState;
-	};
-
 	class DX12RenderDeviceModuleImp : public DX12RenderDeviceModule
 	{
 		//forward declarations
@@ -127,23 +33,23 @@ namespace Yes
 		//Resource related
 		RenderDeviceResourceRef CreateConstantBufferSimple(size_t size) override
 		{
-			DX12RenderDeviceConstantBuffer* cb = new DX12RenderDeviceConstantBuffer(size);
+			DX12ConstantBuffer* cb = new DX12ConstantBuffer(size);
 			return cb; 
 		}
-		RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index) override
+		RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) override
 		{
 			ISharedBuffer* buffers[] = {vertex.GetPtr(), index.GetPtr()};
-			DX12RenderDeviceMesh* mesh = new DX12RenderDeviceMesh(mResourceManager, buffers);
+			DX12Mesh* mesh = new DX12Mesh(mResourceManager, buffers, vertexStride, indexCount, indexStride);
 			return mesh;
 		}
 		RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) override
 		{
-			DX12RenderDevicePSO* pso = new DX12RenderDevicePSO(mDevice.GetPtr(), desc);
+			DX12PSO* pso = new DX12PSO(mDevice.GetPtr(), desc);
 			return pso;
 		}
 		RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
-			DX12RenderDeviceShader* shader = new DX12RenderDeviceShader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
+			DX12Shader* shader = new DX12Shader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
 		RenderDeviceResourceRef CreateRenderTarget() override
@@ -157,29 +63,23 @@ namespace Yes
 		//Command related
 		void BeginFrame() override
 		{
-			++mCurrentFrameIndex;
-			mCurrentFrameIndex %= NFrames;
+			mCurrentFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
 			mFrameStates[mCurrentFrameIndex]->WaitForFrame();
 		}
 		void EndFrame() override
 		{
+			//TODO: need transit backbuffer to present
+			DX12FrameState* fs = mFrameStates[mCurrentFrameIndex];
+			ID3D12GraphicsCommandList* cmdList = fs->ResetAndGetCommandList();
+			fs->GetBackbuffer()->TransitToState(D3D12_RESOURCE_STATE_PRESENT, cmdList);
+			fs->CloseAndExecuteCommandList();
 			mSwapChain->Present(1, 0);
 		}
 		RenderDevicePass* AllocPass() override
 		{
-			DX12RenderDevicePass* pass = mPassPool.Allocate();
-			pass->Init(GetCurrentFrameState());
+			DX12Pass* pass = mPassPool.Allocate();
+			pass->Init(GetCurrentFrameState(), &mRenderCommandPool);
 			return pass;
-		}
-		RenderDeviceDrawcall* AllocDrawcall() override
-		{
-			DX12RenderDeviceDrawcall* call = mDrawcallPool.Allocate();
-			call->Init(GetCurrentFrameState());
-			return call;
-		}
-		RenderDeviceBarrier* AllocBarrier() override
-		{
-			return nullptr;
 		}
 		void Start(System* system) override
 		{
@@ -218,7 +118,7 @@ namespace Yes
 				swapChainDesc.Height = mScreenHeight;
 				swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_SEQUENTIAL;
+				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 				swapChainDesc.SampleDesc.Count = 1;
 				COMRef<IDXGISwapChain1> sc;
 				CheckSucceeded(
@@ -232,55 +132,42 @@ namespace Yes
 				sc.As(mSwapChain);
 				CheckSucceeded(factory->MakeWindowAssociation(wh, DXGI_MWA_NO_ALT_ENTER));
 			}
-			mResourceManager = new DX12DeviceResourceManager(mDevice.GetPtr());
+			mResourceManager = new DX12ResourceManager(mDevice.GetPtr());
 			std::vector<DX12Backbuffer*> backBuffers;
 			{
 				for (int i = 0; i < mFrameCounts; ++i)
 				{
 					ID3D12Resource* resource;
 					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&resource)));
-					DX12DescriptorHeapSpace space = mResourceManager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Allocate(1);
-					backBuffers.push_back(new DX12Backbuffer(resource, space));
+					backBuffers.push_back(new DX12Backbuffer(resource, mDevice.GetPtr()));
 				}
 			}
 			{//setup frame states
 				for (int i = 0; i < NFrames; ++i)
 				{
-					mFrameStates[i] = new DX12FrameState(mDevice.GetPtr(), backBuffers[i]);
+					mFrameStates[i] = new DX12FrameState(mDevice.GetPtr(), backBuffers[i], m3DCommandQueue.GetPtr());
 				}
 			}
 		}
 		void ExecutePass(RenderDevicePass* renderPass) override
 		{
-			auto pass = (DX12RenderDevicePass*)renderPass;
+			DX12Pass* pass = (DX12Pass*)renderPass;
 			DX12FrameState* state = GetCurrentFrameState();
-			ID3D12GraphicsCommandList* cmdList = state->GetCommandList();
-			{//initial setup
-				D3D12_CPU_DESCRIPTOR_HANDLE handles[MaxRenderTargets];
-				int count = 0;
-				for (int i = 0; i < MaxRenderTargets; ++i)
-				{
-					if (pass->OutputTarget[i].GetPtr() != nullptr)
-					{
-						handles[i] = pass->OutputTarget[i]->GetHandle();
-					}
-					else
-					{
-						count = i;
-						break;
-					}
-				}
-				cmdList->OMSetRenderTargets(count, handles, false, nullptr);
-			}
-			//GOONGOONGOON
+			DX12RenderPassContext ctx;
+			ctx.CommandList = state->ResetAndGetCommandList();
+			ctx.HeapAllocator = &state->GetTempDescriptorHeapAllocator();
+			ctx.Backbuffer = state->GetBackbuffer();
+			ctx.DefaultViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)mScreenWidth, (float)mScreenHeight);
+			ctx.DefaultScissor = CD3DX12_RECT(0, 0, mScreenWidth, mScreenHeight);
+			pass->Execute(ctx);
 			//when done, reset pass and free it
+			state->CloseAndExecuteCommandList();
 			pass->Reset();
 			mPassPool.Deallocate(pass);
 		}
 
 		DX12RenderDeviceModuleImp()
 			: mPassPool(16)
-			, mDrawcallPool(128)
 		{
 			mFrameCounts = 3;
 			mAllocatorBlockSize = 32 * 1024 * 1024;
@@ -302,16 +189,11 @@ namespace Yes
 		DX12FrameState* mFrameStates[NFrames];
 
 		//pass and drawcall
-		ObjectPool<DX12RenderDevicePass> mPassPool;
-		ObjectPool<DX12RenderDeviceDrawcall> mDrawcallPool;
+		ObjectPool<DX12Pass> mPassPool;
 
 		//submodules
-		DX12DeviceResourceManager* mResourceManager;
-		
-		//descriptor consts
-		UINT mRTVIncrementSize;
-		UINT mSRVIncrementSize;
-
+		DX12ResourceManager* mResourceManager;
+		DX12RenderCommandPool mRenderCommandPool;
 		//some consts
 		int mFrameCounts;
 		int mScreenWidth;

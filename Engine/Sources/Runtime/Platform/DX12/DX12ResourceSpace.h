@@ -20,13 +20,17 @@ namespace Yes
 		UINT64 Offset;
 		bool IsValid() const
 		{
-			return Heap == nullptr && Offset == 0;
+			return Heap != nullptr;
 		}
 	};
 
 	struct DX12DescriptorHeapSpace
 	{
 		ID3D12DescriptorHeap* Heap;
-		D3D12_GPU_DESCRIPTOR_HANDLE Offset;
+		UINT64 Offset;
+		bool IsValid() const
+		{
+			return Heap != nullptr;
+		}
 	};
 }

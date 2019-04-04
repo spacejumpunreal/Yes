@@ -38,7 +38,7 @@ namespace Yes
 	}
 
 	//DX12CommandManager
-	DX12CommandManager::DX12CommandManager(ID3D12Device * dev)
+	DX12CommandManager::DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq)
 	{
 		CheckSucceeded(dev->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
@@ -49,14 +49,24 @@ namespace Yes
 			mAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
 		mCommandList->Close();
 	}
+	ID3D12GraphicsCommandList* DX12CommandManager::ResetAndGetCommandList()
+	{
+		mCommandList->Reset(mAllocator, nullptr);
+		return mCommandList;
+	}
+	void DX12CommandManager::CloseAndExecuteCommandList()
+	{
+		mCommandList->Close();
+		ID3D12CommandList* lst = mCommandList;
+		mCommandQueue->ExecuteCommandLists(1, &lst);
+	}
 	void DX12CommandManager::Reset()
 	{
 		mAllocator->Reset();
 	}
-
 	//DX12FrameState
 	static int HeapSlotBlockCount = 2048;
-	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer)
+	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq)
 		: mExpectedValue(0)
 		, mConstantBufferManager(dev)
 		, mLinearDescriptorHeapAllocator(
@@ -64,7 +74,7 @@ namespace Yes
 				dev, 
 				D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 				HeapSlotBlockCount, HeapSlotBlockCount))
-		, mCommandManager(dev)
+		, mCommandManager(dev, cq)
 		, mFrameBuffer(frameBuffer)
 	{
 		CheckSucceeded(dev->CreateFence(mExpectedValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
