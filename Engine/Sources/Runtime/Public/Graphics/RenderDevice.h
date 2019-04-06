@@ -42,18 +42,6 @@ namespace Yes
 	};
 #undef DefineLabel
 	static const int MaxRenderTargets = 8;
-	struct RenderDevicePSODesc
-	{
-		RenderDeviceResourceRef Shader;
-		TextureFormat RTs[MaxRenderTargets];
-
-		PSOStateKey StateKey;
-		VertexFormat VF;
-		int RTCount;
-		RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount);
-		RenderDevicePSODesc();
-		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
-	};
 	struct RenderDeviceViewPortDesc
 	{
 		float TopLeftX;
@@ -73,20 +61,39 @@ namespace Yes
 	class RenderDeviceShader : public RenderDeviceResource
 	{
 	};
+	using RenderDeviceShaderRef = TRef<RenderDeviceShader>;
+	struct RenderDevicePSODesc
+	{
+		RenderDeviceShaderRef Shader;
+		TextureFormat RTs[MaxRenderTargets];
+
+		PSOStateKey StateKey;
+		VertexFormat VF;
+		int RTCount;
+		RenderDevicePSODesc(VertexFormat vf, RenderDeviceShaderRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount);
+		RenderDevicePSODesc();
+		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
+	};
 	class RenderDeviceConstantBuffer : public RenderDeviceResource
 	{
 	};
+	using RenderDeviceConstantBufferRef = TRef<RenderDeviceConstantBuffer>;
 	class RenderDevicePSO : public RenderDeviceResource
 	{
 	};
+	using RenderDevicePSORef = TRef<RenderDevicePSO>;
 	class RenderDeviceMesh : public RenderDeviceResource
 	{};
+	using RenderDeviceMeshRef = TRef<RenderDeviceMesh>;
 	class RenderDeviceTexture : public RenderDeviceResource
 	{};
+	using RenderDeviceTextureRef = TRef<RenderDeviceTexture>;
 	class RenderDeviceRenderTarget : public RenderDeviceResource
 	{};
+	using RenderDeviceRenderTargetRef = TRef< RenderDeviceRenderTarget>;
 	class RenderDeviceDepthStencil : public RenderDeviceResource
 	{};
+	using RenderDeviceDepthStencilRef = TRef<RenderDeviceDepthStencil>;
 	class RenderDeviceCommand
 	{
 	public:
@@ -105,11 +112,12 @@ namespace Yes
 		}
 		virtual void Reset() = 0;
 		virtual RenderDeviceCommand* AddCommand(RenderCommandType cmd) = 0;
-		virtual void SetOutput(TRef<RenderDeviceRenderTarget>& renderTarget, int idx) = 0;
+		virtual void SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx) = 0;
 		virtual void SetClearColor(const V4F& clearColor, bool needed, int idx) = 0;
-		virtual void SetDepthStencil(TRef<RenderDeviceDepthStencil>& depthStencil) = 0;
+		virtual void SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil) = 0;
 		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil, int idx) = 0;
 		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
+		virtual TRef<RenderDeviceRenderTarget> GetBackbuffer() = 0;
 	protected:
 		std::string mName;
 	};
@@ -125,12 +133,12 @@ namespace Yes
 	{
 	public:
 		//Resource related
-		virtual RenderDeviceResourceRef CreateConstantBufferSimple(size_t size) = 0;
-		virtual RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) = 0;
-		virtual RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
-		virtual RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
-		virtual RenderDeviceResourceRef CreateRenderTarget() = 0;
-		virtual RenderDeviceResourceRef CreteTextureSimple() = 0;
+		virtual RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) = 0;
+		virtual RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) = 0;
+		virtual RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
+		virtual RenderDeviceShaderRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
+		virtual RenderDeviceRenderTargetRef CreateRenderTarget() = 0;
+		virtual RenderDeviceTextureRef CreteTextureSimple() = 0;
 
 		//Command related
 		virtual void BeginFrame() = 0;

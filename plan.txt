@@ -2,8 +2,13 @@
 	- SimpleDX12Renderer
 		- execute renderpass
 			- RenderPass::ExecutePass
+				- SetXXXConstantBuffer的方式修改
+					- 暴露allocate接口，返回handle，set handle
+				- ConstantBufferManager申请>= 64kb buffer resource trunk
+				- DescriptorHeap Handle顺序调整，第一个应该是RTV,然后是SRV
 				- render command: texture
 					- allocate temp Descriptor heap space
+					- 如何标识使用了不同的descriptorheap，可能要切换descriptorheap，同一个drawcall内不能换
 					- copy desciptor heap to temp table
 					- SetGraphicsRootDescriptorTable
 				- render command: RenderTarget rw

@@ -16,12 +16,14 @@ namespace Yes
 	}
 	AllocatedCBV DX12ConstantBufferManager::Allocate(size_t size)
 	{
-		DX12GPUMemoryRegion region = mAllocator->Allocate(size, ConstantBufferAlignment);
+		CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Buffer(size);
+		D3D12_RESOURCE_ALLOCATION_INFO info = mDevice->GetResourceAllocationInfo(0, 1, &desc);
+		DX12GPUMemoryRegion region = mAllocator->Allocate(info.SizeInBytes, info.Alignment);
 		ID3D12Resource* resource;
 		CheckSucceeded(mDevice->CreatePlacedResource(
 			region.Heap, 
 			region.Offset, 
-			&CD3DX12_RESOURCE_DESC::Buffer(size),
+			&desc,
 			D3D12_RESOURCE_STATE_GENERIC_READ, 
 			nullptr, 
 			IID_PPV_ARGS(&resource)));
@@ -39,6 +41,7 @@ namespace Yes
 
 	//DX12CommandManager
 	DX12CommandManager::DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq)
+		: mCommandQueue(cq)
 	{
 		CheckSucceeded(dev->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
@@ -87,13 +90,17 @@ namespace Yes
 	void DX12FrameState::Finish()
 	{
 		++mExpectedValue;
-		CheckAlways(mFence->Signal(mExpectedValue));
+		ID3D12GraphicsCommandList* cmdList = ResetAndGetCommandList();
+		mFrameBuffer->TransitToState(D3D12_RESOURCE_STATE_PRESENT, cmdList);
+		CloseAndExecuteCommandList();
+		CheckSucceeded(mFence->Signal(mExpectedValue));
 	}
 	void DX12FrameState::WaitForFrame()
 	{
 		if (mFence->GetCompletedValue() != mExpectedValue)
 		{
 			CheckAlways(mFence->SetEventOnCompletion(mExpectedValue, mEvent));
+			WaitForSingleObject(mEvent, INFINITE);
 		}
 		mConstantBufferManager.Reset();
 		mLinearDescriptorHeapAllocator->Reset();

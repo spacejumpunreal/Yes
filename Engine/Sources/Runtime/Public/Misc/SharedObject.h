@@ -129,11 +129,11 @@ namespace Yes
 		{
 			return lhs.mPtr != rhs.mPtr;
 		}
-		T* operator->()
+		T* operator->() const
 		{
 			return mPtr;
 		}
-		T* GetPtr()
+		T* GetPtr() const
 		{
 			return mPtr;
 		}

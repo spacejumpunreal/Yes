@@ -31,34 +31,34 @@ namespace Yes
 		
 	public:
 		//Resource related
-		RenderDeviceResourceRef CreateConstantBufferSimple(size_t size) override
+		RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) override
 		{
 			DX12ConstantBuffer* cb = new DX12ConstantBuffer(size);
 			return cb; 
 		}
-		RenderDeviceResourceRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) override
+		RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) override
 		{
 			ISharedBuffer* buffers[] = {vertex.GetPtr(), index.GetPtr()};
 			DX12Mesh* mesh = new DX12Mesh(mResourceManager, buffers, vertexStride, indexCount, indexStride);
 			return mesh;
 		}
-		RenderDeviceResourceRef CreatePSOSimple(RenderDevicePSODesc& desc) override
+		RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) override
 		{
 			DX12PSO* pso = new DX12PSO(mDevice.GetPtr(), desc);
 			return pso;
 		}
-		RenderDeviceResourceRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
+		RenderDeviceShaderRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) override
 		{
 			DX12Shader* shader = new DX12Shader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
-		RenderDeviceResourceRef CreateRenderTarget() override
+		RenderDeviceRenderTargetRef CreateRenderTarget() override
 		{
-			return RenderDeviceResourceRef();
+			return RenderDeviceRenderTargetRef();
 		}
-		RenderDeviceResourceRef CreteTextureSimple() override
+		RenderDeviceTextureRef CreteTextureSimple() override
 		{
-			return RenderDeviceResourceRef();
+			return RenderDeviceTextureRef();
 		}
 		//Command related
 		void BeginFrame() override
@@ -70,9 +70,7 @@ namespace Yes
 		{
 			//TODO: need transit backbuffer to present
 			DX12FrameState* fs = mFrameStates[mCurrentFrameIndex];
-			ID3D12GraphicsCommandList* cmdList = fs->ResetAndGetCommandList();
-			fs->GetBackbuffer()->TransitToState(D3D12_RESOURCE_STATE_PRESENT, cmdList);
-			fs->CloseAndExecuteCommandList();
+			fs->Finish();
 			mSwapChain->Present(1, 0);
 		}
 		RenderDevicePass* AllocPass() override

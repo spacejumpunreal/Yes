@@ -93,11 +93,14 @@ namespace Yes
 		size_t memTypeCount = GetGPUMemoryHeapTypeCount();
 		CheckAlways(memTypeCount == MemoryAllocatorTypeCount);
 		CreateGPUMemoryAllocators(dev, MemoryAccessCase::GPUAccessOnly, mAsyncMemoryAllocator);
+		CreateGPUMemoryAllocators(dev, MemoryAccessCase::GPUAccessOnly, mSyncMemoryAllocator);
 		CreateGPUMemoryAllocators(dev, MemoryAccessCase::CPUUpload, mUploadTempBufferAllocator);
 		
+
 		size_t descTypeCount = GetDescriptorHeapTypeCount();
 		CheckAlways(descTypeCount == DescriptorHeapAllocatorTypeCount);
 		CreateDescriptorHeapAllocators(dev, false, mAsyncDescriptorHeapAllocator);
+		CreateDescriptorHeapAllocators(dev, false, mSyncDescriptorHeapAllocator);
 
 		mResourceWorker = std::move(Thread(Entry, this));
 	}
@@ -142,6 +145,7 @@ namespace Yes
 				if (readBack != mExpectedFenceValue)
 				{
 					CheckSucceeded(mFence->SetEventOnCompletion(mExpectedFenceValue, mFenceEvent));
+					WaitForSingleObject(mFenceEvent, INFINITE);
 				}
 			}
 			CheckSucceeded(mCommandAllocator->Reset());
@@ -202,6 +206,7 @@ namespace Yes
 		UINT count;
 		std::tie(layout, count)        = GetInputLayoutForVertexFormat(desc.VF);
 		DX12Shader* shader = static_cast<DX12Shader*>(desc.Shader.GetPtr());
+		mRootSignature = shader->mRootSignature;
 
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 		psoDesc.InputLayout                        = { layout, count };
@@ -277,6 +282,7 @@ namespace Yes
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&mTempResource[i])));
+
 				//persistent buffer
 				CheckSucceeded(device->CreatePlacedResource(
 					mesh->mMemoryRegion[i].Heap,
@@ -296,7 +302,7 @@ namespace Yes
 				CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
 					res,
 					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST,
-					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ);
+					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON);
 				commandList->ResourceBarrier(1, &barrier);
 			}
 			mesh->mVertexBufferView = {};
@@ -364,6 +370,10 @@ namespace Yes
 		SharedObject::Destroy();
 	}
 	//IDX12RenderTarget
+	IDX12RenderTarget::IDX12RenderTarget()
+		: mState(D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
+		, mRenderTarget(nullptr)
+	{}
 	IDX12RenderTarget::~IDX12RenderTarget()
 	{
 		mRenderTarget->Release();
@@ -381,9 +391,10 @@ namespace Yes
 			mState = newState;
 		}
 	}
-	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderTarget::GetHandle()
+	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderTarget::GetHandle(int i)
 	{
-		return D3D12_CPU_DESCRIPTOR_HANDLE();
+		CheckAlways(0 <= i && i < 2);
+		return D3D12_CPU_DESCRIPTOR_HANDLE(mHeapSpace[i].Heap->GetCPUDescriptorHandleForHeapStart());
 	}
 	//DX12RenderTarget
 	DX12RenderTarget::DX12RenderTarget(

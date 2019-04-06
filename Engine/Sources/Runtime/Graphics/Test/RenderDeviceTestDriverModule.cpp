@@ -15,10 +15,13 @@ namespace Yes
 	private:
 		RenderDevice* mDevice = nullptr;
 		FileModule* mFileModule = nullptr;
-		RenderDeviceResourceRef mShader;
-		RenderDeviceResourceRef mPSO;
-		RenderDeviceResourceRef mMesh;
-		RenderDeviceResourceRef mConstantBuffer;
+		TRef<RenderDeviceShader> mShader;
+		TRef<RenderDevicePSO> mPSO;
+		TRef<RenderDeviceMesh> mMesh;
+		static const size_t ConstantBufferSize = 512;
+		static const size_t ConstantBufferSlots = 512 / 4;
+		float* mConstantBuffer;
+		int mFrame;
 		bool mAllResourceReady = false;
 
 	public:
@@ -27,6 +30,8 @@ namespace Yes
 			TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);
 			mFileModule = GET_MODULE(FileModule);
+			mConstantBuffer = new float[ConstantBufferSlots];
+			mFrame = 0;
 		}
 		virtual void Tick() override
 		{
@@ -70,7 +75,6 @@ namespace Yes
 			//Texture
 			//ConstantBuffer
 			{
-				mConstantBuffer = mDevice->CreateConstantBufferSimple(1024);
 			}
 		}
 		void CheckResources()
@@ -81,13 +85,30 @@ namespace Yes
 				return;
 			if (!mMesh->IsReady())
 				return;
-			if (!mConstantBuffer->IsReady())
-				return;
 			mAllResourceReady = true;
 		}
 		void Update()
 		{
+			//update constant
+			{
+				memset(mConstantBuffer, 0, ConstantBufferSize);
+				for (int i = 0; i < ConstantBufferSlots; ++i)
+				{
+					mConstantBuffer[i] = ((float)(i)) + mFrame;
+				}
+			}
+			mDevice->BeginFrame();
 			RenderDevicePass* pass = mDevice->AllocPass();
+			pass->SetOutput(pass->GetBackbuffer(), 0);
+			pass->SetClearColor(V4F(0, 1, 0, 0), true, 0);
+			pass->SetGlobalConstantBuffer(mConstantBuffer, ConstantBufferSize);
+
+			RenderDeviceDrawcall* cmd = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+			cmd->SetMesh(mMesh.GetPtr());
+			cmd->SetPSO(mPSO.GetPtr());
+			cmd->SetConstantBuffer(mConstantBuffer, ConstantBufferSize, pass);
+			mDevice->ExecutePass(pass);
+			mDevice->EndFrame();
 		}
 		DEFINE_MODULE_IN_CLASS(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp);
 	};

@@ -5,7 +5,7 @@
 namespace Yes
 {
 	//RenderDevicePSODesc
-	RenderDevicePSODesc::RenderDevicePSODesc(VertexFormat vf, RenderDeviceResourceRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount)
+	RenderDevicePSODesc::RenderDevicePSODesc(VertexFormat vf, RenderDeviceShaderRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount)
 		: Shader(shader)
 		, StateKey(stateKey)
 		, VF(vf)

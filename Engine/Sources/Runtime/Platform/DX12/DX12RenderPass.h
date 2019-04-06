@@ -22,11 +22,12 @@ namespace Yes
 		void Init(DX12FrameState* state, DX12RenderCommandPool* pool);
 		void Reset() override;
 		RenderDeviceCommand* AddCommand(RenderCommandType type) override;
-		void SetOutput(TRef<RenderDeviceRenderTarget>& renderTarget, int idx) override;
+		void SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx) override;
 		void SetClearColor(const V4F& clearColor, bool needed, int idx) override;
-		void SetDepthStencil(TRef<RenderDeviceDepthStencil>& depthStencil) override;
+		void SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil) override;
 		void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil, int idx) override;
 		void SetGlobalConstantBuffer(void* data, size_t size) override;
+		TRef<RenderDeviceRenderTarget> GetBackbuffer() override;
 		void Execute(DX12RenderPassContext& context);
 		DX12FrameState* GetFrameState() { return mFrameState; }
 	private:

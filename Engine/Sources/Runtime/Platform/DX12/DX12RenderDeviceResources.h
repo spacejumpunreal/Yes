@@ -22,7 +22,7 @@ namespace Yes
 	class DX12ResourceManager;
 
 	static const size_t MemoryAllocatorTypeCount = 3;
-	static const size_t DescriptorHeapAllocatorTypeCount = 4;
+	static const size_t DescriptorHeapAllocatorTypeCount = 3;
 
 
 	class IDX12ResourceRequest
@@ -34,8 +34,8 @@ namespace Yes
 
 	class DX12ResourceManager
 	{
-		const size_t MAX_BATCH_SIZE = 16;
-		const size_t AllocatorBlockSize = 16 * 1024 * 1024;
+		static const size_t MAX_BATCH_SIZE = 16;
+		static const size_t AllocatorBlockSize = 16 * 1024 * 1024;
 	public:
 		static DX12ResourceManager& GetDX12DeviceResourceManager()
 		{
@@ -149,7 +149,9 @@ namespace Yes
 		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		bool IsReady() override { return true; }
 		D3D12_RESOURCE_STATES GetState() { return mState; }
-		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle();
+		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(int i);
+	protected:
+		IDX12RenderTarget();
 	protected:
 		D3D12_RESOURCE_STATES mState;
 		ID3D12Resource* mRenderTarget;

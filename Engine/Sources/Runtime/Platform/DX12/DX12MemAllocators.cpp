@@ -50,7 +50,7 @@ namespace Yes
 			for (int i = 0; i < (int)GPUMemoryHeapType::GPUMemoryHeapTypeCount; ++i)
 			{
 				outAllocators[i] = CreateDX12BestFitAllocator(
-					HeapCreator(MemoryAccessCase::GPUAccessOnly, dev, MemoryHeapType2HeapFlags[i]),
+					HeapCreator(access, dev, MemoryHeapType2HeapFlags[i]),
 					Size4M,
 					0);
 			}
@@ -58,7 +58,7 @@ namespace Yes
 			for (int i = 0; i < (int)GPUMemoryHeapType::GPUMemoryHeapTypeCount; ++i)
 			{
 				outAllocators[i] = CreateDX12LinearBlockAllocator(
-					HeapCreator(MemoryAccessCase::CPUUpload, dev, MemoryHeapType2HeapFlags[i]),
+					HeapCreator(access, dev, MemoryHeapType2HeapFlags[i]),
 					Size4M,
 					Size4M * 2);
 			}
