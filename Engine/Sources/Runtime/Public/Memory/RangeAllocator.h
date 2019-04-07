@@ -182,6 +182,7 @@ namespace Yes
 				
 			}
 			mUsedRanges.clear();
+			mCurrentRange = nullptr;
 		}
 	private:
 		bool CanFreeRange(size_t total)

@@ -25,7 +25,7 @@ namespace Yes
 		void SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx) override;
 		void SetClearColor(const V4F& clearColor, bool needed, int idx) override;
 		void SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil) override;
-		void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil, int idx) override;
+		void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) override;
 		void SetGlobalConstantBuffer(void* data, size_t size) override;
 		TRef<RenderDeviceRenderTarget> GetBackbuffer() override;
 		void Execute(DX12RenderPassContext& context);
@@ -37,10 +37,10 @@ namespace Yes
 		V4F								   mClearColorValues[8];
 		bool                               mNeedClearColor[8];
 		TRef<DX12DepthStencil>             mDepthStencil;
-		float                              mClearDepthValues[8];
-		uint8                              mClearStencilValues[8];
-		bool                               mNeedClearDepth[8];
-		bool                               mNeedClearStencil[8];
+		float                              mClearDepthValue;
+		uint8                              mClearStencilValue;
+		bool                               mNeedClearDepth;
+		bool                               mNeedClearStencil;
 		DX12FrameState*                    mFrameState;
 		AllocatedCBV                       mConstantBuffer;
 		DX12RenderCommandPool*			   mCommandPool;

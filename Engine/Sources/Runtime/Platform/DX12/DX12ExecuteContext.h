@@ -12,7 +12,7 @@ namespace Yes
 	{
 		ID3D12GraphicsCommandList* CommandList;
 		IDX12DescriptorHeapAllocator* HeapAllocator;
-		IDX12RenderTarget*         Backbuffer;
+		//IDX12RenderTarget*         Backbuffer;
 		CD3DX12_VIEWPORT           DefaultViewport;
 		CD3DX12_RECT			   DefaultScissor;
 

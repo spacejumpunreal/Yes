@@ -22,6 +22,7 @@ namespace Yes
 		static const size_t ConstantBufferSlots = 512 / 4;
 		float* mConstantBuffer;
 		int mFrame;
+		V4F mClearColors[3];
 		bool mAllResourceReady = false;
 
 	public:
@@ -32,6 +33,9 @@ namespace Yes
 			mFileModule = GET_MODULE(FileModule);
 			mConstantBuffer = new float[ConstantBufferSlots];
 			mFrame = 0;
+			mClearColors[0] = V4F(1, 0, 0, 1);
+			mClearColors[1] = V4F(0, 1, 0, 1);
+			mClearColors[2] = V4F(0, 0, 1, 1);
 		}
 		virtual void Tick() override
 		{
@@ -41,9 +45,10 @@ namespace Yes
 				mDevice = dynamic_cast<RenderDevice*>(dev);
 				Setup();
 			}
-			if (mAllResourceReady)
+			if (!mAllResourceReady)
 				CheckResources();
-			Update();
+			else
+				Update();
 		}
 	private:
 		void Setup()
@@ -100,15 +105,17 @@ namespace Yes
 			mDevice->BeginFrame();
 			RenderDevicePass* pass = mDevice->AllocPass();
 			pass->SetOutput(pass->GetBackbuffer(), 0);
-			pass->SetClearColor(V4F(0, 1, 0, 0), true, 0);
+			pass->SetClearColor(mClearColors[mFrame / 60 % 3], true, 0);
 			pass->SetGlobalConstantBuffer(mConstantBuffer, ConstantBufferSize);
 
 			RenderDeviceDrawcall* cmd = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
 			cmd->SetMesh(mMesh.GetPtr());
 			cmd->SetPSO(mPSO.GetPtr());
 			cmd->SetConstantBuffer(mConstantBuffer, ConstantBufferSize, pass);
+
 			mDevice->ExecutePass(pass);
 			mDevice->EndFrame();
+			++mFrame;
 		}
 		DEFINE_MODULE_IN_CLASS(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp);
 	};

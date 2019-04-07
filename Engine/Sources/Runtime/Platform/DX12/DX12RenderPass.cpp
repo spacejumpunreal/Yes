@@ -24,11 +24,12 @@ namespace Yes
 			mOutputTarget[i] = nullptr;
 			mClearColorValues[i] = V4F{};
 			mNeedClearColor[i] = true;
-			mClearDepthValues[i] = 1.0f;
-			mClearStencilValues[i] = 0;
-			mNeedClearDepth[i] = true;
-			mNeedClearStencil[i] = true;
 		}
+
+		mNeedClearDepth = true;
+		mNeedClearStencil = true;
+		mClearDepthValue = 1.0f;
+		mClearStencilValue = 0;
 		mDepthStencil = nullptr;
 		mFrameState = nullptr;
 		mConstantBuffer = {};
@@ -54,12 +55,12 @@ namespace Yes
 	{
 		mDepthStencil = dynamic_cast<DX12DepthStencil*>(depthStencil.GetPtr());
 	}
-	void DX12Pass::SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil, int idx)
+	void DX12Pass::SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil)
 	{
-		mClearDepthValues[idx] = depth;
-		mClearStencilValues[idx] = stencil;
-		mNeedClearDepth[idx] = neededDepth;
-		mNeedClearStencil[idx] = needStencil;
+		mClearDepthValue = depth;
+		mClearStencilValue = stencil;
+		mNeedClearDepth = neededDepth;
+		mNeedClearStencil = needStencil;
 	}
 	void DX12Pass::SetGlobalConstantBuffer(void* data, size_t size)
 	{
@@ -74,45 +75,56 @@ namespace Yes
 	}
 	void DX12Pass::Execute(DX12RenderPassContext& context)
 	{
-		{//initialize some setting
-			//output RenderTargets
-			D3D12_CPU_DESCRIPTOR_HANDLE handles[MaxRenderTargets];
-			int count = 0;
-			for (int i = 0; i < MaxRenderTargets; ++i)
+		UINT activeRTCount;
+		D3D12_CPU_DESCRIPTOR_HANDLE outputRTHandles[MaxRenderTargets];
+		//output RenderTargets
+		for (int i = 0; i < MaxRenderTargets; ++i)
+		{
+			if (mOutputTarget[i].GetPtr() != nullptr)
 			{
-				if (mOutputTarget[i].GetPtr() != nullptr)
+				outputRTHandles[i] = mOutputTarget[i]->GetHandle(1);
+				mOutputTarget[i]->TransitToState(D3D12_RESOURCE_STATE_RENDER_TARGET, context.CommandList);
+				if (mNeedClearColor[i])
 				{
-					handles[i] = mOutputTarget[i]->GetHandle(1);
-					context.Backbuffer->TransitToState(
-						D3D12_RESOURCE_STATE_RENDER_TARGET, 
-						context.CommandList);
-					context.CommandList->ClearRenderTargetView(
-						handles[i],
-						(const float*)&mClearColorValues[i],
-						0,
-						nullptr);
-				}
-				else
-				{
-					count = i;
-					break;
+					context.CommandList->ClearRenderTargetView(outputRTHandles[i], (const float*)&mClearColorValues[i], 0, nullptr);
 				}
 			}
-			context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.Buffer->GetGPUVirtualAddress();
-			CD3DX12_CPU_DESCRIPTOR_HANDLE dsHandle = {};
-			D3D12_CPU_DESCRIPTOR_HANDLE* handlePtr = nullptr;
-			if (mDepthStencil.GetPtr())
+			else
 			{
-				dsHandle = CD3DX12_CPU_DESCRIPTOR_HANDLE(
-					mDepthStencil->mHeapSpace.Heap->GetCPUDescriptorHandleForHeapStart(),
-					(UINT)mDepthStencil->mHeapSpace.Offset);
-				handlePtr = &dsHandle;
+				activeRTCount = i;
+				break;
 			}
-			context.CommandList->OMSetRenderTargets(count, handles, FALSE, handlePtr);
-			context.CommandList->RSSetViewports(1, &context.DefaultViewport);
-			context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
-			context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		}
+		CD3DX12_CPU_DESCRIPTOR_HANDLE dsHandle = {};
+		D3D12_CPU_DESCRIPTOR_HANDLE* handlePtr = nullptr;
+		if (mDepthStencil.GetPtr())
+		{
+			D3D12_CLEAR_FLAGS flag = {};
+			if (mNeedClearDepth)
+			{
+				flag |= D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_DEPTH;
+			}
+			else
+			{
+				flag &= ~D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_DEPTH;
+			}
+			if (mNeedClearStencil)
+			{
+				flag |= D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_STENCIL;
+			}
+			else
+			{
+				flag &= ~D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_STENCIL;
+			}
+			dsHandle = mDepthStencil->mHeapSpace.GetCPUHandle(0);
+			context.CommandList->ClearDepthStencilView(dsHandle, flag, mClearDepthValue, mClearStencilValue, 0, nullptr);
+			handlePtr = &dsHandle;
+		}
+		context.CommandList->OMSetRenderTargets(activeRTCount, outputRTHandles, FALSE, handlePtr);
+		context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.Buffer->GetGPUVirtualAddress();
+		context.CommandList->RSSetViewports(1, &context.DefaultViewport);
+		context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
+		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Prepare(&context);

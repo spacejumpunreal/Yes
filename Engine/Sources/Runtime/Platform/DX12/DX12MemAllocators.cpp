@@ -11,6 +11,11 @@
 #include <map>
 #include <algorithm>
 
+#define CHECK_THREAD_ACCESS 1
+#if CHECK_THREAD_ACCESS
+#include "Concurrency/Thread.h"
+#endif
+
 namespace Yes
 {
 	enum class GPUMemoryHeapType

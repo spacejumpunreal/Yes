@@ -27,6 +27,7 @@ namespace Yes
 			D3D12_RESOURCE_STATE_GENERIC_READ, 
 			nullptr, 
 			IID_PPV_ARGS(&resource)));
+		mAllocatedResources.push_back(resource);
 		return AllocatedCBV{ resource };
 	}
 	void DX12ConstantBufferManager::Reset()
@@ -40,17 +41,21 @@ namespace Yes
 	}
 
 	//DX12CommandManager
-	DX12CommandManager::DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq)
+	DX12CommandManager::DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq, int backbufferIndex)
 		: mCommandQueue(cq)
 	{
+		wchar_t tempName[1024];
+		swprintf(tempName, 1024, L"Frame%d", backbufferIndex);
 		CheckSucceeded(dev->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
 			IID_PPV_ARGS(&mAllocator)));
+		mAllocator->SetName(tempName);
 		CheckSucceeded(dev->CreateCommandList(
 			0, 
 			D3D12_COMMAND_LIST_TYPE::D3D12_COMMAND_LIST_TYPE_DIRECT, 
 			mAllocator, nullptr, IID_PPV_ARGS(&mCommandList)));
-		mCommandList->Close();
+		mCommandList->SetName(tempName);
+		CheckSucceeded(mCommandList->Close());
 	}
 	ID3D12GraphicsCommandList* DX12CommandManager::ResetAndGetCommandList()
 	{
@@ -59,7 +64,7 @@ namespace Yes
 	}
 	void DX12CommandManager::CloseAndExecuteCommandList()
 	{
-		mCommandList->Close();
+		CheckSucceeded(mCommandList->Close());
 		ID3D12CommandList* lst = mCommandList;
 		mCommandQueue->ExecuteCommandLists(1, &lst);
 	}
@@ -69,7 +74,7 @@ namespace Yes
 	}
 	//DX12FrameState
 	static int HeapSlotBlockCount = 2048;
-	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq)
+	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq, int backBufferInex)
 		: mExpectedValue(0)
 		, mConstantBufferManager(dev)
 		, mLinearDescriptorHeapAllocator(
@@ -77,29 +82,31 @@ namespace Yes
 				dev, 
 				D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
 				HeapSlotBlockCount, HeapSlotBlockCount))
-		, mCommandManager(dev, cq)
+		, mCommandManager(dev, cq, backBufferInex)
 		, mFrameBuffer(frameBuffer)
+		, mCommandQueue(cq)
+		, mBackBufferIndex(backBufferInex)
 	{
 		CheckSucceeded(dev->CreateFence(mExpectedValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
 		mEvent = CreateEvent(nullptr, FALSE, FALSE, L"DX12FrameState::mEvent");
 	}
 	DX12FrameState::~DX12FrameState()
 	{
-		WaitForFrame();
+		WaitGPUAndCleanup();
 	}
-	void DX12FrameState::Finish()
+	void DX12FrameState::CPUFinish()
 	{
 		++mExpectedValue;
-		ID3D12GraphicsCommandList* cmdList = ResetAndGetCommandList();
+		ID3D12GraphicsCommandList* cmdList = mCommandManager.ResetAndGetCommandList();
 		mFrameBuffer->TransitToState(D3D12_RESOURCE_STATE_PRESENT, cmdList);
-		CloseAndExecuteCommandList();
-		CheckSucceeded(mFence->Signal(mExpectedValue));
+		mCommandManager.CloseAndExecuteCommandList();
+		CheckSucceeded(mCommandQueue->Signal(mFence.GetPtr(), mExpectedValue));
 	}
-	void DX12FrameState::WaitForFrame()
+	void DX12FrameState::WaitGPUAndCleanup()
 	{
 		if (mFence->GetCompletedValue() != mExpectedValue)
 		{
-			CheckAlways(mFence->SetEventOnCompletion(mExpectedValue, mEvent));
+			CheckSucceeded(mFence->SetEventOnCompletion(mExpectedValue, mEvent));
 			WaitForSingleObject(mEvent, INFINITE);
 		}
 		mConstantBufferManager.Reset();

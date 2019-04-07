@@ -79,7 +79,7 @@ namespace Yes
 		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
 		IDX12DescriptorHeapAllocator* allocator = context->HeapAllocator;
 		//CBV
-		DX12DescriptorHeapSpace space = allocator->Allocate(1);
+		//DX12DescriptorHeapSpace space = allocator->Allocate(1);
 		//SRV
 	}
 	void DX12Drawcall::Execute(void * ctx)

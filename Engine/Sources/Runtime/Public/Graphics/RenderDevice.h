@@ -115,7 +115,7 @@ namespace Yes
 		virtual void SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx) = 0;
 		virtual void SetClearColor(const V4F& clearColor, bool needed, int idx) = 0;
 		virtual void SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil) = 0;
-		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil, int idx) = 0;
+		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) = 0;
 		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
 		virtual TRef<RenderDeviceRenderTarget> GetBackbuffer() = 0;
 	protected:

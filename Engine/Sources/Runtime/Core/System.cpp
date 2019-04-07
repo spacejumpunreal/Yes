@@ -3,6 +3,7 @@
 #include "Misc/Utils.h"
 #include "Misc/Debug.h"
 #include "Misc/Time.h"
+#include "Concurrency/Thread.h"
 
 #include "Core/ModuleRegistry.h"
 #include "Core/MemoryModule.h"
@@ -79,6 +80,7 @@ namespace Yes
 	}
 	void System::Initialize()
 	{
+		Thread::SetAsMainThread();
 		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
 		mPrivate->mArgs.insert(std::make_pair("module", "FileModule"));
 		//find need to initialize modules from args

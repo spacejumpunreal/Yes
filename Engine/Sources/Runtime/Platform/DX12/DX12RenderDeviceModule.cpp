@@ -64,13 +64,15 @@ namespace Yes
 		void BeginFrame() override
 		{
 			mCurrentFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-			mFrameStates[mCurrentFrameIndex]->WaitForFrame();
+			mFrameStates[mCurrentFrameIndex]->WaitGPUAndCleanup();
+			UINT i = mSwapChain->GetCurrentBackBufferIndex();
+			CheckAlways(i == mCurrentFrameIndex);
 		}
 		void EndFrame() override
 		{
 			//TODO: need transit backbuffer to present
 			DX12FrameState* fs = mFrameStates[mCurrentFrameIndex];
-			fs->Finish();
+			fs->CPUFinish();
 			mSwapChain->Present(1, 0);
 		}
 		RenderDevicePass* AllocPass() override
@@ -137,13 +139,16 @@ namespace Yes
 				{
 					ID3D12Resource* resource;
 					CheckSucceeded(mSwapChain->GetBuffer(i, IID_PPV_ARGS(&resource)));
-					backBuffers.push_back(new DX12Backbuffer(resource, mDevice.GetPtr()));
+
+					wchar_t tempNameBuffer[1024];
+					swprintf(tempNameBuffer, 1024, L"BackBuffer%d", i);
+					backBuffers.push_back(new DX12Backbuffer(resource, mDevice.GetPtr(), tempNameBuffer));
 				}
 			}
 			{//setup frame states
 				for (int i = 0; i < NFrames; ++i)
 				{
-					mFrameStates[i] = new DX12FrameState(mDevice.GetPtr(), backBuffers[i], m3DCommandQueue.GetPtr());
+					mFrameStates[i] = new DX12FrameState(mDevice.GetPtr(), backBuffers[i], m3DCommandQueue.GetPtr(), i);
 				}
 			}
 		}
@@ -151,15 +156,13 @@ namespace Yes
 		{
 			DX12Pass* pass = (DX12Pass*)renderPass;
 			DX12FrameState* state = GetCurrentFrameState();
-			DX12RenderPassContext ctx;
-			ctx.CommandList = state->ResetAndGetCommandList();
+			DX12RenderPassContext ctx = {};
 			ctx.HeapAllocator = &state->GetTempDescriptorHeapAllocator();
-			ctx.Backbuffer = state->GetBackbuffer();
 			ctx.DefaultViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)mScreenWidth, (float)mScreenHeight);
 			ctx.DefaultScissor = CD3DX12_RECT(0, 0, mScreenWidth, mScreenHeight);
+			ctx.CommandList = state->GetCommandManager().ResetAndGetCommandList();
 			pass->Execute(ctx);
-			//when done, reset pass and free it
-			state->CloseAndExecuteCommandList();
+			state->GetCommandManager().CloseAndExecuteCommandList();
 			pass->Reset();
 			mPassPool.Deallocate(pass);
 		}

@@ -3,6 +3,7 @@
 
 #include "Misc/Utils.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12RenderDeviceResources.h"
 
 #include "Windows.h"
 #include <dxgi1_2.h>
@@ -20,8 +21,6 @@ namespace Yes
 {
 	class IDX12GPUMemoryAllocator;
 	class IDX12DescriptorHeapAllocator;
-	class DX12Backbuffer;
-	class IDX12RenderTarget;
 
 	struct AllocatedCBV
 	{
@@ -41,7 +40,7 @@ namespace Yes
 	class DX12CommandManager
 	{
 	public:
-		DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq);
+		DX12CommandManager(ID3D12Device* dev, ID3D12CommandQueue* cq, int backbufferIndex);
 		void Reset();
 		ID3D12GraphicsCommandList* ResetAndGetCommandList();
 		void CloseAndExecuteCommandList();
@@ -53,9 +52,9 @@ namespace Yes
 	class DX12FrameState
 	{
 	public:
-		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq);
+		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex);
 		~DX12FrameState();
-		void Finish();
+		void CPUFinish();
 		DX12ConstantBufferManager& GetConstantBufferManager()
 		{
 			return mConstantBufferManager;
@@ -64,16 +63,12 @@ namespace Yes
 		{
 			return *mLinearDescriptorHeapAllocator;
 		}
-		ID3D12GraphicsCommandList* ResetAndGetCommandList()
+		DX12CommandManager& GetCommandManager()
 		{
-			return mCommandManager.ResetAndGetCommandList();
+			return mCommandManager;
 		}
-		void CloseAndExecuteCommandList()
-		{
-			return mCommandManager.CloseAndExecuteCommandList();
-		}
-		void WaitForFrame();
-		IDX12RenderTarget* GetBackbuffer() { return (IDX12RenderTarget*)mFrameBuffer; }
+		void WaitGPUAndCleanup();
+		IDX12RenderTarget* GetBackbuffer() { return (IDX12RenderTarget*)mFrameBuffer.GetPtr(); }
 	private:
 		COMRef<ID3D12Fence> mFence;
 		UINT64 mExpectedValue;
@@ -81,6 +76,8 @@ namespace Yes
 		DX12ConstantBufferManager mConstantBufferManager;
 		IDX12DescriptorHeapAllocator* mLinearDescriptorHeapAllocator;
 		DX12CommandManager mCommandManager;
-		DX12Backbuffer* mFrameBuffer;
+		TRef<DX12Backbuffer> mFrameBuffer;
+		ID3D12CommandQueue* mCommandQueue;
+		int mBackBufferIndex;
 	};
 }

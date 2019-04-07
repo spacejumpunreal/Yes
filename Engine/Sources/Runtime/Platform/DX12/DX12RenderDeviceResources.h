@@ -155,7 +155,7 @@ namespace Yes
 	protected:
 		D3D12_RESOURCE_STATES mState;
 		ID3D12Resource* mRenderTarget;
-		DX12DescriptorHeapSpace	mHeapSpace[2];//SRV + RTV
+		DX12DescriptorHeapSpace1	mHeapSpace[2];//SRV + RTV
 	};
 	class DX12RenderTarget : public IDX12RenderTarget
 	{
@@ -167,7 +167,7 @@ namespace Yes
 	class DX12Backbuffer : public IDX12RenderTarget
 	{
 	public:
-		DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device);
+		DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device, wchar_t* name);
 		void Destroy() override;
 	};
 
@@ -177,7 +177,7 @@ namespace Yes
 		DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
 		void Destroy() override;
 		ID3D12Resource* mBuffer;
-		DX12DescriptorHeapSpace	mHeapSpace;
+		DX12DescriptorHeapSpace1	mHeapSpace;
 		DX12GPUMemoryRegion mMemoryRegion;
 	};
 }

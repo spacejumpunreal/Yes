@@ -10,8 +10,8 @@ namespace Yes
 	class IDX12DescriptorHeapAllocator
 	{
 	public:
-		virtual DX12DescriptorHeapSpace Allocate(size_t count) = 0;
-		virtual void Free(const DX12DescriptorHeapSpace& space) = 0;
+		virtual DX12DescriptorHeapSpace1 Allocate(size_t count) = 0;
+		virtual void Free(const DX12DescriptorHeapSpace1& space) = 0;
 		virtual void Reset() = 0;
 		virtual void GetAllocationStats(size_t& count, size_t& used, size_t& total) = 0;
 	};

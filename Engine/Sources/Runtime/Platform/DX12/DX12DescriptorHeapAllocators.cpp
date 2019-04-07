@@ -102,17 +102,16 @@ namespace Yes
 		DX12LinearBlockDescriptorHeapAllocator(UINT64 blockSize, UINT64 maxReservation, UINT64 handleSize)
 			: mImp(blockSize, maxReservation)
 		{}
-		virtual DX12DescriptorHeapSpace Allocate(size_t count) override
+		virtual DX12DescriptorHeapSpace1 Allocate(size_t count) override
 		{ 
-			DX12DescriptorHeapSpace ret;
+			ID3D12DescriptorHeap* heap;
 			UINT64 offset;
-			mImp.Allocate(ret.Heap, offset, count, 1);
-			ret.Offset = offset * mHandleSize;
-			return ret;
+			mImp.Allocate(heap, offset, count, 1);
+			return DX12DescriptorHeapSpace1(heap, offset, mHandleSize);
 		}
-		virtual void Free(const DX12DescriptorHeapSpace& space) override
+		virtual void Free(const DX12DescriptorHeapSpace1& space) override
 		{
-			mImp.Free(space.Heap, space.Offset / mHandleSize);
+			mImp.Free(space.GetHeap(), space.GetOffset());
 		}
 		virtual void Reset() override 
 		{ 
@@ -152,17 +151,16 @@ namespace Yes
 			: mImp(blockSize, maxReservation)
 			, mHandleSize(handleSize)
 		{}
-		virtual DX12DescriptorHeapSpace Allocate(size_t count) override
+		virtual DX12DescriptorHeapSpace1 Allocate(size_t count) override
 		{
-			DX12DescriptorHeapSpace ret;
+			ID3D12DescriptorHeap* heap;
 			UINT64 offset;
-			mImp.Allocate(ret.Heap, offset, count, 1);
-			ret.Offset = mHandleSize * offset;
-			return ret;
+			mImp.Allocate(heap, offset, count, 1);
+			return DX12DescriptorHeapSpace1(heap, offset, mHandleSize);
 		}
-		virtual void Free(const DX12DescriptorHeapSpace& space) override
+		virtual void Free(const DX12DescriptorHeapSpace1& space) override
 		{
-			mImp.Free(space.Heap, space.Offset / mHandleSize);
+			mImp.Free(space.GetHeap(), space.GetOffset());
 		}
 		virtual void Reset() override
 		{
