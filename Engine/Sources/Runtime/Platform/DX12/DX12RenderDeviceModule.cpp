@@ -23,6 +23,8 @@
 #include <cstring>
 #include <algorithm>
 
+#define VALIDATION_LEVEL 2
+
 namespace Yes
 {
 	class DX12RenderDeviceModuleImp : public DX12RenderDeviceModule
@@ -91,10 +93,17 @@ namespace Yes
 				wm->GetWindowRect(mScreenWidth, mScreenHeight);
 				UINT dxgiFactoryFlags = 0;
 				COMRef<ID3D12Debug> debugController;
+				COMRef<ID3D12Debug1> debugController1;
 				if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController))))
 				{
+#if VALIDATION_LEVEL >= 1
 					debugController->EnableDebugLayer();
 					dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
+#endif
+#if VALIDATION_LEVEL >= 2
+					debugController->QueryInterface(IID_PPV_ARGS(&debugController1));
+					debugController1->SetEnableGPUBasedValidation(true);
+#endif
 				}
 				
 				CheckSucceeded(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
@@ -118,7 +127,7 @@ namespace Yes
 				swapChainDesc.Height = mScreenHeight;
 				swapChainDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 				swapChainDesc.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+				swapChainDesc.SwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 				swapChainDesc.SampleDesc.Count = 1;
 				COMRef<IDXGISwapChain1> sc;
 				CheckSucceeded(

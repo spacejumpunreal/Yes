@@ -15,11 +15,11 @@ struct GlobalConstants
 };
 struct ObjectConstants
 {
-	float4 param;
+	float4x4 wvp;
 };
 
-ConstantBuffer<GlobalConstants> cGlobal[] : register(b0);
-ConstantBuffer<ObjectConstants> cObject[]: register(b1);
+ConstantBuffer<GlobalConstants> cGlobal : register(b0);
+ConstantBuffer<ObjectConstants> cObject: register(b1);
 
 Texture2D mTexture[16] : register(t0);
 SamplerState m_sampler : register(s0);
@@ -27,6 +27,7 @@ SamplerState m_sampler : register(s0);
 struct VSInput
 {
 	float3 position : POSITION;
+	float3 normal: NORMAL;
 	float2 uv : TEXCOORD;
 };
 
@@ -34,16 +35,17 @@ struct PSInput
 {
     float4 position : SV_POSITION;
 	float3 wpos : TEXCOORD0;
-    float2 uv : TEXCOORD1;
+	float3 normal: TEXCOORD1;
+    float2 uv : TEXCOORD2;
 };
 
-PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
+PSInput VSMain(VSInput input)
 {
     PSInput result;
-    result.position = float4(position, 1.0f);
-	result.wpos = position;
-	result.uv = uv;
-
+	result.position = mul(cObject.wvp, float4(input.position, 1));
+	result.wpos = input.position;
+	result.normal = mul(cObject.wvp, float4(input.normal, 1));
+	result.uv = input.uv;
     return result;
 }
 
@@ -53,8 +55,8 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 		"DENY_HULL_SHADER_ROOT_ACCESS|"\
 		"DENY_DOMAIN_SHADER_ROOT_ACCESS|"\
 		"DENY_GEOMETRY_SHADER_ROOT_ACCESS),"\
-	"CBV(b0, flags=DATA_STATIC),"\
-	"CBV(b1, flags=DATA_STATIC),"\
+	"CBV(b0, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE),"\
+	"CBV(b1, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE),"\
 	"DescriptorTable(SRV(t0, numDescriptors=16, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE)),"\
 	"StaticSampler(s0,"\
 		"addressU=TEXTURE_ADDRESS_BORDER,"\
@@ -63,11 +65,6 @@ PSInput VSMain(float3 position : POSITION, float2 uv : TEXCOORD)
 		"visibility=SHADER_VISIBILITY_PIXEL)")]
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	//return param0 / param1.w;
-	float2 uvOffset = input.uv;
-	float t = 0.01;
-	uvOffset.x = frac(sin(cGlobal[0].param.x * t) + uvOffset.x);
-	//uvOffset.y = frac(cos(mVSPrivate.param0.x * t) + uvOffset.y);
-	uvOffset.y = frac(uvOffset.y);
-	return mTexture[0].Sample(m_sampler, uvOffset);
+	return float4(input.normal, 1);
+	//return float4(1, 0, 0, 1);
 }

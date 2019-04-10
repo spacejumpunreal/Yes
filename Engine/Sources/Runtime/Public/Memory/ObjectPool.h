@@ -24,7 +24,7 @@ namespace Yes
 				mTotalCount += mGrowStep;
 			}
 			auto p = mFreeList;
-			mFreeList = *((T**)&p);
+			mFreeList = *((T**)&*p);
 			new (p) T(std::forward<Args>(args)...);
 			++mUsedCount;
 			return p;

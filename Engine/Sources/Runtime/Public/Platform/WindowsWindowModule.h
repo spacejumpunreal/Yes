@@ -1,16 +1,13 @@
 #pragma once
 
 #include "Yes.h"
-#include "Core/IModule.h"
+#include "Public/Platform/IWindowModule.h"
 
 namespace Yes
 {
-	class WindowsWindowModule : public IModule
-	{
-	public:
-		virtual void* GetWindowHandle() = 0;
-		virtual void GetWindowRect(int& width, int& height) = 0;
 
+	class WindowsWindowModule : public IWindowModule
+	{
 		DECLARE_MODULE_IN_CLASS(WindowsWindowModule);
 	};
 }

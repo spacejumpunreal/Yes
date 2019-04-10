@@ -121,7 +121,15 @@ namespace Yes
 			handlePtr = &dsHandle;
 		}
 		context.CommandList->OMSetRenderTargets(activeRTCount, outputRTHandles, FALSE, handlePtr);
-		context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.Buffer->GetGPUVirtualAddress();
+		if (mConstantBuffer.Buffer == nullptr)
+		{
+			context.GlobalConstantBufferGPUAddress.ptr = 0;
+		}
+		else
+		{
+			context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.Buffer->GetGPUVirtualAddress();
+		}
+		
 		context.CommandList->RSSetViewports(1, &context.DefaultViewport);
 		context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
 		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);

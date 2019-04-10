@@ -23,6 +23,7 @@ namespace Yes
 			va_start(args, fmt);
 			vprintf(fmt, args);
 			va_end(args);
+			fflush(0);
 			assert(0);
 		}
 

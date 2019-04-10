@@ -1,5 +1,6 @@
 #pragma once
 #include "Yes.h"
+#include <cmath>
 
 namespace Yes
 {
@@ -386,7 +387,7 @@ namespace Yes
 		}
 		static Matrix4x4 Translate(Vector3<T> position)
 		{
-			auto r = Identity();
+			Matrix4x4 r = Identity();
 			r.Translation() = position;
 			return r;
 		}

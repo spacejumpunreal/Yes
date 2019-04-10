@@ -66,9 +66,11 @@ namespace Yes
 		DX12Pass* dx12Pass = dynamic_cast<DX12Pass*>(pass);
 		DX12FrameState* state = dx12Pass->GetFrameState();
 		ConstantBuffer = state->GetConstantBufferManager().Allocate(size);
+		CD3DX12_RANGE range{ 0, 0 };
 		void* wptr;
-		CheckSucceeded(ConstantBuffer.Buffer->Map(0, nullptr, &wptr));
+		CheckSucceeded(ConstantBuffer.Buffer->Map(0, &range, &wptr));
 		memcpy(wptr, data, size);
+		ConstantBuffer.Buffer->Unmap(0, nullptr);
 	}
 	void DX12Drawcall::SetPSO(RenderDevicePSO* pso)
 	{

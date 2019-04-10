@@ -12,15 +12,16 @@ namespace Yes
 	//IA layouts
 	static std::pair<D3D12_INPUT_ELEMENT_DESC*, UINT> GetInputLayoutForVertexFormat(VertexFormat vf)
 	{
-		static D3D12_INPUT_ELEMENT_DESC VF_P3F_T2F_LAYOUT[] =
+		static D3D12_INPUT_ELEMENT_DESC VF_P3FN3FT2F_LAYOUT[] =
 		{
 			{ "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
+			{ "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 }
 		};
 		switch (vf)
 		{
 		case VertexFormat::VF_P3F_T2F:
-			return std::make_pair(VF_P3F_T2F_LAYOUT, (UINT)ARRAY_COUNT(VF_P3F_T2F_LAYOUT));
+			return std::make_pair(VF_P3FN3FT2F_LAYOUT, (UINT)ARRAY_COUNT(VF_P3FN3FT2F_LAYOUT));
 		default:
 			CheckAlways(false, "unknown vertex format");
 			return {};
@@ -219,6 +220,7 @@ namespace Yes
 		else
 		{
 			psoDesc.RasterizerState                 = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_NONE;
 			psoDesc.BlendState                      = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 			psoDesc.DepthStencilState.DepthEnable   = FALSE;
 			psoDesc.DepthStencilState.StencilEnable = FALSE;
@@ -282,13 +284,14 @@ namespace Yes
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&mTempResource[i])));
+				mTempResource[i]->SetName(L"MeshCreateRequestTempResource");
 
 				//persistent buffer
 				CheckSucceeded(device->CreatePlacedResource(
 					mesh->mMemoryRegion[i].Heap,
 					mesh->mMemoryRegion[i].Offset,
 					&desc,
-					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COPY_DEST,
+					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
 					nullptr,
 					IID_PPV_ARGS(&mesh->mDeviceResource[i])));
 				//write to cpu accessable part
@@ -357,6 +360,11 @@ namespace Yes
 		cmdList->IASetIndexBuffer(&mIndexBufferView);
 		cmdList->IASetVertexBuffers(0, 1, &mVertexBufferView);
 	}
+	void DX12Mesh::SetName(wchar_t * name)
+	{
+		mDeviceResource[0]->SetName(name);
+		mDeviceResource[1]->SetName(name);
+	}
 	void DX12Mesh::Destroy()
 	{
 		DX12ResourceManager& manager = DX12ResourceManager::GetDX12DeviceResourceManager();
@@ -395,6 +403,10 @@ namespace Yes
 	{
 		CheckAlways(0 <= i && i < 2);
 		return D3D12_CPU_DESCRIPTOR_HANDLE(mHeapSpace[i].GetCPUHandle(0));
+	}
+	void IDX12RenderTarget::SetName(wchar_t * name)
+	{
+		mRenderTarget->SetName(name);
 	}
 	//DX12RenderTarget
 	DX12RenderTarget::DX12RenderTarget(

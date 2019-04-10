@@ -75,6 +75,12 @@ namespace Yes
 		static DX12ResourceManager*				Instance;
 	};
 
+	class DX12ResourceBase
+	{
+	public:
+		virtual void SetName(wchar_t* name) = 0;
+	};
+
 	//non GPU resources
 	class DX12ConstantBuffer : public RenderDeviceConstantBuffer
 	{
@@ -125,7 +131,7 @@ namespace Yes
 	};
 
 	//GPU resources: need to care about memory and maybe DescriptorHeap
-	class DX12Mesh : public RenderDeviceMesh
+	class DX12Mesh : public RenderDeviceMesh, public DX12ResourceBase
 	{
 	public:
 		DX12Mesh(DX12ResourceManager* creator, ISharedBuffer* CPUData[2], size_t vertexStride, size_t indexCount, size_t indexStride);
@@ -133,6 +139,7 @@ namespace Yes
 		void Apply(ID3D12GraphicsCommandList* cmdList);
 		UINT GetIndexCount() { return mIndexCount; }
 		bool IsReady() override { return mIsReady; }
+		void SetName(wchar_t* name) override;
 	private:
 		bool                                            mIsReady;
 		ID3D12Resource*                                 mDeviceResource[2];
@@ -142,7 +149,7 @@ namespace Yes
 		UINT											mIndexCount;
 		friend class                                    DX12RenderDeviceMeshCreateRequest;
 	};
-	class IDX12RenderTarget : public RenderDeviceRenderTarget
+	class IDX12RenderTarget : public RenderDeviceRenderTarget, public DX12ResourceBase
 	{
 	public:
 		virtual ~IDX12RenderTarget();
@@ -150,6 +157,7 @@ namespace Yes
 		bool IsReady() override { return true; }
 		D3D12_RESOURCE_STATES GetState() { return mState; }
 		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(int i);
+		void SetName(wchar_t* name) override;
 	protected:
 		IDX12RenderTarget();
 	protected:
@@ -171,7 +179,7 @@ namespace Yes
 		void Destroy() override;
 	};
 
-	class DX12DepthStencil : public RenderDeviceDepthStencil
+	class DX12DepthStencil : public RenderDeviceDepthStencil, public DX12ResourceBase
 	{
 	public:
 		DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device);

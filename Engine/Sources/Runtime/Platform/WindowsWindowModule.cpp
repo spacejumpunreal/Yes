@@ -1,15 +1,39 @@
 #include "Yes.h"
 #include "Platform/WindowsWindowModule.h"
 
-#include "Core/System.h"
-#include "Misc/Debug.h"
-#include "Concurrency/Thread.h"
-#include "Concurrency/Sync.h"
+#include "Public/Core/System.h"
+#include "Public/Misc/Debug.h"
+#include "Public/Misc/Utils.h"
+#include "Public/Concurrency/Thread.h"
+#include "Public/Concurrency/Sync.h"
+#include "Public/Platform/InputState.h"
 
 #include "Windows.h"
+#include "windowsx.h"
 
 namespace Yes
 {
+	static KeyCode Map2KeyCode(WPARAM wParam)
+	{
+		switch (wParam)
+		{
+		case 0x41:
+			return KeyCode::Left;
+		case 0x44:
+			return KeyCode::Right;
+		case 0x45:
+			return KeyCode::Up;
+		case 0x51:
+			return KeyCode::Down;
+		case 0x57:
+			return KeyCode::Forward;
+		case 0x53:
+			return KeyCode::Backward;
+		default:
+			return KeyCode::Other;
+		}
+	}
+
 	class WindowsWindowModuleImp : public WindowsWindowModule
 	{
 	private:
@@ -17,23 +41,45 @@ namespace Yes
 		Thread mThread;
 		int mClientWidth;
 		int mClientHeight;
+		InputState mOutputInputStates;
+		InputState mInternalInputStates;
+		int mFrameIndex;
 		Semaphore<> mInitState;
 	public:
 		virtual void InitializeModule(System* system) override
 		{
+			Yes::TickModule* tickModule = GET_MODULE(TickModule);
+			tickModule->AddTickable(this);
 			mClientWidth = 800;
 			mClientHeight = 600;
-			mThread = Thread(WindowThreadFunction, this);
+			ZeroFill(mOutputInputStates);
+			ZeroFill(mInternalInputStates);
+			mThread = Thread(WindowThreadFunction, this, L"WindowsPlatformUIThread");
 			mInitState.Wait();
 		}
-		virtual void* GetWindowHandle() override
+		void* GetWindowHandle() override
 		{
 			return &mHwnd;
 		}
-		virtual void GetWindowRect(int& width, int& height) override
+		void GetWindowRect(int& width, int& height) override
 		{
 			width = mClientWidth;
 			height = mClientHeight;
+		}
+		const InputState* GetInputState() override
+		{
+			return &mOutputInputStates;
+		}
+		void Tick() override
+		{
+			InputState& ostate = mOutputInputStates;
+			int lastX = ostate.AbsoluteMousePosition[0];
+			int lastY = ostate.AbsoluteMousePosition[1];
+			ostate = mInternalInputStates;
+			ostate.DeltaAbsoluteMousePosition[0] = ostate.AbsoluteMousePosition[0] - lastX;
+			ostate.DeltaAbsoluteMousePosition[1] = ostate.AbsoluteMousePosition[1] - lastY;
+			ostate.DeltaNormalizedMousePosition[0] = ostate.DeltaAbsoluteMousePosition[0] / (float)mClientWidth;
+			ostate.DeltaNormalizedMousePosition[1] = ostate.DeltaAbsoluteMousePosition[1] / (float)mClientHeight;
 		}
 	private:
 		static void WindowThreadFunction(void* s)
@@ -89,27 +135,65 @@ namespace Yes
 				LPCREATESTRUCT pCreateStruct = reinterpret_cast<LPCREATESTRUCT>(lParam);
 				SetWindowLongPtr(hWnd, GWLP_USERDATA, reinterpret_cast<LONG_PTR>(pCreateStruct->lpCreateParams));
 				self = reinterpret_cast<WindowsWindowModuleImp*>(pCreateStruct->lpCreateParams);
-				return 0;
+				return true;
 			}
 			case WM_KEYDOWN:
+			case WM_KEYUP:
 			{
-				if (self)
+				if (self == nullptr)
 				{
 					return 0;
 				}
+				KeyCode code = Map2KeyCode(wParam);
+				if (code != KeyCode::Other)
+				{
+					self->mInternalInputStates.KeyStates[(int)code] = message == WM_KEYDOWN;
+				}
+				return 0;
 			}
-			case WM_KEYUP:
-			if (self)
+			case WM_LBUTTONUP:
+			case WM_LBUTTONDOWN:
 			{
+				if (self == nullptr)
+				{
+					return 0;
+				}
+				self->mInternalInputStates.KeyStates[(int)KeyCode::MouseLeft] = WM_LBUTTONDOWN == message;
+				return 0;
+			}
+
+			case WM_RBUTTONUP:
+			case WM_RBUTTONDOWN:
+			{
+				if (self == nullptr)
+				{
+					return 0;
+				}
+				self->mInternalInputStates.KeyStates[(int)KeyCode::MouseRight] = WM_RBUTTONDOWN == message;
+				return 0;
+			}
+
+			case WM_MOUSEMOVE:
+			{
+				if (self == nullptr)
+				{
+					return 0;
+				}
+				auto xPos = GET_X_LPARAM(lParam);
+				auto yPos = GET_Y_LPARAM(lParam);
+				InputState& istate = self->mInternalInputStates;
+				istate.AbsoluteMousePosition[0] = xPos;
+				istate.AbsoluteMousePosition[1] = yPos;
+				istate.NormalizedMousePosition[0] = ((float)xPos) / self->mClientWidth;
+				istate.NormalizedMousePosition[1] = 1.0f - ((float)yPos) / self->mClientHeight;
 				return 0;
 			}
 			case WM_DESTROY:
 			{
 				PostQuitMessage(0);
-				return 0;
+				return true;
 			}
 			}
-
 			// Handle any messages the switch statement didn't.
 			return ::DefWindowProc(hWnd, message, wParam, lParam);
 		}
