@@ -64,6 +64,6 @@ namespace Yes
 		ID3D12Device* dev,
 		MemoryAccessCase access,
 		IDX12GPUMemoryAllocator* outAllocators[]);
-	IDX12GPUMemoryAllocator* CreateDX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize, UINT64 maxReservation);
+	IDX12GPUMemoryAllocator* CreateDX12LinearBlockMemAllocator(const HeapCreator& creator, UINT64 blockSize, UINT64 maxReservation);
 	IDX12GPUMemoryAllocator* CreateDX12BestFitAllocator(const HeapCreator& creator, UINT64 blockSize, UINT64 maxReservation);
 }

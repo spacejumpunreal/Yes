@@ -12,7 +12,7 @@ namespace Yes
 	{
 		size_t allocatorBlockSize = 8 * 1024 * 1024;
 		HeapCreator creator(MemoryAccessCase::CPUUpload, dev, D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS);
-		mAllocator = CreateDX12LinearBlockAllocator(creator, allocatorBlockSize, allocatorBlockSize);
+		mAllocator = CreateDX12LinearBlockMemAllocator(creator, allocatorBlockSize, allocatorBlockSize);
 	}
 	AllocatedCBV DX12ConstantBufferManager::Allocate(size_t size)
 	{

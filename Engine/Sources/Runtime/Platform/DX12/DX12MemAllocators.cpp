@@ -62,7 +62,7 @@ namespace Yes
 		case MemoryAccessCase::CPUUpload:
 			for (int i = 0; i < (int)GPUMemoryHeapType::GPUMemoryHeapTypeCount; ++i)
 			{
-				outAllocators[i] = CreateDX12LinearBlockAllocator(
+				outAllocators[i] = CreateDX12LinearBlockMemAllocator(
 					HeapCreator(access, dev, MemoryHeapType2HeapFlags[i]),
 					Size4M,
 					Size4M * 2);
@@ -179,7 +179,7 @@ namespace Yes
 		LinearBlockRangeAllocator<ID3D12Heap*, UINT64, HeapCreator> mImp;
 	};
 
-	IDX12GPUMemoryAllocator* CreateDX12LinearBlockAllocator(const HeapCreator& creator, UINT64 blockSize, UINT64 maxReservation)
+	IDX12GPUMemoryAllocator* CreateDX12LinearBlockMemAllocator(const HeapCreator& creator, UINT64 blockSize, UINT64 maxReservation)
 	{
 		auto a = new DX12LinearBlockMemAllocator(blockSize, maxReservation);
 		a->SetConfig(creator);
