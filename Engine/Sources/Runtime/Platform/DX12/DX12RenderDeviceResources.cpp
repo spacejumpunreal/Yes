@@ -405,11 +405,6 @@ namespace Yes
 	{
 		mRenderTarget->Release();
 	}
-	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderTarget::GetHandle(int i)
-	{
-		CheckAlways(0 <= i && i < 2);
-		return D3D12_CPU_DESCRIPTOR_HANDLE(mHeapSpace[i].GetCPUHandle(0));
-	}
 	void IDX12RenderTarget::SetName(wchar_t * name)
 	{
 		mRenderTarget->SetName(name);
@@ -454,19 +449,32 @@ namespace Yes
 		size_t srvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV];
 		size_t rtvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_RTV];
 
-		mHeapSpace[0] = manager->GetSyncDescriptorHeapAllocator(ResourceType::Texture).Allocate(srvStep);
-		mHeapSpace[1] = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Allocate(rtvStep);
+		mWriteTargetHeapSpace = manager->GetSyncDescriptorHeapAllocator(ResourceType::Texture).Allocate(srvStep);
+		mReadTargetHeapSpace = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Allocate(rtvStep);
 
-		device->CreateShaderResourceView(mRenderTarget, nullptr, mHeapSpace[0].GetCPUHandle(0));
-		device->CreateRenderTargetView(mRenderTarget, nullptr, mHeapSpace[0].GetCPUHandle(1));
+		device->CreateShaderResourceView(mRenderTarget, nullptr, mReadTargetHeapSpace.GetCPUHandle(0));
+		device->CreateRenderTargetView(mRenderTarget, nullptr, mWriteTargetHeapSpace.GetCPUHandle(0));
 	}
 	void DX12RenderTarget::Destroy()
 	{
 		DX12ResourceManager& manager = DX12ResourceManager::GetDX12DeviceResourceManager();
-		manager.GetSyncDescriptorHeapAllocator(ResourceType::Texture).Free(mHeapSpace[0]);
-		manager.GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace[1]);
+		manager.GetSyncDescriptorHeapAllocator(ResourceType::Texture).Free(mReadTargetHeapSpace);
+		manager.GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mWriteTargetHeapSpace);
 		manager.GetSyncPersistentAllocator(ResourceType::RenderTarget).Free(mMemoryRegion);
 		SharedObject::Destroy();
+	}
+	D3D12_CPU_DESCRIPTOR_HANDLE DX12RenderTarget::GetHandle(RenderTargetDescriptorIndex idx)
+	{
+		switch (idx)
+		{
+		case RenderTargetDescriptorIndex::RTV:
+			return mWriteTargetHeapSpace.GetCPUHandle(0);
+		case RenderTargetDescriptorIndex::SRV:
+			return mReadTargetHeapSpace.GetCPUHandle(0);
+		default:
+			CheckAlways(false);
+			return D3D12_CPU_DESCRIPTOR_HANDLE();
+		}
 	}
 	//DX12Backbuffer
 	DX12Backbuffer::DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device, wchar_t* name)
@@ -477,16 +485,26 @@ namespace Yes
 		}
 		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
 		mRenderTarget = backbuffer;
-		mHeapSpace[0] = {};
 		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget);
-		mHeapSpace[1] = ha.Allocate(1);
-		device->CreateRenderTargetView(mRenderTarget, nullptr, mHeapSpace[1].GetCPUHandle(0));
+		mWriteTargetHeapSpace = ha.Allocate(1);
+		device->CreateRenderTargetView(mRenderTarget, nullptr, mWriteTargetHeapSpace.GetCPUHandle(0));
 		mState = D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+	}
+	D3D12_CPU_DESCRIPTOR_HANDLE DX12Backbuffer::GetHandle(RenderTargetDescriptorIndex idx)
+	{
+		switch (idx)
+		{
+		case RenderTargetDescriptorIndex::RTV:
+			return mWriteTargetHeapSpace.GetCPUHandle(0);
+		default:
+			CheckAlways(false);
+			return D3D12_CPU_DESCRIPTOR_HANDLE();
+		}
 	}
 	void DX12Backbuffer::Destroy()
 	{
 		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
-		manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace[1]);
+		manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mWriteTargetHeapSpace);
 		SharedObject::Destroy();
 	}
 	//DX12DepthStencil

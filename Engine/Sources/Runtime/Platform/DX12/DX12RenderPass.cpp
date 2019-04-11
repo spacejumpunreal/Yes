@@ -82,7 +82,7 @@ namespace Yes
 		{
 			if (mOutputTarget[i].GetPtr() != nullptr)
 			{
-				outputRTHandles[i] = mOutputTarget[i]->GetHandle(1);
+				outputRTHandles[i] = mOutputTarget[i]->GetHandle(RenderTargetDescriptorIndex::RTV);
 				mOutputTarget[i]->TransitToState(D3D12_RESOURCE_STATE_RENDER_TARGET, context.CommandList);
 				if (mNeedClearColor[i])
 				{

@@ -141,7 +141,6 @@ namespace Yes
 					M44F wvp = world * viewPerspective;
 					memcpy(mPlaneConstantBuffer, &wvp, sizeof(wvp));
 				}
-				
 			}
 			mDevice->BeginFrame();
 			RenderDevicePass* pass = mDevice->AllocPass();

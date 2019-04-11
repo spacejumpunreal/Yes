@@ -154,32 +154,40 @@ namespace Yes
 		UINT											mIndexCount;
 		friend class                                    DX12RenderDeviceMeshCreateRequest;
 	};
+	enum class RenderTargetDescriptorIndex
+	{
+		RTV,
+		SRV,
+	};
 	class IDX12RenderTarget : public RenderDeviceRenderTarget, public DX12ResourceBase
 	{
 	public:
 		virtual ~IDX12RenderTarget();
 		bool IsReady() override { return true; }
 		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
-		
-		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(int i);
+		virtual D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) = 0;
 		void SetName(wchar_t* name) override;
 	protected:
 		IDX12RenderTarget();
 	protected:
 		ID3D12Resource* mRenderTarget;
-		DX12DescriptorHeapSpace1	mHeapSpace[2];//SRV + RTV
+		DX12DescriptorHeapSpace1	mWriteTargetHeapSpace;
 	};
 	class DX12RenderTarget : public IDX12RenderTarget
 	{
 	public:
 		DX12RenderTarget(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
 		void Destroy() override;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) override;
 		DX12GPUMemoryRegion mMemoryRegion;
+	protected:
+		DX12DescriptorHeapSpace1	mReadTargetHeapSpace;
 	};
 	class DX12Backbuffer : public IDX12RenderTarget
 	{
 	public:
 		DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device, wchar_t* name);
+		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) override;
 		void Destroy() override;
 	};
 

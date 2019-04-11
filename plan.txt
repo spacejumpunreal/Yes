@@ -1,11 +1,6 @@
 - doing
 	- SimpleDX12Renderer
 		- execute renderpass
-			- TestDriver
-				- depth buffer 使用
-				- normal transform
-				- 两个drawcall会有问题
-				- 感觉camera移动有点怪
 			- RenderPass::ExecutePass
 				- DescriptorHeap Handle顺序调整，第一个应该是RTV,然后是SRV
 				- SetXXXConstantBuffer的方式修改
@@ -18,5 +13,6 @@
 					- SetGraphicsRootDescriptorTable
 				- render command: RenderTarget rw
 					- barrier
-			- EndFrame
+			- TestDriver
+				- normal transform
 		
