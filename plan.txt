@@ -2,7 +2,6 @@
 	- SimpleDX12Renderer
 		- execute renderpass
 			- RenderPass::ExecutePass
-				- DescriptorHeap Handle顺序调整，第一个应该是RTV,然后是SRV
 				- SetXXXConstantBuffer的方式修改
 					- 暴露allocate接口，返回handle，set handle
 				- ConstantBufferManager申请>= 64kb buffer resource trunk

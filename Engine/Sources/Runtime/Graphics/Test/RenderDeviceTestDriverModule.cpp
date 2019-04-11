@@ -38,7 +38,6 @@ namespace Yes
 		float mPitch = 0;
 		V3F mPosition = V3F(0, 2.f, 0);
 		PerspectiveCamera mCamera;
-
 	public:
 		RenderDeviceTestDriverModuleImp()
 			: mCamera(3.14159f / 2, 1, 0.5, 200)
