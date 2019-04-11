@@ -54,6 +54,11 @@ namespace Yes
 			DX12Shader* shader = new DX12Shader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
+		RenderDeviceDepthStencilRef CreateDepthStencilSimple(size_t width, size_t height, TextureFormat fmt) override
+		{
+			DX12DepthStencil* ds = new DX12DepthStencil(width, height, fmt, mDevice.GetPtr());
+			return (RenderDeviceDepthStencil*)ds;
+		}
 		RenderDeviceRenderTargetRef CreateRenderTarget() override
 		{
 			return RenderDeviceRenderTargetRef();
@@ -82,6 +87,10 @@ namespace Yes
 			DX12Pass* pass = mPassPool.Allocate();
 			pass->Init(GetCurrentFrameState(), &mRenderCommandPool);
 			return pass;
+		}
+		V2F GetScreenSize() override
+		{
+			return V2F((float)mScreenWidth, (float)mScreenHeight);
 		}
 		void Start(System* system) override
 		{

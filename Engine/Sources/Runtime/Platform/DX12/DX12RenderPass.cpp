@@ -117,6 +117,7 @@ namespace Yes
 				flag &= ~D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_STENCIL;
 			}
 			dsHandle = mDepthStencil->mHeapSpace.GetCPUHandle(0);
+			mDepthStencil->TransitToState(D3D12_RESOURCE_STATE_DEPTH_WRITE, context.CommandList);
 			context.CommandList->ClearDepthStencilView(dsHandle, flag, mClearDepthValue, mClearStencilValue, 0, nullptr);
 			handlePtr = &dsHandle;
 		}

@@ -44,7 +44,7 @@ PSInput VSMain(VSInput input)
     PSInput result;
 	result.position = mul(cObject.wvp, float4(input.position, 1));
 	result.wpos = input.position;
-	result.normal = mul(cObject.wvp, float4(input.normal, 1));
+	result.normal = input.normal;// mul(cObject.wvp, float4(input.normal, 1));
 	result.uv = input.uv;
     return result;
 }

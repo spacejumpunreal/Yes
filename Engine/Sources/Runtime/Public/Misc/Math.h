@@ -359,6 +359,15 @@ namespace Yes
 			r.m[3][0] = 0.0f; r.m[3][1] = 0.0f; r.m[3][2] = 0.0f; r.m[3][3] = a;
 			return r;
 		}
+		static Matrix4x4 Scale(const Vector3<T>& scale)
+		{
+			Matrix4x4 r;
+			r.m[0][0] = scale.x; r.m[0][1] = 0.0f; r.m[0][2] = 0.0f; r.m[0][3] = 0.0f;
+			r.m[1][0] = 0.0f; r.m[1][1] = scale.y; r.m[1][2] = 0.0f; r.m[1][3] = 0.0f;
+			r.m[2][0] = 0.0f; r.m[2][1] = 0.0f; r.m[2][2] = scale.z; r.m[2][3] = 0.0f;
+			r.m[3][0] = 0.0f; r.m[3][1] = 0.0f; r.m[3][2] = 0.0f; r.m[3][3] = 1.0f;
+			return r;
+		}
 		static Matrix4x4 Empty()
 		{
 			return Identity(0);

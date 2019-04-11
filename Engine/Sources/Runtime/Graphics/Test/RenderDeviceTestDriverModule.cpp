@@ -30,12 +30,13 @@ namespace Yes
 		static const size_t ConstantBufferSlots = 512 / 4;
 		float* mMonkeyConstantBuffer;
 		float* mPlaneConstantBuffer;
+		RenderDeviceDepthStencilRef mDepthStencil;
 		int mFrame;
 		V4F mClearColors[4];
 		bool mAllResourceReady = false;
 		float mYaw = 0;
 		float mPitch = 0;
-		V3F mPosition = V3F(0, 0, 0);
+		V3F mPosition = V3F(0, 2.f, 0);
 		PerspectiveCamera mCamera;
 
 	public:
@@ -107,6 +108,10 @@ namespace Yes
 					mMeshPlane = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 				}
 			}
+			{//RTs
+				V2F size = mDevice->GetScreenSize();
+				mDepthStencil = mDevice->CreateDepthStencilSimple((int)size.x, (int)size.y, TextureFormat::D24_UNORM_S8_UINT);
+			}
 		}
 		void CheckResources()
 		{
@@ -132,7 +137,7 @@ namespace Yes
 					memcpy(mMonkeyConstantBuffer, &wvp, sizeof(wvp));
 				}
 				{
-					M44F world = M44F::Identity(25.0f) * M44F::RotateX(3.1415f/2.0f) * M44F::Translate(V3F(0, 0, 30.0f));
+					M44F world = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 1.5f, 0)) * M44F::Translate(V3F(0, 0, 20.0f));
 					M44F wvp = world * viewPerspective;
 					memcpy(mPlaneConstantBuffer, &wvp, sizeof(wvp));
 				}
@@ -142,16 +147,19 @@ namespace Yes
 			RenderDevicePass* pass = mDevice->AllocPass();
 			pass->SetOutput(pass->GetBackbuffer(), 0);
 			pass->SetClearColor(mClearColors[3], true, 0);
-			///*
-			RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-			cmd0->SetMesh(mMeshMonkey.GetPtr());
-			cmd0->SetPSO(mPSO.GetPtr());
-			cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
-			//*/
+			pass->SetDepthStencil(mDepthStencil);
+			pass->SetClearDepth(1.0f, 0, true, true);
+
 			RenderDeviceDrawcall* cmd1 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
 			cmd1->SetMesh(mMeshPlane.GetPtr());
 			cmd1->SetPSO(mPSO.GetPtr());
 			cmd1->SetConstantBuffer(mPlaneConstantBuffer, ConstantBufferSize, pass);
+
+			RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+			cmd0->SetMesh(mMeshMonkey.GetPtr());
+			cmd0->SetPSO(mPSO.GetPtr());
+			cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
+
 
 			mDevice->ExecutePass(pass);
 			mDevice->EndFrame();

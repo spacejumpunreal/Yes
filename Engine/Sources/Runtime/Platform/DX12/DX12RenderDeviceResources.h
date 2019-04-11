@@ -78,7 +78,12 @@ namespace Yes
 	class DX12ResourceBase
 	{
 	public:
+		DX12ResourceBase();
 		virtual void SetName(wchar_t* name) = 0;
+		virtual void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) {};
+		D3D12_RESOURCE_STATES GetState() { return mState; }
+	protected:
+		D3D12_RESOURCE_STATES mState;
 	};
 
 	//non GPU resources
@@ -153,15 +158,14 @@ namespace Yes
 	{
 	public:
 		virtual ~IDX12RenderTarget();
-		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		bool IsReady() override { return true; }
-		D3D12_RESOURCE_STATES GetState() { return mState; }
+		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
+		
 		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(int i);
 		void SetName(wchar_t* name) override;
 	protected:
 		IDX12RenderTarget();
 	protected:
-		D3D12_RESOURCE_STATES mState;
 		ID3D12Resource* mRenderTarget;
 		DX12DescriptorHeapSpace1	mHeapSpace[2];//SRV + RTV
 	};
@@ -184,6 +188,9 @@ namespace Yes
 	public:
 		DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
 		void Destroy() override;
+		bool IsReady() override { return true; }
+		void SetName(wchar_t* name) override;
+		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
 		ID3D12Resource* mBuffer;
 		DX12DescriptorHeapSpace1	mHeapSpace;
 		DX12GPUMemoryRegion mMemoryRegion;

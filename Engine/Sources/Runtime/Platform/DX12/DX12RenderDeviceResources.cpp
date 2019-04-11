@@ -36,6 +36,8 @@ namespace Yes
 			return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
 		case TextureFormat::R24_UNORM_X8_TYPELESS:
 			return DXGI_FORMAT::DXGI_FORMAT_R24_UNORM_X8_TYPELESS;
+		case TextureFormat::D24_UNORM_S8_UINT:
+			return DXGI_FORMAT::DXGI_FORMAT_D24_UNORM_S8_UINT;
 		default:
 			CheckAlways(false);
 		}
@@ -220,7 +222,8 @@ namespace Yes
 		else
 		{
 			psoDesc.RasterizerState                 = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_NONE;
+			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_BACK;
+			psoDesc.RasterizerState.FrontCounterClockwise = true;
 			psoDesc.BlendState                      = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 			psoDesc.DepthStencilState.DepthEnable   = FALSE;
 			psoDesc.DepthStencilState.StencilEnable = FALSE;
@@ -377,27 +380,30 @@ namespace Yes
 		manager.AddRequest(req);
 		SharedObject::Destroy();
 	}
+	//DX12ResourceBase
+	DX12ResourceBase::DX12ResourceBase()
+		: mState(D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
+	{}
 	//IDX12RenderTarget
 	IDX12RenderTarget::IDX12RenderTarget()
-		: mState(D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
-		, mRenderTarget(nullptr)
+		: mRenderTarget(nullptr)
 	{}
-	IDX12RenderTarget::~IDX12RenderTarget()
-	{
-		mRenderTarget->Release();
-	}
 	void IDX12RenderTarget::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
 	{
 		if (newState != mState)
 		{
 			cmdList->ResourceBarrier(
-				1, 
+				1,
 				&CD3DX12_RESOURCE_BARRIER::Transition(
 					mRenderTarget,
 					mState,
 					newState));
 			mState = newState;
 		}
+	}
+	IDX12RenderTarget::~IDX12RenderTarget()
+	{
+		mRenderTarget->Release();
 	}
 	D3D12_CPU_DESCRIPTOR_HANDLE IDX12RenderTarget::GetHandle(int i)
 	{
@@ -483,6 +489,7 @@ namespace Yes
 		manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget).Free(mHeapSpace[1]);
 		SharedObject::Destroy();
 	}
+	//DX12DepthStencil
 	DX12DepthStencil::DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device)
 	{
 		DX12ResourceManager* manager = &DX12ResourceManager::GetDX12DeviceResourceManager();
@@ -501,20 +508,21 @@ namespace Yes
 		D3D12_CLEAR_VALUE ocv = {};
 		ocv.DepthStencil.Depth = 1.0f;
 		ocv.DepthStencil.Stencil = 0;
+		ocv.Format = texFormat;
 
 		D3D12_RESOURCE_ALLOCATION_INFO ainfo = device->GetResourceAllocationInfo(0, 1, &desc);
 		IDX12GPUMemoryAllocator& ma = manager->GetSyncPersistentAllocator(ResourceType::RenderTarget);
 		IDX12DescriptorHeapAllocator& ha = manager->GetSyncDescriptorHeapAllocator(ResourceType::RenderTarget);
 		mMemoryRegion = ma.Allocate(ainfo.SizeInBytes, ainfo.Alignment);
-		device->CreatePlacedResource(
+		CheckSucceeded(device->CreatePlacedResource(
 			mMemoryRegion.Heap,
 			mMemoryRegion.Offset,
 			&desc,
 			D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON,
 			&ocv,
-			IID_PPV_ARGS(&mBuffer));
-		size_t dsvStep = GetDX12RuntimeParameters().DescriptorHeapHandleSizes[D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_DSV];
-		mHeapSpace = manager->GetSyncDescriptorHeapAllocator(ResourceType::DepthStencil).Allocate(dsvStep);
+			IID_PPV_ARGS(&mBuffer)));
+		mHeapSpace = manager->GetSyncDescriptorHeapAllocator(ResourceType::DepthStencil).Allocate(1);
+		device->CreateDepthStencilView(mBuffer, nullptr, mHeapSpace.GetCPUHandle(0));
 	}
 	void DX12DepthStencil::Destroy()
 	{
@@ -524,5 +532,22 @@ namespace Yes
 		IDX12GPUMemoryAllocator& ma = manager->GetSyncPersistentAllocator(ResourceType::DepthStencil);
 		ma.Free(mMemoryRegion);
 		SharedObject::Destroy();
+	}
+	void DX12DepthStencil::SetName(wchar_t* name)
+	{
+		mBuffer->SetName(name);
+	}
+	void DX12DepthStencil::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
+	{
+		if (newState != mState)
+		{
+			cmdList->ResourceBarrier(
+				1,
+				&CD3DX12_RESOURCE_BARRIER::Transition(
+					mBuffer,
+					mState,
+					newState));
+			mState = newState;
+		}
 	}
 }

@@ -31,6 +31,7 @@ namespace Yes
 	{
 		R8G8B8A8_UNORM,
 		R24_UNORM_X8_TYPELESS,
+		D24_UNORM_S8_UINT,
 	};
 
 #define DefineLabel(label) label
@@ -139,6 +140,7 @@ namespace Yes
 		virtual RenderDeviceShaderRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
 		virtual RenderDeviceRenderTargetRef CreateRenderTarget() = 0;
 		virtual RenderDeviceTextureRef CreteTextureSimple() = 0;
+		virtual RenderDeviceDepthStencilRef CreateDepthStencilSimple(size_t width, size_t height, TextureFormat format) = 0;
 
 		//Command related
 		virtual void BeginFrame() = 0;
@@ -147,5 +149,8 @@ namespace Yes
 
 		//allocate related
 		virtual RenderDevicePass* AllocPass() = 0;
+
+		//query
+		virtual V2F GetScreenSize() = 0;
 	};
 }
