@@ -163,7 +163,7 @@ namespace Yes
 		{
 			mImp.Free(region.Heap, region.Offset);
 		}
-		virtual void Reset() override
+		void Reset() override
 		{
 			mImp.Reset();
 		}

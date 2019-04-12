@@ -1,5 +1,6 @@
 #pragma once
 #include "Yes.h"
+#include "Memory/SizeUtils.h"
 #include "Misc/Debug.h"
 
 #include <map>
@@ -41,16 +42,6 @@ namespace Yes
 	protected:
 		size_t mCount, mUsed, mReserved;
 	};
-	template<typename RangePtr>
-	RangePtr GetAlignedPtr(RangePtr start, size_t align)
-	{
-		size_t alignMask = align - 1;
-		size_t invAlignMask = ~alignMask;
-		size_t startInt = (size_t)start;
-		RangePtr ret = (RangePtr)((startInt + alignMask) & invAlignMask);
-		return ret;
-	}
-
 	struct MallocIntAllocateAPI
 	{
 		using RangeKey = int*;

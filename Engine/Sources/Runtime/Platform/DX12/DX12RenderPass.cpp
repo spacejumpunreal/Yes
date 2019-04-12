@@ -3,6 +3,7 @@
 #include "Platform/DX12/DX12FrameState.h"
 #include "Platform/DX12/DX12ExecuteContext.h"
 #include "Platform/DX12/DX12RenderCommand.h"
+#include "Public/Memory/SizeUtils.h"
 #include "Public/Misc/Debug.h"
 
 namespace Yes
@@ -32,7 +33,6 @@ namespace Yes
 		mClearStencilValue = 0;
 		mDepthStencil = nullptr;
 		mFrameState = nullptr;
-		mConstantBuffer = {};
 		mCommandPool = nullptr;
 	}
 	RenderDeviceCommand* DX12Pass::AddCommand(RenderCommandType type)
@@ -64,10 +64,11 @@ namespace Yes
 	}
 	void DX12Pass::SetGlobalConstantBuffer(void* data, size_t size)
 	{
-		mConstantBuffer = mFrameState->GetConstantBufferManager().Allocate(size);
-		void* wptr;
-		CheckSucceeded(mConstantBuffer.Buffer->Map(0, nullptr, &wptr));
-		memcpy(wptr, data, size);
+		const size_t SizeAlign = 4;
+		size_t alignedSize = AlignSize(size, SizeAlign);
+		CheckAlways(alignedSize == size);
+		mConstantBuffer = mFrameState->GetConstantBufferAllocator()->Allocate(alignedSize, SizeAlign);
+		mConstantBuffer.Write(data, size);
 	}
 	TRef<RenderDeviceRenderTarget> DX12Pass::GetBackbuffer()
 	{
@@ -122,13 +123,13 @@ namespace Yes
 			handlePtr = &dsHandle;
 		}
 		context.CommandList->OMSetRenderTargets(activeRTCount, outputRTHandles, FALSE, handlePtr);
-		if (mConstantBuffer.Buffer == nullptr)
+		if (mConstantBuffer.IsValid())
 		{
-			context.GlobalConstantBufferGPUAddress.ptr = 0;
+			context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.GetGPUAddress();
 		}
 		else
 		{
-			context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.Buffer->GetGPUVirtualAddress();
+			context.GlobalConstantBufferGPUAddress.ptr = 0;
 		}
 		
 		context.CommandList->RSSetViewports(1, &context.DefaultViewport);

@@ -2,6 +2,7 @@
 	- SimpleDX12Renderer
 		- execute renderpass
 			- RenderPass::ExecutePass
+				- Keep working on BufferAllocator
 				- SetXXXConstantBuffer的方式修改
 					- 暴露allocate接口，返回handle，set handle
 				- ConstantBufferManager申请>= 64kb buffer resource trunk

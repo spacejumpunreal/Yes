@@ -77,4 +77,20 @@ namespace Yes
 		friend class DX12LinearBlockDescriptorHeapAllocator;
 		friend class DX12BestFitDescriptorHeapAllocator;
 	};
+
+	struct DX12GPUBufferRegion
+	{
+	public:
+		DX12GPUBufferRegion(ID3D12Resource* buffer, UINT64 offset, UINT64 size);
+		DX12GPUBufferRegion& operator=(const DX12GPUBufferRegion& other) = default;
+		DX12GPUBufferRegion& operator=(DX12GPUBufferRegion&& other) = default;
+		DX12GPUBufferRegion();
+		void Write(void* src, UINT64 size);
+		bool IsValid() { return mResource != nullptr; }
+		UINT64 GetGPUAddress();
+	private:
+		UINT64 mOffset;
+		UINT64 mSize;
+		ID3D12Resource* mResource;
+	};
 }

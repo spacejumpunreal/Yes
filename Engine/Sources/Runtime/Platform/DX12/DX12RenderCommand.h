@@ -4,6 +4,7 @@
 #include "Public/Memory/ObjectPool.h"
 #include "Public/Graphics/RenderDevice.h"
 #include "Platform/DX12/DX12FrameState.h"
+#include "Platform/DX12/DX12ResourceSpace.h"
 
 namespace Yes
 {
@@ -39,7 +40,7 @@ namespace Yes
 		void Execute(void* ctx) override;
 	public:
 		TRef<DX12Mesh> Mesh;
-		AllocatedCBV ConstantBuffer;
+		DX12GPUBufferRegion ConstantBuffer;
 		TRef<DX12PSO> PSO;
 	};
 }

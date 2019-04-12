@@ -11,10 +11,6 @@ namespace Yes
 	class IDX12GPUMemoryAllocator
 	{
 	public:
-		static const UINT64 ALIGN_4K = 4 * 1024;
-		static const UINT64 ALIGN_64K = 64 * 1024;
-		static const UINT64 ALIGN_4M = 4 * 1024 * 1024;
-	public:
 		virtual DX12GPUMemoryRegion Allocate(UINT64 size, UINT64 alignment) = 0;
 		virtual void Free(const DX12GPUMemoryRegion& region) = 0;
 		virtual void Reset() = 0;

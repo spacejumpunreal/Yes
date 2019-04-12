@@ -42,7 +42,7 @@ namespace Yes
 		bool                               mNeedClearDepth;
 		bool                               mNeedClearStencil;
 		DX12FrameState*                    mFrameState;
-		AllocatedCBV                       mConstantBuffer;
+		DX12GPUBufferRegion                mConstantBuffer;
 		DX12RenderCommandPool*			   mCommandPool;
 	};
 }

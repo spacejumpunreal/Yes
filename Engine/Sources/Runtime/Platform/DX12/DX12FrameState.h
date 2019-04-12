@@ -3,7 +3,9 @@
 
 #include "Misc/Utils.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12BufferAllocator.h"
 #include "Platform/DX12/DX12RenderDeviceResources.h"
+#include "Platform/DX12/DX12ResourceSpace.h"
 
 #include "Windows.h"
 #include <dxgi1_2.h>
@@ -21,22 +23,8 @@ namespace Yes
 {
 	class IDX12GPUMemoryAllocator;
 	class IDX12DescriptorHeapAllocator;
+	class IDX12GPUBufferAllocator;
 
-	struct AllocatedCBV
-	{
-		ID3D12Resource* Buffer;
-	};
-	class DX12ConstantBufferManager
-	{
-	public:
-		DX12ConstantBufferManager(ID3D12Device* dev);
-		AllocatedCBV Allocate(size_t size);
-		void Reset();
-	private:
-		std::deque<ID3D12Resource*> mAllocatedResources;
-		IDX12GPUMemoryAllocator* mAllocator;
-		ID3D12Device* mDevice;
-	};
 	class DX12CommandManager
 	{
 	public:
@@ -55,9 +43,9 @@ namespace Yes
 		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex);
 		~DX12FrameState();
 		void CPUFinish();
-		DX12ConstantBufferManager& GetConstantBufferManager()
+		IDX12GPUBufferAllocator* GetConstantBufferAllocator()
 		{
-			return mConstantBufferManager;
+			return mConstantBufferAllocator;
 		}
 		IDX12DescriptorHeapAllocator& GetTempDescriptorHeapAllocator()
 		{
@@ -73,7 +61,7 @@ namespace Yes
 		COMRef<ID3D12Fence> mFence;
 		UINT64 mExpectedValue;
 		HANDLE mEvent;
-		DX12ConstantBufferManager mConstantBufferManager;
+		IDX12GPUBufferAllocator* mConstantBufferAllocator;
 		IDX12DescriptorHeapAllocator* mLinearDescriptorHeapAllocator;
 		DX12CommandManager mCommandManager;
 		TRef<DX12Backbuffer> mFrameBuffer;
