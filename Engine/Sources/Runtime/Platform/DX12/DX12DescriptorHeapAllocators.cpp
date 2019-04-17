@@ -33,12 +33,13 @@ namespace Yes
 	{
 		return (size_t)ResourceType2AllocatorIndex[(int)type];
 	}
-	void CreateDescriptorHeapAllocators(
+	const size_t Size16K = 16 * 1024;
+	void CreateNonShaderVisibleDescriptorHeapAllocators(
 		ID3D12Device* dev,
 		bool isTemp,
 		IDX12DescriptorHeapAllocator* outAllocators[])
 	{
-		const size_t Size16K = 16 * 1024;
+
 		if (isTemp)
 		{
 			for (int i = 0; i < (int)DescriptorHeapType::DescriptorHeapTypeCount; ++i)
@@ -47,7 +48,8 @@ namespace Yes
 					dev,
 					DescriptorHeapType2D3D12_DESCRIPTOR_HEAP_TYPE[i],
 					Size16K,
-					Size16K);
+					Size16K,
+					false);
 			}
 		}
 		else
@@ -62,14 +64,23 @@ namespace Yes
 			}
 		}
 	}
+	IDX12DescriptorHeapAllocator* CreateShaderVisibileDescriptorHeapAllocator(ID3D12Device* dev)
+	{
+		return CreateDX12LinearBlockDescriptorHeapAllocator(
+			dev,
+			D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV,
+			Size16K,
+			Size16K, true);
+	}
 	struct DescriptorHeapCreator
 	{
 		using RangePtr = UINT64;
 		using RangeKey = ID3D12DescriptorHeap*;
 		DescriptorHeapCreator() = default;
-		DescriptorHeapCreator(D3D12_DESCRIPTOR_HEAP_TYPE heapType, ID3D12Device* device)
+		DescriptorHeapCreator(D3D12_DESCRIPTOR_HEAP_TYPE heapType, ID3D12Device* device, bool shaderVisible)
 			: mDevice(device)
 			, mHeapType(heapType)
+			, mShaderVisible(shaderVisible)
 		{}
 		ID3D12DescriptorHeap* AllocRange(UINT64 size)
 		{
@@ -77,7 +88,7 @@ namespace Yes
 			D3D12_DESCRIPTOR_HEAP_DESC desc = {};
 			desc.Type = mHeapType;
 			desc.NumDescriptors = (UINT)size;
-			desc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+			desc.Flags = mShaderVisible ? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE : D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
 			desc.NodeMask = 0;
 			mDevice->CreateDescriptorHeap(&desc, IID_PPV_ARGS(&ret));
 			return ret;
@@ -94,6 +105,7 @@ namespace Yes
 	private:
 		ID3D12Device* mDevice;
 		D3D12_DESCRIPTOR_HEAP_TYPE mHeapType;
+		bool mShaderVisible;
 	};
 
 	class DX12LinearBlockDescriptorHeapAllocator : public IDX12DescriptorHeapAllocator
@@ -101,6 +113,7 @@ namespace Yes
 	public:
 		DX12LinearBlockDescriptorHeapAllocator(UINT64 blockSize, UINT64 maxReservation, UINT64 handleSize)
 			: mImp(blockSize, maxReservation)
+			, mHandleSize(handleSize)
 		{}
 		virtual DX12DescriptorHeapSpace1 Allocate(size_t count) override
 		{ 
@@ -134,13 +147,14 @@ namespace Yes
 		ID3D12Device* dev, 
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
 		size_t blockSize, 
-		size_t maxReservation)
+		size_t maxReservation,
+		bool shaderVisible)
 	{
 		auto a = new DX12LinearBlockDescriptorHeapAllocator(
 			blockSize, 
 			maxReservation, 
 			GetDX12RuntimeParameters().DescriptorHeapHandleSizes[heapType]);
-		a->SetConfig(DescriptorHeapCreator{ heapType , dev });
+		a->SetConfig(DescriptorHeapCreator{ heapType , dev, shaderVisible });
 		return a;
 	}
 
@@ -190,7 +204,7 @@ namespace Yes
 			blockSize,
 			maxReservation,
 			GetDX12RuntimeParameters().DescriptorHeapHandleSizes[heapType]);
-		a->SetConfig(DescriptorHeapCreator{ heapType , dev });
+		a->SetConfig(DescriptorHeapCreator{ heapType , dev, false });
 		return a;
 	}
 }

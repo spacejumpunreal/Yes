@@ -2,6 +2,7 @@
 #include "Public/Core/System.h"
 #include "Public/Core/TickModule.h"
 #include "Public/Core/FileModule.h"
+#include "Graphics/ImageUtil.h"
 #include "Public/Platform/IWindowModule.h"
 #include "Public/Misc/Utils.h"
 #include "Public/Misc/Debug.h"
@@ -25,6 +26,8 @@ namespace Yes
 		TRef<RenderDeviceShader> mShader;
 		TRef<RenderDevicePSO> mPSO;
 		TRef<RenderDeviceMesh> mMeshMonkey;
+		TRef<RenderDeviceTexture> mTextureMonkey;
+		TRef<RenderDeviceTexture> mTexturePlane;
 		TRef<RenderDeviceMesh> mMeshPlane;
 		static const size_t ConstantBufferSize = 512;
 		static const size_t ConstantBufferSlots = 512 / 4;
@@ -95,8 +98,8 @@ namespace Yes
 				size_t vertexStride = 8 * 4;//P3FN3FUV2F
 				size_t indexStride = 4;
 				{
-					auto vb = mFileModule->ReadFileContent("Mesh/monkey_vb.bin");
-					auto ib = mFileModule->ReadFileContent("Mesh/monkey_ib.bin");
+					auto vb = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_vb.bin");
+					auto ib = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
 					mMeshMonkey = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 				}
@@ -106,6 +109,15 @@ namespace Yes
 					size_t indexCount = ib->GetSize() / indexStride;
 					mMeshPlane = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 				}
+			}
+			{//texture
+				auto baseMapBlob = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyBody.png");
+				TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
+				mTextureMonkey = mDevice->CreateTexture2DSimple(rimage);
+
+				baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
+				rimage = LoadRawImage(baseMapBlob.GetPtr());
+				mTexturePlane = mDevice->CreateTexture2DSimple(rimage);
 			}
 			{//RTs
 				V2F size = mDevice->GetScreenSize();
@@ -122,6 +134,8 @@ namespace Yes
 				return;
 			if (!mMeshPlane->IsReady())
 				return;
+			if (!mTextureMonkey->IsReady())
+				return;
 			mAllResourceReady = true;
 		}
 		void RenderUpdate()
@@ -131,12 +145,12 @@ namespace Yes
 				mCamera.Update(mPitch, mYaw, mPosition);
 				const M44F& viewPerspective = mCamera.GetViewPerspectiveMatrix();
 				{
-					M44F world = M44F::Translate(V3F(0, 0, 20));
+					M44F world = M44F::Translate(V3F(0, 3, 20));
 					M44F wvp = world * viewPerspective;
 					memcpy(mMonkeyConstantBuffer, &wvp, sizeof(wvp));
 				}
 				{
-					M44F world = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 1.5f, 0)) * M44F::Translate(V3F(0, 0, 20.0f));
+					M44F world = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 0, 20.0f));
 					M44F wvp = world * viewPerspective;
 					memcpy(mPlaneConstantBuffer, &wvp, sizeof(wvp));
 				}
@@ -148,16 +162,23 @@ namespace Yes
 			pass->SetDepthStencil(mDepthStencil);
 			pass->SetClearDepth(1.0f, 0, true, true);
 
-			RenderDeviceDrawcall* cmd1 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-			cmd1->SetMesh(mMeshPlane.GetPtr());
-			cmd1->SetPSO(mPSO.GetPtr());
-			cmd1->SetConstantBuffer(mPlaneConstantBuffer, ConstantBufferSize, pass);
-
-			RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-			cmd0->SetMesh(mMeshMonkey.GetPtr());
-			cmd0->SetPSO(mPSO.GetPtr());
-			cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
-
+			if (true)
+			{
+				RenderDeviceDrawcall* cmd1 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+				cmd1->SetMesh(mMeshPlane.GetPtr());
+				cmd1->SetPSO(mPSO.GetPtr());
+				cmd1->SetConstantBuffer(mPlaneConstantBuffer, ConstantBufferSize, pass);
+				cmd1->SetTextures(0, mTexturePlane.GetPtr());
+			}
+			if (true)
+			{
+				RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+				cmd0->SetMesh(mMeshMonkey.GetPtr());
+				cmd0->SetPSO(mPSO.GetPtr());
+				cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
+				cmd0->SetTextures(0, mTextureMonkey.GetPtr());
+			}
+			
 
 			mDevice->ExecutePass(pass);
 			mDevice->EndFrame();

@@ -63,9 +63,10 @@ namespace Yes
 		{
 			return RenderDeviceRenderTargetRef();
 		}
-		RenderDeviceTextureRef CreteTextureSimple() override
+		RenderDeviceTextureRef CreateTexture2DSimple(TRef<RawImage>& image) override
 		{
-			return RenderDeviceTextureRef();
+			DX12Texture2D* tex = new DX12Texture2D(mResourceManager, image.GetPtr());
+			return (RenderDeviceTexture*)tex;
 		}
 		//Command related
 		void BeginFrame() override
@@ -174,11 +175,18 @@ namespace Yes
 		{
 			DX12Pass* pass = (DX12Pass*)renderPass;
 			DX12FrameState* state = GetCurrentFrameState();
-			DX12RenderPassContext ctx = {};
-			ctx.HeapAllocator = &state->GetTempDescriptorHeapAllocator();
-			ctx.DefaultViewport = CD3DX12_VIEWPORT(0.0f, 0.0f, (float)mScreenWidth, (float)mScreenHeight);
-			ctx.DefaultScissor = CD3DX12_RECT(0, 0, mScreenWidth, mScreenHeight);
-			ctx.CommandList = state->GetCommandManager().ResetAndGetCommandList();
+			pass->CollectDescriptorHeapSize();
+			size_t heapSize = pass->GetDescriptorHeapSize();
+			DX12DescriptorHeapSpace1 heapSpace = state->GetTempDescriptorHeapAllocator().Allocate(heapSize);
+			DX12RenderPassContext ctx(
+				state->GetCommandManager().ResetAndGetCommandList(),
+				CD3DX12_VIEWPORT(0.0f, 0.0f, (float)mScreenWidth, (float)mScreenHeight),
+				CD3DX12_RECT(0, 0, mScreenWidth, mScreenHeight),
+				pass->GetGlobalConstantBufferGPUAddress(),
+				heapSpace,
+				heapSize,
+				mDevice.GetPtr()
+			);
 			pass->Execute(ctx);
 			state->GetCommandManager().CloseAndExecuteCommandList();
 			pass->Reset();

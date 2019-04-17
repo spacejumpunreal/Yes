@@ -30,7 +30,9 @@ namespace Yes
 		TRef<RenderDeviceRenderTarget> GetBackbuffer() override;
 		void Execute(DX12RenderPassContext& context);
 		DX12FrameState* GetFrameState() { return mFrameState; }
-	private:
+		size_t GetDescriptorHeapSize() { return mDescritptorHeapSize; }
+		void CollectDescriptorHeapSize();
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalConstantBufferGPUAddress();
 	private:
 		std::deque<RenderDeviceCommand*>   mCommands;
 		TRef<IDX12RenderTarget>            mOutputTarget[8];
@@ -44,5 +46,6 @@ namespace Yes
 		DX12FrameState*                    mFrameState;
 		DX12GPUBufferRegion                mConstantBuffer;
 		DX12RenderCommandPool*			   mCommandPool;
+		size_t							   mDescritptorHeapSize;
 	};
 }

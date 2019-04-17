@@ -51,7 +51,7 @@ namespace Yes
 			while (popLimit > 0 && mData.size() > 0)
 			{
 				container.push_back(std::move(mData.front()));
-				mData.pop_back();
+				mData.pop_front();
 				--popLimit;
 			}
 		}

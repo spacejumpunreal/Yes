@@ -21,8 +21,8 @@ struct ObjectConstants
 ConstantBuffer<GlobalConstants> cGlobal : register(b0);
 ConstantBuffer<ObjectConstants> cObject: register(b1);
 
-Texture2D mTexture[16] : register(t0);
-SamplerState m_sampler : register(s0);
+Texture2D mTexture[1] : register(t0);
+SamplerState mSampler : register(s0);
 
 struct VSInput
 {
@@ -57,14 +57,14 @@ PSInput VSMain(VSInput input)
 		"DENY_GEOMETRY_SHADER_ROOT_ACCESS),"\
 	"CBV(b0, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE),"\
 	"CBV(b1, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE),"\
-	"DescriptorTable(SRV(t0, numDescriptors=16, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE)),"\
+	"DescriptorTable(SRV(t0, flags=DATA_STATIC_WHILE_SET_AT_EXECUTE)),"\
 	"StaticSampler(s0,"\
-		"addressU=TEXTURE_ADDRESS_BORDER,"\
-		"addressV=TEXTURE_ADDRESS_BORDER,"\
+		"addressU=TEXTURE_ADDRESS_CLAMP,"\
+		"addressV=TEXTURE_ADDRESS_CLAMP,"\
 		"filter=FILTER_MIN_MAG_MIP_LINEAR,"\
 		"visibility=SHADER_VISIBILITY_PIXEL)")]
 float4 PSMain(PSInput input) : SV_TARGET
 {
-	return float4(input.normal, 1);
-	//return float4(1, 0, 0, 1);
+	//return float4(input.uv, 0, 0);
+	return mTexture[0].SampleLevel(mSampler, float2(input.uv.x, 1 - input.uv.y), 0);
 }

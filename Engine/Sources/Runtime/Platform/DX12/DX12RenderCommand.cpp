@@ -55,13 +55,21 @@ namespace Yes
 		Mesh = nullptr;
 		ConstantBuffer = {};
 		PSO = nullptr;
+		Textures.clear();
 	}
 	void DX12Drawcall::SetMesh(RenderDeviceMesh* mesh)
 	{
 		Mesh = mesh;
 	}
 	void DX12Drawcall::SetTextures(int idx, RenderDeviceTexture* texture)
-	{}
+	{
+		IDX12ShaderReadableTexture* tex = dynamic_cast<IDX12ShaderReadableTexture*>(texture);
+		if (idx >= Textures.size())
+		{
+			Textures.resize(idx + 1);
+		}
+		Textures[idx] = tex;
+	}
 	void DX12Drawcall::SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass)
 	{
 		DX12Pass* dx12Pass = dynamic_cast<DX12Pass*>(pass);
@@ -79,10 +87,11 @@ namespace Yes
 	void DX12Drawcall::Prepare(void* ctx)
 	{
 		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
-		IDX12DescriptorHeapAllocator* allocator = context->HeapAllocator;
-		//CBV
-		//DX12DescriptorHeapSpace space = allocator->Allocate(1);
-		//SRV
+		context->StartDescritorTable();
+		for (int i = 0; i < Textures.size(); ++i)
+		{
+			context->AddDescriptor(&Textures[i].GetPtr()->GetSRVHandle(), 1);
+		}
 	}
 	void DX12Drawcall::Execute(void * ctx)
 	{
@@ -93,8 +102,18 @@ namespace Yes
 		gl->SetGraphicsRootConstantBufferView(0, context->GlobalConstantBufferGPUAddress.ptr);
 		//local constant buffer
 		gl->SetGraphicsRootConstantBufferView(1, ConstantBuffer.GetGPUAddress());
+		int idx = (int)context->GetNextHeapOffset();
+		if (context->GetHeapSpace().IsValid())
+		{
+			auto handle = context->GetHeapSpace().GetGPUHandle(idx);
+			gl->SetGraphicsRootDescriptorTable(2, handle);
+		}
 		Mesh->Apply(gl);
 		UINT ic = Mesh->GetIndexCount();
 		gl->DrawIndexedInstanced(ic, 1, 0, 0, 0);
+	}
+	size_t DX12Drawcall::GetDescriptorHeapSlotCount()
+	{
+		return Textures.size();
 	}
 }

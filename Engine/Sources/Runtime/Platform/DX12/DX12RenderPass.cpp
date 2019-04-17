@@ -13,7 +13,6 @@ namespace Yes
 	{
 		mFrameState = state;
 		mCommandPool = pool;
-
 	}
 	void DX12Pass::Reset()
 	{
@@ -34,6 +33,7 @@ namespace Yes
 		mDepthStencil = nullptr;
 		mFrameState = nullptr;
 		mCommandPool = nullptr;
+		mDescritptorHeapSize = 0;
 	}
 	RenderDeviceCommand* DX12Pass::AddCommand(RenderCommandType type)
 	{
@@ -73,6 +73,14 @@ namespace Yes
 	TRef<RenderDeviceRenderTarget> DX12Pass::GetBackbuffer()
 	{
 		return (RenderDeviceRenderTarget*)mFrameState->GetBackbuffer();
+	}
+	void DX12Pass::CollectDescriptorHeapSize()
+	{
+		mDescritptorHeapSize = 0;
+		for (RenderDeviceCommand* cmd : mCommands)
+		{
+			mDescritptorHeapSize += cmd->GetDescriptorHeapSlotCount();
+		}
 	}
 	void DX12Pass::Execute(DX12RenderPassContext& context)
 	{
@@ -123,18 +131,12 @@ namespace Yes
 			handlePtr = &dsHandle;
 		}
 		context.CommandList->OMSetRenderTargets(activeRTCount, outputRTHandles, FALSE, handlePtr);
-		if (mConstantBuffer.IsValid())
-		{
-			context.GlobalConstantBufferGPUAddress.ptr = mConstantBuffer.GetGPUAddress();
-		}
-		else
-		{
-			context.GlobalConstantBufferGPUAddress.ptr = 0;
-		}
-		
 		context.CommandList->RSSetViewports(1, &context.DefaultViewport);
 		context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
 		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		ID3D12DescriptorHeap* hs = context.GetHeapSpace().GetHeap();
+		context.CommandList->SetDescriptorHeaps(1, &hs);
+		//context
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Prepare(&context);
@@ -146,5 +148,9 @@ namespace Yes
 			mCommandPool->FreeCommand(cmd);
 		}
 		mCommands.clear();
+	}
+	D3D12_GPU_DESCRIPTOR_HANDLE DX12Pass::GetGlobalConstantBufferGPUAddress()
+	{
+		return D3D12_GPU_DESCRIPTOR_HANDLE{ mConstantBuffer.GetGPUAddress() };
 	}
 }

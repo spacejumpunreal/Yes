@@ -3,6 +3,7 @@
 #include "Yes.h"
 #include "Misc/SharedObject.h"
 #include "Misc/Math.h"
+#include "Graphics/ImageUtil.h"
 #include <vector>
 
 namespace Yes
@@ -89,7 +90,7 @@ namespace Yes
 	class RenderDeviceTexture : public RenderDeviceResource
 	{};
 	using RenderDeviceTextureRef = TRef<RenderDeviceTexture>;
-	class RenderDeviceRenderTarget : public RenderDeviceResource
+	class RenderDeviceRenderTarget : public RenderDeviceTexture
 	{};
 	using RenderDeviceRenderTargetRef = TRef< RenderDeviceRenderTarget>;
 	class RenderDeviceDepthStencil : public RenderDeviceResource
@@ -101,6 +102,7 @@ namespace Yes
 		virtual void Reset() = 0;
 		virtual void Prepare(void* ctx) = 0;
 		virtual void Execute(void* ctx) = 0;
+		virtual size_t GetDescriptorHeapSlotCount() = 0;
 	public:
 		RenderCommandType CommandType;
 	};
@@ -136,10 +138,10 @@ namespace Yes
 		//Resource related
 		virtual RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) = 0;
 		virtual RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) = 0;
+		virtual RenderDeviceTextureRef CreateTexture2DSimple(TRef<RawImage>& image) = 0;
 		virtual RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
 		virtual RenderDeviceShaderRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
 		virtual RenderDeviceRenderTargetRef CreateRenderTarget() = 0;
-		virtual RenderDeviceTextureRef CreteTextureSimple() = 0;
 		virtual RenderDeviceDepthStencilRef CreateDepthStencilSimple(size_t width, size_t height, TextureFormat format) = 0;
 
 		//Command related

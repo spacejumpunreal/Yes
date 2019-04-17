@@ -31,5 +31,8 @@ void Yes::DX12GPUBufferRegion::Write(void* src, UINT64 size)
 
 UINT64 Yes::DX12GPUBufferRegion::GetGPUAddress()
 {
-	return mResource->GetGPUVirtualAddress() + mOffset;
+	if (IsValid())
+		return mResource->GetGPUVirtualAddress() + mOffset;
+	else
+		return 0;
 }

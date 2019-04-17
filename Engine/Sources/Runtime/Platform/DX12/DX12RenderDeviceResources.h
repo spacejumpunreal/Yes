@@ -154,6 +154,27 @@ namespace Yes
 		UINT											mIndexCount;
 		friend class                                    DX12RenderDeviceMeshCreateRequest;
 	};
+	class IDX12ShaderReadableTexture : public RenderDeviceTexture
+	{
+	public:
+		virtual D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() = 0;
+	};
+	class DX12Texture2D : public IDX12ShaderReadableTexture, public DX12ResourceBase
+	{
+	public:
+		DX12Texture2D(DX12ResourceManager* creator, RawImage* image);
+		void Destroy() override;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() override;
+		bool IsReady() override { return mIsReady; }
+		void SetName(wchar_t* name);
+	private:
+		bool mIsReady;
+		ID3D12Resource* mTexture;
+		DX12GPUMemoryRegion mMemoryRegion;
+		DX12DescriptorHeapSpace1 mHeapSpace;
+		friend class DX12RenderDeviceTexture2DCreateRequest;
+	};
+
 	enum class RenderTargetDescriptorIndex
 	{
 		RTV,
@@ -173,12 +194,13 @@ namespace Yes
 		ID3D12Resource* mRenderTarget;
 		DX12DescriptorHeapSpace1	mWriteTargetHeapSpace;
 	};
-	class DX12RenderTarget : public IDX12RenderTarget
+	class DX12RenderTarget : public IDX12ShaderReadableTexture, public IDX12RenderTarget
 	{
 	public:
 		DX12RenderTarget(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
 		void Destroy() override;
 		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) override;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() override;
 		DX12GPUMemoryRegion mMemoryRegion;
 	protected:
 		DX12DescriptorHeapSpace1	mReadTargetHeapSpace;

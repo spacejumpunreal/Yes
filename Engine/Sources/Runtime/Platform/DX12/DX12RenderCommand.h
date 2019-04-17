@@ -12,6 +12,7 @@ namespace Yes
 	class DX12PSO;
 	class IDX12RenderTarget;
 	class DX12DepthStencil;
+	class IDX12ShaderReadableTexture;
 
 	struct ICommandFactory
 	{
@@ -38,10 +39,12 @@ namespace Yes
 		void SetPSO(RenderDevicePSO* pso) override;
 		void Prepare(void* ctx) override;
 		void Execute(void* ctx) override;
+		size_t GetDescriptorHeapSlotCount() override;
 	public:
 		TRef<DX12Mesh> Mesh;
 		DX12GPUBufferRegion ConstantBuffer;
 		TRef<DX12PSO> PSO;
+		std::vector<TRef<IDX12ShaderReadableTexture>> Textures;
 	};
 }
 
