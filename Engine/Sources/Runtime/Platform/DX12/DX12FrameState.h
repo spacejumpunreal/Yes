@@ -40,7 +40,7 @@ namespace Yes
 	class DX12FrameState
 	{
 	public:
-		DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex);
+		DX12FrameState(ID3D12Device* dev, DX12Texture2D* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex);
 		~DX12FrameState();
 		void CPUFinish();
 		IDX12GPUBufferAllocator* GetConstantBufferAllocator()
@@ -56,7 +56,7 @@ namespace Yes
 			return mCommandManager;
 		}
 		void WaitGPUAndCleanup();
-		IDX12RenderTarget* GetBackbuffer() { return (IDX12RenderTarget*)mFrameBuffer.GetPtr(); }
+		DX12Texture2D* GetBackbuffer() { return mFrameBuffer.GetPtr(); }
 	private:
 		COMRef<ID3D12Fence> mFence;
 		UINT64 mExpectedValue;
@@ -64,7 +64,7 @@ namespace Yes
 		IDX12GPUBufferAllocator* mConstantBufferAllocator;
 		IDX12DescriptorHeapAllocator* mLinearDescriptorHeapAllocator;
 		DX12CommandManager mCommandManager;
-		TRef<DX12Backbuffer> mFrameBuffer;
+		TRef<DX12Texture2D> mFrameBuffer;
 		ID3D12CommandQueue* mCommandQueue;
 		int mBackBufferIndex;
 	};

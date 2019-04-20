@@ -23,8 +23,10 @@ namespace Yes
 		RenderDevice* mDevice = nullptr;
 		FileModule* mFileModule = nullptr;
 		IWindowModule* mWindowModule = nullptr;
-		TRef<RenderDeviceShader> mShader;
-		TRef<RenderDevicePSO> mPSO;
+		TRef<RenderDeviceShader> mNormalShader;
+		TRef<RenderDeviceShader> mShadowShader;
+		TRef<RenderDevicePSO> mNormalPSO;
+		TRef<RenderDevicePSO> mShadowPSO;
 		TRef<RenderDeviceMesh> mMeshMonkey;
 		TRef<RenderDeviceTexture> mTextureMonkey;
 		TRef<RenderDeviceTexture> mTexturePlane;
@@ -33,7 +35,7 @@ namespace Yes
 		static const size_t ConstantBufferSlots = 512 / 4;
 		float* mMonkeyConstantBuffer;
 		float* mPlaneConstantBuffer;
-		RenderDeviceDepthStencilRef mDepthStencil;
+		TRef<RenderDeviceTexture> mDepthStencil;
 		int mFrame;
 		V4F mClearColors[4];
 		bool mAllResourceReady = false;
@@ -81,17 +83,24 @@ namespace Yes
 			//Shader
 			{
 				SharedBufferRef shaderContent = mFileModule->ReadFileContent("FirstStep.hlsl");
-				mShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
+				mNormalShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
+
+				shaderContent = mFileModule->ReadFileContent("Shadow.hlsl");
+				mShadowShader = mDevice->CreateShaderSimple(shaderContent, "Shadow.hlsl");
 			}
 			//PSO
 			{
 				RenderDevicePSODesc desc;
 				desc.RTCount = 1;
 				desc.RTs[0] = TextureFormat::R8G8B8A8_UNORM;
-				desc.Shader = mShader;
+				desc.Shader = mNormalShader;
 				desc.StateKey = PSOStateKey::Default;
 				desc.VF = VertexFormat::VF_P3F_T2F;
-				mPSO = mDevice->CreatePSOSimple(desc);
+				mNormalPSO = mDevice->CreatePSOSimple(desc);
+
+				desc.RTCount = 0;
+				desc.Shader = mShadowShader;
+				mShadowPSO = mDevice->CreatePSOSimple(desc);
 			}
 			//Mesh
 			{
@@ -113,23 +122,27 @@ namespace Yes
 			{//texture
 				auto baseMapBlob = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyBody.png");
 				TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
-				mTextureMonkey = mDevice->CreateTexture2DSimple(rimage);
-
+				mTextureMonkey = mDevice->CreateTexture2D(
+					0, 0,
+					TextureFormat::R8G8B8A8_UNORM,
+					TextureUsage::ShaderResource,
+					rimage.GetPtr());
 				baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
 				rimage = LoadRawImage(baseMapBlob.GetPtr());
-				mTexturePlane = mDevice->CreateTexture2DSimple(rimage);
+				mTexturePlane = mDevice->CreateTexture2D(
+					0, 0, TextureFormat::R8G8B8A8_UNORM, 
+					TextureUsage::ShaderResource, rimage.GetPtr());
 			}
 			{//RTs
 				V2F size = mDevice->GetScreenSize();
-				mDepthStencil = mDevice->CreateDepthStencilSimple((int)size.x, (int)size.y, TextureFormat::D24_UNORM_S8_UINT);
+				mDepthStencil = mDevice->CreateTexture2D(
+					(int)size.x, (int)size.y, 
+					TextureFormat::D24_UNORM_S8_UINT, TextureUsage::DepthStencil, 
+					nullptr);
 			}
 		}
 		void CheckResources()
 		{
-			if (!mShader->IsReady())
-				return;
-			if (!mPSO->IsReady())
-				return;
 			if (!mMeshMonkey->IsReady())
 				return;
 			if (!mMeshPlane->IsReady())
@@ -138,7 +151,7 @@ namespace Yes
 				return;
 			mAllResourceReady = true;
 		}
-		void RenderUpdate()
+		void RenderNormalPass()
 		{
 			//update constant
 			{
@@ -155,7 +168,6 @@ namespace Yes
 					memcpy(mPlaneConstantBuffer, &wvp, sizeof(wvp));
 				}
 			}
-			mDevice->BeginFrame();
 			RenderDevicePass* pass = mDevice->AllocPass();
 			pass->SetOutput(pass->GetBackbuffer(), 0);
 			pass->SetClearColor(mClearColors[3], true, 0);
@@ -166,7 +178,7 @@ namespace Yes
 			{
 				RenderDeviceDrawcall* cmd1 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
 				cmd1->SetMesh(mMeshPlane.GetPtr());
-				cmd1->SetPSO(mPSO.GetPtr());
+				cmd1->SetPSO(mNormalPSO.GetPtr());
 				cmd1->SetConstantBuffer(mPlaneConstantBuffer, ConstantBufferSize, pass);
 				cmd1->SetTextures(0, mTexturePlane.GetPtr());
 			}
@@ -174,13 +186,20 @@ namespace Yes
 			{
 				RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
 				cmd0->SetMesh(mMeshMonkey.GetPtr());
-				cmd0->SetPSO(mPSO.GetPtr());
+				cmd0->SetPSO(mNormalPSO.GetPtr());
 				cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
 				cmd0->SetTextures(0, mTextureMonkey.GetPtr());
 			}
-			
-
 			mDevice->ExecutePass(pass);
+		}
+		void RenderShadowPass()
+		{
+		}
+		void RenderUpdate()
+		{
+			mDevice->BeginFrame();
+			RenderShadowPass();
+			RenderNormalPass();
 			mDevice->EndFrame();
 			++mFrame;
 		}

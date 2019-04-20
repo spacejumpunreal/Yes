@@ -63,7 +63,7 @@ namespace Yes
 	}
 	void DX12Drawcall::SetTextures(int idx, RenderDeviceTexture* texture)
 	{
-		IDX12ShaderReadableTexture* tex = dynamic_cast<IDX12ShaderReadableTexture*>(texture);
+		DX12Texture2D* tex = dynamic_cast<DX12Texture2D*>(texture);
 		if (idx >= Textures.size())
 		{
 			Textures.resize(idx + 1);
@@ -90,7 +90,8 @@ namespace Yes
 		context->StartDescritorTable();
 		for (int i = 0; i < Textures.size(); ++i)
 		{
-			context->AddDescriptor(&Textures[i].GetPtr()->GetSRVHandle(), 1);
+			D3D12_CPU_DESCRIPTOR_HANDLE handle = Textures[i]->GetCPUHandle(TextureUsage::ShaderResource);
+			context->AddDescriptor(&handle, 1);
 		}
 	}
 	void DX12Drawcall::Execute(void * ctx)

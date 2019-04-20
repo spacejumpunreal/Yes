@@ -40,14 +40,14 @@ namespace Yes
 	}
 	//DX12FrameState
 	static int HeapSlotBlockCount = 2048;
-	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Backbuffer* frameBuffer, ID3D12CommandQueue* cq, int backBufferInex)
+	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Texture2D* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex)
 		: mExpectedValue(0)
 		, mConstantBufferAllocator(CreateDX12LinearBlockBufferAllocator(dev, 512 * 1024, 512 * 1024))
 		, mLinearDescriptorHeapAllocator(CreateShaderVisibileDescriptorHeapAllocator(dev))
-		, mCommandManager(dev, cq, backBufferInex)
+		, mCommandManager(dev, cq, backBufferIndex)
 		, mFrameBuffer(frameBuffer)
 		, mCommandQueue(cq)
-		, mBackBufferIndex(backBufferInex)
+		, mBackBufferIndex(backBufferIndex)
 	{
 		CheckSucceeded(dev->CreateFence(mExpectedValue, D3D12_FENCE_FLAG_NONE, IID_PPV_ARGS(&mFence)));
 		mEvent = CreateEvent(nullptr, FALSE, FALSE, L"DX12FrameState::mEvent");

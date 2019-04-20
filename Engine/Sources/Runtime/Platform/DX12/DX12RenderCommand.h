@@ -44,7 +44,7 @@ namespace Yes
 		TRef<DX12Mesh> Mesh;
 		DX12GPUBufferRegion ConstantBuffer;
 		TRef<DX12PSO> PSO;
-		std::vector<TRef<IDX12ShaderReadableTexture>> Textures;
+		std::vector<TRef<DX12Texture2D>> Textures;
 	};
 }
 

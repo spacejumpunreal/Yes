@@ -30,7 +30,6 @@ namespace Yes
 	class DX12RenderDeviceModuleImp : public DX12RenderDeviceModule
 	{
 		//forward declarations
-		
 	public:
 		//Resource related
 		RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) override
@@ -40,9 +39,28 @@ namespace Yes
 		}
 		RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) override
 		{
-			ISharedBuffer* buffers[] = {vertex.GetPtr(), index.GetPtr()};
-			DX12Mesh* mesh = new DX12Mesh(mResourceManager, buffers, vertexStride, indexCount, indexStride);
+			D3D12_RESOURCE_DESC descs[2];
+			size_t streamSizes[] = { vertex->GetSize(), index->GetSize(), };
+			ISharedBuffer* buffers[] = { vertex.GetPtr(), index.GetPtr() };
+			size_t strides[] = { vertexStride, indexStride };
+			DX12Mesh* mesh = new DX12Mesh(streamSizes,strides, indexCount, descs);
+			mesh->AsyncInit(buffers, vertexStride, indexStride, descs);
 			return mesh;
+		}
+		RenderDeviceTextureRef CreateTexture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, RawImage* image)
+		{
+			if (image != nullptr && width == 0 && height == 0)
+			{
+				width = image->GetWidth();
+				height = image->GetHeight();
+			}
+			D3D12_RESOURCE_DESC desc;
+			DX12Texture2D* texture = new DX12Texture2D(width, height, format, usage, &desc);
+			if (image != nullptr)
+			{
+				texture->AsyncInit(image, &desc);
+			}
+			return texture;
 		}
 		RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) override
 		{
@@ -54,20 +72,7 @@ namespace Yes
 			DX12Shader* shader = new DX12Shader(mDevice.GetPtr(), (const char*)textBlob->GetData(), textBlob->GetSize(), registeredName);
 			return shader;
 		}
-		RenderDeviceDepthStencilRef CreateDepthStencilSimple(size_t width, size_t height, TextureFormat fmt) override
-		{
-			DX12DepthStencil* ds = new DX12DepthStencil(width, height, fmt, mDevice.GetPtr());
-			return (RenderDeviceDepthStencil*)ds;
-		}
-		RenderDeviceRenderTargetRef CreateRenderTarget() override
-		{
-			return RenderDeviceRenderTargetRef();
-		}
-		RenderDeviceTextureRef CreateTexture2DSimple(TRef<RawImage>& image) override
-		{
-			DX12Texture2D* tex = new DX12Texture2D(mResourceManager, image.GetPtr());
-			return (RenderDeviceTexture*)tex;
-		}
+
 		//Command related
 		void BeginFrame() override
 		{
@@ -152,7 +157,7 @@ namespace Yes
 				CheckSucceeded(factory->MakeWindowAssociation(wh, DXGI_MWA_NO_ALT_ENTER));
 			}
 			mResourceManager = new DX12ResourceManager(mDevice.GetPtr());
-			std::vector<DX12Backbuffer*> backBuffers;
+			std::vector<DX12Texture2D*> backBuffers;
 			{
 				for (int i = 0; i < mFrameCounts; ++i)
 				{
@@ -161,7 +166,9 @@ namespace Yes
 
 					wchar_t tempNameBuffer[1024];
 					swprintf(tempNameBuffer, 1024, L"BackBuffer%d", i);
-					backBuffers.push_back(new DX12Backbuffer(resource, mDevice.GetPtr(), tempNameBuffer));
+					DX12Texture2D* bb = new DX12Texture2D(resource, TextureFormat::R8G8B8A8_UNORM, TextureUsage::RenderTarget);
+					bb->SetName(tempNameBuffer);
+					backBuffers.push_back(bb);
 				}
 			}
 			{//setup frame states

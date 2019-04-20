@@ -31,8 +31,8 @@ namespace Yes
 	enum class TextureFormat
 	{
 		R8G8B8A8_UNORM,
-		R24_UNORM_X8_TYPELESS,
 		D24_UNORM_S8_UINT,
+		D32_UNORM_S8_UINT,
 	};
 
 #define DefineLabel(label) label
@@ -90,12 +90,6 @@ namespace Yes
 	class RenderDeviceTexture : public RenderDeviceResource
 	{};
 	using RenderDeviceTextureRef = TRef<RenderDeviceTexture>;
-	class RenderDeviceRenderTarget : public RenderDeviceTexture
-	{};
-	using RenderDeviceRenderTargetRef = TRef< RenderDeviceRenderTarget>;
-	class RenderDeviceDepthStencil : public RenderDeviceResource
-	{};
-	using RenderDeviceDepthStencilRef = TRef<RenderDeviceDepthStencil>;
 	class RenderDeviceCommand
 	{
 	public:
@@ -115,12 +109,12 @@ namespace Yes
 		}
 		virtual void Reset() = 0;
 		virtual RenderDeviceCommand* AddCommand(RenderCommandType cmd) = 0;
-		virtual void SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx) = 0;
+		virtual void SetOutput(const RenderDeviceTextureRef& renderTarget, int idx) = 0;
 		virtual void SetClearColor(const V4F& clearColor, bool needed, int idx) = 0;
-		virtual void SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil) = 0;
+		virtual void SetDepthStencil(const RenderDeviceTextureRef& depthStencil) = 0;
 		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) = 0;
 		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
-		virtual TRef<RenderDeviceRenderTarget> GetBackbuffer() = 0;
+		virtual RenderDeviceTextureRef GetBackbuffer() = 0;
 	protected:
 		std::string mName;
 	};
@@ -132,17 +126,21 @@ namespace Yes
 		virtual void SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass) = 0;
 		virtual void SetPSO(RenderDevicePSO* pso) = 0;
 	};
+	enum class TextureUsage
+	{
+		ShaderResource,
+		RenderTarget,
+		DepthStencil,
+	};
 	class RenderDevice
 	{
 	public:
 		//Resource related
 		virtual RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) = 0;
 		virtual RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) = 0;
-		virtual RenderDeviceTextureRef CreateTexture2DSimple(TRef<RawImage>& image) = 0;
+		virtual RenderDeviceTextureRef CreateTexture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, RawImage* image) = 0;
 		virtual RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
 		virtual RenderDeviceShaderRef CreateShaderSimple(SharedBufferRef& textBlob, const char* registeredName) = 0;
-		virtual RenderDeviceRenderTargetRef CreateRenderTarget() = 0;
-		virtual RenderDeviceDepthStencilRef CreateDepthStencilSimple(size_t width, size_t height, TextureFormat format) = 0;
 
 		//Command related
 		virtual void BeginFrame() = 0;

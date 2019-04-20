@@ -41,9 +41,9 @@ namespace Yes
 		mCommands.push_back(cmd);
 		return cmd;
 	}
-	void DX12Pass::SetOutput(const TRef<RenderDeviceRenderTarget>& renderTarget, int idx)
+	void DX12Pass::SetOutput(const RenderDeviceTextureRef& renderTarget, int idx)
 	{
-		IDX12RenderTarget* rt = dynamic_cast<IDX12RenderTarget*>(renderTarget.GetPtr());
+		DX12Texture2D* rt = dynamic_cast<DX12Texture2D*>(renderTarget.GetPtr());
 		mOutputTarget[idx] = rt;
 	}
 	void DX12Pass::SetClearColor(const V4F& clearColor, bool needed, int idx)
@@ -51,9 +51,9 @@ namespace Yes
 		mClearColorValues[idx] = clearColor;
 		mNeedClearColor[idx] = needed;
 	}
-	void DX12Pass::SetDepthStencil(const TRef<RenderDeviceDepthStencil>& depthStencil)
+	void DX12Pass::SetDepthStencil(const RenderDeviceTextureRef& depthStencil)
 	{
-		mDepthStencil = dynamic_cast<DX12DepthStencil*>(depthStencil.GetPtr());
+		mDepthStencil = dynamic_cast<DX12Texture2D*>(depthStencil.GetPtr());
 	}
 	void DX12Pass::SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil)
 	{
@@ -70,9 +70,9 @@ namespace Yes
 		mConstantBuffer = mFrameState->GetConstantBufferAllocator()->Allocate(alignedSize, SizeAlign);
 		mConstantBuffer.Write(data, size);
 	}
-	TRef<RenderDeviceRenderTarget> DX12Pass::GetBackbuffer()
+	RenderDeviceTextureRef DX12Pass::GetBackbuffer()
 	{
-		return (RenderDeviceRenderTarget*)mFrameState->GetBackbuffer();
+		return mFrameState->GetBackbuffer();
 	}
 	void DX12Pass::CollectDescriptorHeapSize()
 	{
@@ -91,7 +91,7 @@ namespace Yes
 		{
 			if (mOutputTarget[i].GetPtr() != nullptr)
 			{
-				outputRTHandles[i] = mOutputTarget[i]->GetHandle(RenderTargetDescriptorIndex::RTV);
+				outputRTHandles[i] = mOutputTarget[i]->GetCPUHandle(TextureUsage::RenderTarget);
 				mOutputTarget[i]->TransitToState(D3D12_RESOURCE_STATE_RENDER_TARGET, context.CommandList);
 				if (mNeedClearColor[i])
 				{
@@ -125,7 +125,7 @@ namespace Yes
 			{
 				flag &= ~D3D12_CLEAR_FLAGS::D3D12_CLEAR_FLAG_STENCIL;
 			}
-			dsHandle = mDepthStencil->mHeapSpace.GetCPUHandle(0);
+			dsHandle = mDepthStencil->GetCPUHandle(TextureUsage::DepthStencil);
 			mDepthStencil->TransitToState(D3D12_RESOURCE_STATE_DEPTH_WRITE, context.CommandList);
 			context.CommandList->ClearDepthStencilView(dsHandle, flag, mClearDepthValue, mClearStencilValue, 0, nullptr);
 			handlePtr = &dsHandle;

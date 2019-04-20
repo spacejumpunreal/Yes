@@ -13,6 +13,7 @@
 #include <dxgi1_4.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
+#include "d3d12.h"
 #include "d3dx12.h"
 
 namespace Yes
@@ -80,7 +81,8 @@ namespace Yes
 	public:
 		DX12ResourceBase();
 		virtual void SetName(wchar_t* name) = 0;
-		virtual void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) {};
+		//have to be virtual becasue we do not know what is the resource to transit
+		virtual void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) = 0;
 		D3D12_RESOURCE_STATES GetState() { return mState; }
 	protected:
 		D3D12_RESOURCE_STATES mState;
@@ -139,12 +141,14 @@ namespace Yes
 	class DX12Mesh : public RenderDeviceMesh, public DX12ResourceBase
 	{
 	public:
-		DX12Mesh(DX12ResourceManager* creator, ISharedBuffer* CPUData[2], size_t vertexStride, size_t indexCount, size_t indexStride);
+		DX12Mesh(size_t streamSizes[], size_t strides[], size_t indexCount, D3D12_RESOURCE_DESC desc[]);
 		void Destroy() override;
 		void Apply(ID3D12GraphicsCommandList* cmdList);
 		UINT GetIndexCount() { return mIndexCount; }
 		bool IsReady() override { return mIsReady; }
 		void SetName(wchar_t* name) override;
+		void AsyncInit(ISharedBuffer* bufferData[], size_t vertexStride, size_t indexStride, D3D12_RESOURCE_DESC desc[]);
+		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
 	private:
 		bool                                            mIsReady;
 		ID3D12Resource*                                 mDeviceResource[2];
@@ -152,77 +156,30 @@ namespace Yes
 		D3D12_VERTEX_BUFFER_VIEW						mVertexBufferView;
 		D3D12_INDEX_BUFFER_VIEW							mIndexBufferView;
 		UINT											mIndexCount;
-		friend class                                    DX12RenderDeviceMeshCreateRequest;
+		friend class                                    DX12RenderDeviceMeshCopyRequest;
 	};
-	class IDX12ShaderReadableTexture : public RenderDeviceTexture
+	class DX12Texture2D : public RenderDeviceTexture, public DX12ResourceBase
 	{
 	public:
-		virtual D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() = 0;
-	};
-	class DX12Texture2D : public IDX12ShaderReadableTexture, public DX12ResourceBase
-	{
-	public:
-		DX12Texture2D(DX12ResourceManager* creator, RawImage* image);
+		DX12Texture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc);
+		DX12Texture2D(ID3D12Resource* resource, TextureFormat format, TextureUsage usage);
 		void Destroy() override;
-		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() override;
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(TextureUsage usage);
 		bool IsReady() override { return mIsReady; }
 		void SetName(wchar_t* name);
+		void AsyncInit(RawImage* image, D3D12_RESOURCE_DESC* desc);
+		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
+	protected:
+		void InitTexture(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc);
+		void InitHandles();
 	private:
-		bool mIsReady;
 		ID3D12Resource* mTexture;
+		DX12DescriptorHeapSpace1 mHeapSpace[3];
+		TextureFormat mFormat;
+		TextureUsage mUsage;
 		DX12GPUMemoryRegion mMemoryRegion;
-		DX12DescriptorHeapSpace1 mHeapSpace;
-		friend class DX12RenderDeviceTexture2DCreateRequest;
-	};
-
-	enum class RenderTargetDescriptorIndex
-	{
-		RTV,
-		SRV,
-	};
-	class IDX12RenderTarget : public RenderDeviceRenderTarget, public DX12ResourceBase
-	{
-	public:
-		virtual ~IDX12RenderTarget();
-		bool IsReady() override { return true; }
-		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
-		virtual D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) = 0;
-		void SetName(wchar_t* name) override;
-	protected:
-		IDX12RenderTarget();
-	protected:
-		ID3D12Resource* mRenderTarget;
-		DX12DescriptorHeapSpace1	mWriteTargetHeapSpace;
-	};
-	class DX12RenderTarget : public IDX12ShaderReadableTexture, public IDX12RenderTarget
-	{
-	public:
-		DX12RenderTarget(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
-		void Destroy() override;
-		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) override;
-		D3D12_CPU_DESCRIPTOR_HANDLE GetSRVHandle() override;
-		DX12GPUMemoryRegion mMemoryRegion;
-	protected:
-		DX12DescriptorHeapSpace1	mReadTargetHeapSpace;
-	};
-	class DX12Backbuffer : public IDX12RenderTarget
-	{
-	public:
-		DX12Backbuffer(ID3D12Resource* backbuffer, ID3D12Device* device, wchar_t* name);
-		D3D12_CPU_DESCRIPTOR_HANDLE GetHandle(RenderTargetDescriptorIndex idx) override;
-		void Destroy() override;
-	};
-
-	class DX12DepthStencil : public RenderDeviceDepthStencil, public DX12ResourceBase
-	{
-	public:
-		DX12DepthStencil(size_t width, size_t height, TextureFormat format, ID3D12Device* device);
-		void Destroy() override;
-		bool IsReady() override { return true; }
-		void SetName(wchar_t* name) override;
-		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
-		ID3D12Resource* mBuffer;
-		DX12DescriptorHeapSpace1	mHeapSpace;
-		DX12GPUMemoryRegion mMemoryRegion;
+		
+		bool mIsReady;
+		friend class DX12RenderDeviceTexture2DCopyRequest;
 	};
 }
