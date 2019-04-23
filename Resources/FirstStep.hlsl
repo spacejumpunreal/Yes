@@ -31,8 +31,7 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput result;
-	//float4x4 wvp = cGlobal.MViewPerspective * cObject.MWorld;
-	float4x4 wvp = cObject.MWorld;
+	float4x4 wvp = mul(cGlobal.MViewPerspective, cObject.MWorld);
 	result.position = mul(wvp, float4(input.position, 1));
 	result.wpos = input.position;
 	result.normal = input.normal;

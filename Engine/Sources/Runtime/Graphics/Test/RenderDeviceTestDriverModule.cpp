@@ -186,9 +186,9 @@ namespace Yes
 			{
 				RenderObject& ro = mObjects[i];
 				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-				//memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
-				auto tmp = ro.Transform * mEyeCamera.GetMVPMatrix();
-				memcpy(mTempBuffer, &tmp, sizeof(M44F));
+				memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+				//auto tmp = ro.Transform * mEyeCamera.GetMVPMatrix();
+				//memcpy(mTempBuffer, &tmp, sizeof(M44F));
 				dc->SetConstantBuffer(mTempBuffer, ConstantBufferSize, pass);
 				dc->SetMesh(ro.Mesh.GetPtr());
 				dc->SetTextures(0, ro.Texture.GetPtr());
