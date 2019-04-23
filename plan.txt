@@ -1,13 +1,14 @@
 - doing
 	- SimpleDX12Renderer
 		- shadowmap
-			- Resource Create on MainThread, copy on async thread
-				- RenderDeviceTexture refactor, support SRV/RTV/DSV in 1 class
-				- Texture
-				- Mesh Debug
-				- use 1 buffer for vertex and index buffer, don't know if there's alignment issue
+			- native code procedure
+			- pso include DS format
+			- change normal pass to use seperate buffers
+			- add global texture for shadowmap
 			- Write/Read RT
 			- Shadow shader
+			- Mesh Debug
+			- use 1 buffer for vertex and index buffer, don't know if there's alignment issue
 			- SimplePipeline
 		- TestDriver
 			- normal transform

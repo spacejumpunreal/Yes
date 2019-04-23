@@ -5,15 +5,17 @@
 
 namespace Yes
 {
-	struct PerspectiveCamera
+	struct Camera
 	{
 	public:
-		PerspectiveCamera(float fovY, float aspect, float near, float far);
+		static Camera BuildPerspectiveCamera(float fovY, float aspect, float near, float far);
+		static Camera BuildOrthogonalCamera(float aspect, float ySize, float near, float far);
 		bool IsPerspecive();
-		void Update(float pitch, float yaw, V3F& position);
+		void UpdateView(float pitch, float yaw, V3F& position);
+		void UpdateView(const M44F& view);
 		const M44F& GetViewMatrix() { return MView; }
 		const M44F& GetPerspectiveMatrix() { return MPerspective; }
-		const M44F& GetViewPerspectiveMatrix() { return MVP; }
+		const M44F& GetMVPMatrix() { return MVP; }
 	private:
 		M44F MView;
 		M44F MPerspective;

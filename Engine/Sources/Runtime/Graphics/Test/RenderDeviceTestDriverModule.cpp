@@ -13,39 +13,45 @@
 #include "Public/Platform/InputState.h"
 #include "Public/Graphics/Camera/Camera.h"
 
+#include <vector>
+
 #define LOG_INPUT 0
 
 namespace Yes
 {
+	struct RenderObject
+	{
+		TRef<RenderDeviceMesh> Mesh;
+		TRef<RenderDeviceTexture> Texture;
+		M44F Transform;
+	};
+
 	class RenderDeviceTestDriverModuleImp : public RenderDeviceTestDriverModule, public ITickable
 	{
 	private:
 		RenderDevice* mDevice = nullptr;
 		FileModule* mFileModule = nullptr;
 		IWindowModule* mWindowModule = nullptr;
-		TRef<RenderDeviceShader> mNormalShader;
-		TRef<RenderDeviceShader> mShadowShader;
 		TRef<RenderDevicePSO> mNormalPSO;
 		TRef<RenderDevicePSO> mShadowPSO;
-		TRef<RenderDeviceMesh> mMeshMonkey;
-		TRef<RenderDeviceTexture> mTextureMonkey;
-		TRef<RenderDeviceTexture> mTexturePlane;
-		TRef<RenderDeviceMesh> mMeshPlane;
 		static const size_t ConstantBufferSize = 512;
 		static const size_t ConstantBufferSlots = 512 / 4;
-		float* mMonkeyConstantBuffer;
-		float* mPlaneConstantBuffer;
+		float* mTempBuffer;
 		TRef<RenderDeviceTexture> mDepthStencil;
+		TRef<RenderDeviceTexture> mShadowDepth;
+		std::vector<RenderObject> mObjects;
 		int mFrame;
 		V4F mClearColors[4];
 		bool mAllResourceReady = false;
 		float mYaw = 0;
 		float mPitch = 0;
 		V3F mPosition = V3F(0, 2.f, 0);
-		PerspectiveCamera mCamera;
+		Camera mEyeCamera;
+		Camera mShadowCamera;
 	public:
 		RenderDeviceTestDriverModuleImp()
-			: mCamera(3.14159f / 2, 1, 0.5, 200)
+			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
+			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 100, 0, 100))
 		{
 		}
 		virtual void InitializeModule(System* system) override
@@ -53,8 +59,7 @@ namespace Yes
 			TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);
 			mFileModule = GET_MODULE(FileModule);
-			mMonkeyConstantBuffer = new float[ConstantBufferSlots];
-			mPlaneConstantBuffer = new float[ConstantBufferSlots];
+			mTempBuffer = new float[ConstantBufferSlots];
 			mFrame = 0;
 			mClearColors[0] = V4F(1, 0, 0, 1);
 			mClearColors[1] = V4F(0, 1, 0, 1);
@@ -80,125 +85,139 @@ namespace Yes
 	private:
 		void Setup()
 		{
-			//Shader
+			//Shader & PSO
 			{
 				SharedBufferRef shaderContent = mFileModule->ReadFileContent("FirstStep.hlsl");
-				mNormalShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
-
+				TRef<RenderDeviceShader> normalShader = mDevice->CreateShaderSimple(shaderContent, "FirstStep.hlsl");
 				shaderContent = mFileModule->ReadFileContent("Shadow.hlsl");
-				mShadowShader = mDevice->CreateShaderSimple(shaderContent, "Shadow.hlsl");
-			}
-			//PSO
-			{
+				TRef<RenderDeviceShader> shadowShader = mDevice->CreateShaderSimple(shaderContent, "Shadow.hlsl");
 				RenderDevicePSODesc desc;
+
 				desc.RTCount = 1;
 				desc.RTs[0] = TextureFormat::R8G8B8A8_UNORM;
-				desc.Shader = mNormalShader;
-				desc.StateKey = PSOStateKey::Default;
+				desc.Shader = normalShader;
+				desc.StateKey = PSOStateKey::Normal;
 				desc.VF = VertexFormat::VF_P3F_T2F;
 				mNormalPSO = mDevice->CreatePSOSimple(desc);
 
 				desc.RTCount = 0;
-				desc.Shader = mShadowShader;
+				desc.Shader = shadowShader;
+				desc.StateKey = PSOStateKey::Normal;
 				mShadowPSO = mDevice->CreatePSOSimple(desc);
 			}
-			//Mesh
+			//RenderObject
 			{
 				size_t vertexStride = 8 * 4;//P3FN3FUV2F
 				size_t indexStride = 4;
 				{
+					mObjects.push_back({});
+					RenderObject& ro = mObjects.back();
 					auto vb = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_vb.bin");
 					auto ib = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
-					mMeshMonkey = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+					ro.Mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+
+					auto baseMapBlob = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyBody.png");
+					TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
+					ro.Texture = mDevice->CreateTexture2D(
+						0, 0,
+						TextureFormat::R8G8B8A8_UNORM,
+						TextureUsage::ShaderResource,
+						rimage.GetPtr());
+					ro.Transform = M44F::Translate(V3F(0, 3, 20));
 				}
 				{
+					mObjects.push_back({});
+					RenderObject& ro = mObjects.back();
 					auto vb = mFileModule->ReadFileContent("Mesh/plane_vb.bin");
 					auto ib = mFileModule->ReadFileContent("Mesh/plane_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
-					mMeshPlane = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+					ro.Mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+					auto baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
+					TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
+					ro.Texture = mDevice->CreateTexture2D(
+						0, 0, TextureFormat::R8G8B8A8_UNORM,
+						TextureUsage::ShaderResource, rimage.GetPtr());
+					ro.Transform = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 0, 20.0f));
 				}
-			}
-			{//texture
-				auto baseMapBlob = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyBody.png");
-				TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
-				mTextureMonkey = mDevice->CreateTexture2D(
-					0, 0,
-					TextureFormat::R8G8B8A8_UNORM,
-					TextureUsage::ShaderResource,
-					rimage.GetPtr());
-				baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
-				rimage = LoadRawImage(baseMapBlob.GetPtr());
-				mTexturePlane = mDevice->CreateTexture2D(
-					0, 0, TextureFormat::R8G8B8A8_UNORM, 
-					TextureUsage::ShaderResource, rimage.GetPtr());
 			}
 			{//RTs
 				V2F size = mDevice->GetScreenSize();
 				mDepthStencil = mDevice->CreateTexture2D(
 					(int)size.x, (int)size.y, 
-					TextureFormat::D24_UNORM_S8_UINT, TextureUsage::DepthStencil, 
+					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil, 
+					nullptr);
+				mShadowDepth = mDevice->CreateTexture2D(
+					1024, 1024,
+					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil,
 					nullptr);
 			}
 		}
 		void CheckResources()
 		{
-			if (!mMeshMonkey->IsReady())
-				return;
-			if (!mMeshPlane->IsReady())
-				return;
-			if (!mTextureMonkey->IsReady())
-				return;
+			for (int i = 0; i < mObjects.size(); ++i)
+			{
+				if (!mObjects[i].Mesh->IsReady())
+				{
+					return;
+				}
+				if (!mObjects[i].Texture->IsReady())
+				{
+					return;
+				}
+			}
 			mAllResourceReady = true;
+		}
+		void UpdateObjets()
+		{
+			mEyeCamera.UpdateView(mPitch, mYaw, mPosition);
+			mShadowCamera.UpdateView(M44F::LookAt(V3F(0, -1, 0), V3F(0, 1, 0), V3F(0, 100, 0)));
 		}
 		void RenderNormalPass()
 		{
-			//update constant
-			{
-				mCamera.Update(mPitch, mYaw, mPosition);
-				const M44F& viewPerspective = mCamera.GetViewPerspectiveMatrix();
-				{
-					M44F world = M44F::Translate(V3F(0, 3, 20));
-					M44F wvp = world * viewPerspective;
-					memcpy(mMonkeyConstantBuffer, &wvp, sizeof(wvp));
-				}
-				{
-					M44F world = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 0, 20.0f));
-					M44F wvp = world * viewPerspective;
-					memcpy(mPlaneConstantBuffer, &wvp, sizeof(wvp));
-				}
-			}
 			RenderDevicePass* pass = mDevice->AllocPass();
 			pass->SetOutput(pass->GetBackbuffer(), 0);
 			pass->SetClearColor(mClearColors[3], true, 0);
 			pass->SetDepthStencil(mDepthStencil);
 			pass->SetClearDepth(1.0f, 0, true, true);
-
-			if (true)
+			memcpy(mTempBuffer, &mEyeCamera.GetMVPMatrix(), sizeof(M44F));
+			pass->SetGlobalConstantBuffer(mTempBuffer, ConstantBufferSize);
+			for (int i = 0; i < mObjects.size(); ++i)
 			{
-				RenderDeviceDrawcall* cmd1 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-				cmd1->SetMesh(mMeshPlane.GetPtr());
-				cmd1->SetPSO(mNormalPSO.GetPtr());
-				cmd1->SetConstantBuffer(mPlaneConstantBuffer, ConstantBufferSize, pass);
-				cmd1->SetTextures(0, mTexturePlane.GetPtr());
-			}
-			if (true)
-			{
-				RenderDeviceDrawcall* cmd0 = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-				cmd0->SetMesh(mMeshMonkey.GetPtr());
-				cmd0->SetPSO(mNormalPSO.GetPtr());
-				cmd0->SetConstantBuffer(mMonkeyConstantBuffer, ConstantBufferSize, pass);
-				cmd0->SetTextures(0, mTextureMonkey.GetPtr());
+				RenderObject& ro = mObjects[i];
+				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+				//memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+				auto tmp = ro.Transform * mEyeCamera.GetMVPMatrix();
+				memcpy(mTempBuffer, &tmp, sizeof(M44F));
+				dc->SetConstantBuffer(mTempBuffer, ConstantBufferSize, pass);
+				dc->SetMesh(ro.Mesh.GetPtr());
+				dc->SetTextures(0, ro.Texture.GetPtr());
+				dc->SetPSO(mNormalPSO.GetPtr());
 			}
 			mDevice->ExecutePass(pass);
 		}
 		void RenderShadowPass()
 		{
+			RenderDevicePass* pass = mDevice->AllocPass();
+			pass->SetDepthStencil(mShadowDepth);
+			pass->SetClearDepth(1.0, 0, true, false);
+			memcpy(mTempBuffer, &mShadowCamera.GetMVPMatrix(), sizeof(M44F));
+			for (int i = 0; i < mObjects.size(); ++i)
+			{
+				RenderObject& ro = mObjects[i];
+				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
+				memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+				dc->SetConstantBuffer(mTempBuffer, ConstantBufferSize, pass);
+				dc->SetMesh(ro.Mesh.GetPtr());
+				dc->SetPSO(mShadowPSO.GetPtr());
+			}
+			mDevice->ExecutePass(pass);
 		}
 		void RenderUpdate()
 		{
+			UpdateObjets();
 			mDevice->BeginFrame();
-			RenderShadowPass();
+			//RenderShadowPass();
 			RenderNormalPass();
 			mDevice->EndFrame();
 			++mFrame;

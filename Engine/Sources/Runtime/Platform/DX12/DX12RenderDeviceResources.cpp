@@ -189,7 +189,7 @@ namespace Yes
 	}
 	DX12Shader::~DX12Shader()
 	{
-		CheckAlways(false);//not suppose to delete shader
+		//CheckAlways(false);//not suppose to delete shader
 	}
 
 	//pso
@@ -206,10 +206,22 @@ namespace Yes
 		psoDesc.pRootSignature                     = shader->mRootSignature.GetPtr();
 		psoDesc.VS                                 = CD3DX12_SHADER_BYTECODE(shader->mVS.GetPtr());
 		psoDesc.PS                                 = CD3DX12_SHADER_BYTECODE(shader->mPS.GetPtr());
-		if (desc.StateKey != PSOStateKey::Default)
+		if (desc.StateKey == PSOStateKey::Normal)
 		{
+			psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_BACK;
+			psoDesc.RasterizerState.FrontCounterClockwise = true;
+			psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+			psoDesc.DSVFormat = DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
+			psoDesc.DepthStencilState.DepthEnable = TRUE;
+			psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
+			psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+			psoDesc.DepthStencilState.StencilEnable = FALSE;
+			psoDesc.SampleMask = UINT_MAX;
+			psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			psoDesc.SampleDesc.Count = 1;
 		}
-		else
+		else if (desc.StateKey == PSOStateKey::Default)
 		{
 			psoDesc.RasterizerState                 = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_BACK;
@@ -220,6 +232,10 @@ namespace Yes
 			psoDesc.SampleMask                      = UINT_MAX;
 			psoDesc.PrimitiveTopologyType           = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 			psoDesc.SampleDesc.Count                = 1;
+		}
+		else
+		{
+			CheckAlways(false);
 		}
 		psoDesc.NumRenderTargets = desc.RTCount;
 		for (int i = 0; i < desc.RTCount; ++i)
@@ -556,7 +572,11 @@ namespace Yes
 		{
 			IDX12DescriptorHeapAllocator& allocator = manager.GetSyncDescriptorHeapAllocator(ResourceType::DepthStencil);
 			DX12DescriptorHeapSpace1& heapSpace = mHeapSpace[(int)TextureUsage::DepthStencil] = allocator.Allocate(1);
-			dev->CreateDepthStencilView(mTexture, nullptr, heapSpace.GetCPUHandle(0));
+			D3D12_DEPTH_STENCIL_VIEW_DESC desc = {};
+			desc.Format = GetTextureFormat(mFormat);
+			desc.Flags = D3D12_DSV_FLAG_NONE;
+			desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+			dev->CreateDepthStencilView(mTexture, &desc, heapSpace.GetCPUHandle(0));
 		}
 	}
 	D3D12_CPU_DESCRIPTOR_HANDLE DX12Texture2D::GetCPUHandle(TextureUsage usage)

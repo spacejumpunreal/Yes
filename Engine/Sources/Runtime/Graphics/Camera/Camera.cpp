@@ -3,6 +3,38 @@
 #include <cstring>
 namespace Yes
 {
+	Camera Camera::BuildPerspectiveCamera(float fovY, float aspect, float near, float far)
+	{
+		Camera ret;
+		ret.MPerspective = CalcPerspectiveMatrix(fovY, aspect, near, far);
+		ret.MView = M44F::Identity();
+		ret.MVP = ret.MView * ret.MPerspective;
+		return ret;
+	}
+	Camera Camera::BuildOrthogonalCamera(float aspect, float ySize, float near, float far)
+	{
+		Camera ret;
+		ret.MPerspective = CalcOrthogonalMatrix(ySize, aspect, near, far);
+		ret.MView = M44F::Identity();
+		ret.MVP = ret.MView * ret.MPerspective;
+		return ret;
+	}
+	bool Camera::IsPerspecive()
+	{
+		return
+			MPerspective.m[2][3] == 1 &&
+			MPerspective.m[3][3] == 0;
+	}
+	void Camera::UpdateView(float pitch, float yaw, V3F & position)
+	{
+		MView = CalcViewMatrix(pitch, yaw, position);
+		MVP = MView * MPerspective;
+	}
+	void Camera::UpdateView(const M44F& view)
+	{
+		MView = view;
+		MVP = MView * MPerspective;
+	}
 	M44F CalcViewMatrix(float pitch, float yaw, V3F pos)
 	{
 		/*
@@ -66,31 +98,5 @@ namespace Yes
 		r.m[3][2] = -zNear / (zFar - zNear);
 		r.m[3][3] = 1;
 		return r;
-	}
-	void PerspectiveCamera::Update(float pitch, float yaw, V3F & position)
-	{
-		MView = CalcViewMatrix(pitch, yaw, position);
-		MVP = MView * MPerspective;
-	}
-	PerspectiveCamera::PerspectiveCamera(float fovY, float aspect, float near, float far)
-	{
-		MPerspective = CalcPerspectiveMatrix(fovY, aspect, near, far);
-		V4F testPoint0 = V4F{ near, near, near , 1};
-		V4F testPoint1 = V4F{ far, far, far, 1 };
-		MView = M44F::Identity();
-		MVP = MView * MPerspective;
-		/*
-		auto testResult0 = testPoint0 * MPerspective;
-		auto testResult1 = testPoint1 * MPerspective;
-		testResult0 = testResult1;
-		*/
-	}
-	bool PerspectiveCamera::IsPerspecive()
-	{
-		return
-			MPerspective.m[2][2] == 1 &&
-			MPerspective.m[2][3] == 0 &&
-			MPerspective.m[3][2] == 0 &&
-			MPerspective.m[3][3] == 1;
 	}
 }

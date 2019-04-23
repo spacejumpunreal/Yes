@@ -163,7 +163,7 @@ namespace Yes
 			, y(a)
 			, z(a)
 		{}
-		T* Data()
+		const T* Data() const
 		{
 			return &x;
 		}
@@ -398,6 +398,17 @@ namespace Yes
 		{
 			Matrix4x4 r = Identity();
 			r.Translation() = position;
+			return r;
+		}
+		static Matrix4x4 LookAt(const Vector3<T>& forward, const Vector3<T>& up, const Vector3<T>& position)
+		{
+			Vector3<T> right = Cross(up, forward);
+			Vector3<T> y = Cross(forward, right);
+			Matrix4x4 r;
+			r.m[0][0] = right.Data()[0]; r.m[0][1] = right.Data()[1]; r.m[0][2] = right.Data()[2]; r.m[0][3] = position.x;
+			r.m[1][0] = y.Data()[0]; r.m[1][1] = y.Data()[1]; r.m[1][2] = y.Data()[2]; r.m[1][3] = position.y;
+			r.m[2][0] = forward.Data()[0]; r.m[2][1] = forward.Data()[1]; r.m[2][2] = forward.Data()[2]; r.m[2][3] = position.z;
+			r.m[3][0] = r.m[3][1] = r.m[3][2] = 0; r.m[3][3] = 1;
 			return r;
 		}
 		friend Matrix4x4 operator*(const Matrix4x4& l, const Matrix4x4& r)

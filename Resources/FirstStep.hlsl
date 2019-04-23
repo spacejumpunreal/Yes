@@ -1,10 +1,10 @@
 struct GlobalConstants
 {
-	float4 param;
+	float4x4 MViewPerspective;
 };
 struct ObjectConstants
 {
-	float4x4 wvp;
+	float4x4 MWorld;
 };
 
 ConstantBuffer<GlobalConstants> cGlobal : register(b0);
@@ -31,9 +31,11 @@ struct PSInput
 PSInput VSMain(VSInput input)
 {
     PSInput result;
-	result.position = mul(cObject.wvp, float4(input.position, 1));
+	//float4x4 wvp = cGlobal.MViewPerspective * cObject.MWorld;
+	float4x4 wvp = cObject.MWorld;
+	result.position = mul(wvp, float4(input.position, 1));
 	result.wpos = input.position;
-	result.normal = input.normal;// mul(cObject.wvp, float4(input.normal, 1));
+	result.normal = input.normal;
 	result.uv = input.uv;
     return result;
 }

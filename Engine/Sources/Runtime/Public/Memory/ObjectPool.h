@@ -1,5 +1,6 @@
 #pragma once
 #include "Yes.h"
+#include "Misc/Debug.h"
 #include <type_traits>
 
 namespace Yes
@@ -19,12 +20,13 @@ namespace Yes
 					T** pptr = (T**)&*(head + i);
 					*pptr = head + i + 1;
 				}
-				*(T**)&*(head + mGrowStep - 1) = nullptr;
+				*(T**)(head + mGrowStep - 1) = nullptr;
 				mFreeList = head;
 				mTotalCount += mGrowStep;
 			}
 			auto p = mFreeList;
-			mFreeList = *((T**)&*p);
+			mFreeList = *((T**)p);
+			CheckAlways(mFreeList != nullptr);
 			new (p) T(std::forward<Args>(args)...);
 			++mUsedCount;
 			return p;
@@ -32,8 +34,9 @@ namespace Yes
 		void Deallocate(T* p)
 		{
 			p->~T();
-			*(T**)&p = mFreeList;
+			*(T**)p = mFreeList;
 			mFreeList = p;
+			CheckAlways(mFreeList != nullptr);
 			--mUsedCount;
 		}
 		void GetStatistics(size_t& usedCount, size_t& totalCount)

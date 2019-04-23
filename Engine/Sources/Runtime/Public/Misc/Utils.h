@@ -79,6 +79,10 @@ namespace Yes
 		COMRef<T>& operator=(COMRef<T>& other)
 		{
 			_ReleaseCurrent();
+			if (other.mPtr != nullptr)
+			{
+				other.mPtr->AddRef();
+			}
 			mPtr = other.mPtr;
 			return *this;
 		}

@@ -27,6 +27,8 @@ namespace Yes
 	enum class PSOStateKey : byte
 	{
 		Default,
+		Normal,
+		DepthOnly,
 	};
 	enum class TextureFormat
 	{
