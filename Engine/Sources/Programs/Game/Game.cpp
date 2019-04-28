@@ -33,6 +33,7 @@ void func()
 namespace Yes
 {
 	void TestRangeAllocators();
+	void TestMath();
 }
 int main(int argc, const char** argv)
 {

@@ -103,10 +103,11 @@ namespace Yes
 		gl->SetGraphicsRootConstantBufferView(0, context->GlobalConstantBufferGPUAddress.ptr);
 		//local constant buffer
 		gl->SetGraphicsRootConstantBufferView(1, ConstantBuffer.GetGPUAddress());
-		int idx = (int)context->GetNextHeapOffset();
-		if (context->GetHeapSpace().IsValid())
+		size_t len = context->GetNextHeapRangeLength();
+		size_t idx = (int)context->GetNextHeapRangeStart();
+		if (len > 0)
 		{
-			auto handle = context->GetHeapSpace().GetGPUHandle(idx);
+			D3D12_GPU_DESCRIPTOR_HANDLE handle = context->GetHeapSpace().GetGPUHandle((int)idx);
 			gl->SetGraphicsRootDescriptorTable(2, handle);
 		}
 		Mesh->Apply(gl);

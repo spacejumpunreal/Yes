@@ -60,6 +60,10 @@ namespace Yes
 			{
 				mPtr = static_cast<T*>(rawPtr);
 			}
+			else if constexpr (std::is_same_v<F, T>)
+			{
+				mPtr = rawPtr;
+			}
 			else
 			{
 				mPtr = dynamic_cast<T*>(rawPtr);

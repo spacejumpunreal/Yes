@@ -28,7 +28,6 @@ namespace Yes
 	{
 		Default,
 		Normal,
-		DepthOnly,
 	};
 	enum class TextureFormat
 	{
@@ -69,7 +68,8 @@ namespace Yes
 	struct RenderDevicePSODesc
 	{
 		RenderDeviceShaderRef Shader;
-		TextureFormat RTs[MaxRenderTargets];
+		TextureFormat RTFormats[MaxRenderTargets];
+		TextureFormat DSFormat;
 
 		PSOStateKey StateKey;
 		VertexFormat VF;
@@ -154,5 +154,6 @@ namespace Yes
 
 		//query
 		virtual V2F GetScreenSize() = 0;
+		virtual int GetFrameIndex() = 0;
 	};
 }

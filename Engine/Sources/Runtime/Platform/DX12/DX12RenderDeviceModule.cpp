@@ -76,15 +76,14 @@ namespace Yes
 		//Command related
 		void BeginFrame() override
 		{
-			mCurrentFrameIndex = mSwapChain->GetCurrentBackBufferIndex();
-			mFrameStates[mCurrentFrameIndex]->WaitGPUAndCleanup();
-			UINT i = mSwapChain->GetCurrentBackBufferIndex();
-			CheckAlways(i == mCurrentFrameIndex);
+			++mCurrentFrameIndex;
+			mCurrentBackbufferIndex = mSwapChain->GetCurrentBackBufferIndex();
+			mFrameStates[mCurrentBackbufferIndex]->WaitGPUAndCleanup();
 		}
 		void EndFrame() override
 		{
 			//TODO: need transit backbuffer to present
-			DX12FrameState* fs = mFrameStates[mCurrentFrameIndex];
+			DX12FrameState* fs = mFrameStates[mCurrentBackbufferIndex];
 			fs->CPUFinish();
 			mSwapChain->Present(1, 0);
 		}
@@ -97,6 +96,10 @@ namespace Yes
 		V2F GetScreenSize() override
 		{
 			return V2F((float)mScreenWidth, (float)mScreenHeight);
+		}
+		int GetFrameIndex() override
+		{
+			return mCurrentFrameIndex;
 		}
 		void Start(System* system) override
 		{
@@ -209,7 +212,7 @@ namespace Yes
 		//roll the wheel
 		DX12FrameState* GetCurrentFrameState()
 		{
-			return mFrameStates[mCurrentFrameIndex];
+			return mFrameStates[mCurrentBackbufferIndex];
 		}
 
 	private:
@@ -218,7 +221,8 @@ namespace Yes
 		COMRef<ID3D12CommandQueue> m3DCommandQueue;
 		
 		//frame stats
-		int mCurrentFrameIndex = 0;
+		int mCurrentBackbufferIndex = 0;
+		int mCurrentFrameIndex =  - 1;
 		static const int NFrames = 3;
 		DX12FrameState* mFrameStates[NFrames];
 

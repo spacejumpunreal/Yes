@@ -1,13 +1,12 @@
 - doing
 	- SimpleDX12Renderer
 		- shadowmap
-			- native code procedure
-			- pso include DS format
-			- change normal pass to use seperate buffers
-			- add global texture for shadowmap
+			- adopt Matrix4x4 inverse https://semath.info/src/inverse-cofactor-ex4.html
+			- fix shadow matrix(MView shoul actually be world2view)
 			- Write/Read RT
 			- Shadow shader
 			- Mesh Debug
+			- use handle for frame constant buffer
 			- use 1 buffer for vertex and index buffer, don't know if there's alignment issue
 			- SimplePipeline
 		- TestDriver

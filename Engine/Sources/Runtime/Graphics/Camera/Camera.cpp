@@ -7,16 +7,16 @@ namespace Yes
 	{
 		Camera ret;
 		ret.MPerspective = CalcPerspectiveMatrix(fovY, aspect, near, far);
-		ret.MView = M44F::Identity();
-		ret.MVP = ret.MView * ret.MPerspective;
+		ret.MWorld2View = M44F::Identity();
+		ret.MVP = ret.MWorld2View * ret.MPerspective;
 		return ret;
 	}
 	Camera Camera::BuildOrthogonalCamera(float aspect, float ySize, float near, float far)
 	{
 		Camera ret;
 		ret.MPerspective = CalcOrthogonalMatrix(ySize, aspect, near, far);
-		ret.MView = M44F::Identity();
-		ret.MVP = ret.MView * ret.MPerspective;
+		ret.MWorld2View = M44F::Identity();
+		ret.MVP = ret.MWorld2View * ret.MPerspective;
 		return ret;
 	}
 	bool Camera::IsPerspecive()
@@ -27,15 +27,15 @@ namespace Yes
 	}
 	void Camera::UpdateView(float pitch, float yaw, V3F & position)
 	{
-		MView = CalcViewMatrix(pitch, yaw, position);
-		MVP = MView * MPerspective;
+		MWorld2View = CalcWorld2ViewMatrix(pitch, yaw, position);
+		MVP = MWorld2View * MPerspective;
 	}
 	void Camera::UpdateView(const M44F& view)
 	{
-		MView = view;
-		MVP = MView * MPerspective;
+		MWorld2View = view;
+		MVP = MWorld2View * MPerspective;
 	}
-	M44F CalcViewMatrix(float pitch, float yaw, V3F pos)
+	M44F CalcWorld2ViewMatrix(float pitch, float yaw, V3F pos)
 	{
 		/*
 			Pv * Axisv = Pw * Identity

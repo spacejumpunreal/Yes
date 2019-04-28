@@ -171,9 +171,20 @@ namespace Yes
 		{
 			return std::isnan(x) || std::isnan(y) || std::isnan(z);
 		}
+		Vector3& operator=(const Vector3<T>& other)
+		{
+			x = other.x;
+			y = other.y;
+			z = other.z;
+			return *this;
+		}
 		friend Vector3<T> operator+(const Vector3<T>& l, const Vector3<T>& r)
 		{
 			return Vector3<T>(l.x + r.x, l.y + r.y, l.z + r.z);
+		}
+		friend Vector3<T> operator-(const Vector3<T>& v)
+		{
+			return Vector3<T>(-v.x, -v.y, -v.z);
 		}
 		Vector3<T>& operator+=(const Vector3<T>& r)
 		{
@@ -349,6 +360,65 @@ namespace Yes
 		{
 			for (int i = 0; i < 16; i++)
 				s[i] = a;
+		}
+		T Determinant3x3()
+		{
+			T ret = 0;
+			ret += m[0][0] * (m[1][1] * m[2][2] - m[2][1] * m[1][2]);
+			ret -= m[1][0] * (m[0][1] * m[2][2] - m[0][2] * m[2][1]);
+			ret += m[2][0] * (m[0][1] * m[1][2] - m[0][2] * m[1][1]);
+			return ret;
+		}
+		T SumComponents()
+		{
+			T ret = 0;
+			for (int i = 0; i < 16; ++i)
+			{
+				ret += s[i];
+			}
+			return ret;
+		}
+		T AbsSumComponents()
+		{
+			T ret = 0;
+			for (int i = 0; i < 16; ++i)
+			{
+				ret += std::abs(s[i]);
+			}
+			return ret;
+		}
+		Matrix4x4 Inverse3x3()
+		{
+			Matrix4x4 inv;
+			T invDet = 1.0f / Determinant3x3();
+			for (int i = 0; i < 3; ++i)
+			{
+				inv.m[i][3] = inv.m[3][i] = 0;
+			}
+			inv.m[3][3] = 1;
+
+			inv.m[0][0] = +invDet * (m[1][1] * m[2][2] - m[1][2] * m[2][1]);
+			inv.m[0][1] = -invDet * (m[0][1] * m[2][2] - m[2][1] * m[0][2]);
+			inv.m[0][2] = +invDet * (m[0][1] * m[1][2] - m[1][1] * m[0][2]);
+
+			inv.m[1][0] = -invDet * (m[1][0] * m[2][2] - m[2][0] * m[1][2]);
+			inv.m[1][1] = +invDet * (m[0][0] * m[2][2] - m[2][0] * m[0][2]);
+			inv.m[1][2] = -invDet * (m[0][0] * m[1][2] - m[1][0] * m[0][2]);
+
+			inv.m[2][0] = +invDet * (m[1][0] * m[2][1] - m[2][0] * m[1][1]);
+			inv.m[2][1] = -invDet * (m[0][0] * m[2][1] - m[2][0] * m[0][1]);
+			inv.m[2][2] = +invDet * (m[0][0] * m[1][1] - m[1][0] * m[0][1]);
+			return inv;
+		}
+		Matrix4x4 InverseSRT()
+		{
+			Matrix4x4 cp = *this;
+			auto translation = -cp.Translation();
+			cp.m[3][0] = 0;
+			cp.m[3][1] = 0;
+			cp.m[3][2] = 0;
+			Matrix4x4 r = cp.Inverse3x3();
+			return Matrix4x4::Translate(translation) * r;
 		}
 		static Matrix4x4 Identity(T a = 1)
 		{

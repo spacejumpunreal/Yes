@@ -25,7 +25,8 @@ namespace Yes
 		void StartDescritorTable();
 		void AddDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* handle, size_t count);
 		const DX12DescriptorHeapSpace1& GetHeapSpace() { return mSRVHeap; }
-		size_t GetNextHeapOffset() { return mHeapOffsets[mReadIndex++]; }
+		size_t GetNextHeapRangeStart();
+		size_t GetNextHeapRangeLength();
 	public:
 		ID3D12GraphicsCommandList*			CommandList;
 		const CD3DX12_VIEWPORT				DefaultViewport;

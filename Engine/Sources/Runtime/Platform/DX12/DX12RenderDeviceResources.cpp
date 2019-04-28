@@ -212,7 +212,6 @@ namespace Yes
 			psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE::D3D12_CULL_MODE_BACK;
 			psoDesc.RasterizerState.FrontCounterClockwise = true;
 			psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-			psoDesc.DSVFormat = DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 			psoDesc.DepthStencilState.DepthEnable = TRUE;
 			psoDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS;
 			psoDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
@@ -240,8 +239,9 @@ namespace Yes
 		psoDesc.NumRenderTargets = desc.RTCount;
 		for (int i = 0; i < desc.RTCount; ++i)
 		{
-			psoDesc.RTVFormats[i] = GetTextureFormat(desc.RTs[i]);
+			psoDesc.RTVFormats[i] = GetTextureFormat(desc.RTFormats[i]);
 		}
+		psoDesc.DSVFormat = GetTextureFormat(desc.DSFormat);
 		psoDesc.SampleDesc.Count = 1;
 		CheckSucceeded(dev->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(&mPSO)));
 	}

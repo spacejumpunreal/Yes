@@ -14,13 +14,13 @@ namespace Yes
 		CheckAlways(rtCount < MaxRenderTargets);
 		for (int i = 0; i < rtCount; ++i)
 		{
-			RTs[i] = rts[i];
+			RTFormats[i] = rts[i];
 		}
 	}
 	RenderDevicePSODesc::RenderDevicePSODesc()
 		: RTCount(0)
 	{
-		memset(RTs, 0, sizeof(RTs));
+		memset(RTFormats, 0, sizeof(RTFormats));
 	}
 	bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs)
 	{
@@ -28,7 +28,7 @@ namespace Yes
 			return false;
 		for (int i = 0; i < MaxRenderTargets; ++i)
 		{
-			if (lhs.RTs[i] != rhs.RTs[i])
+			if (lhs.RTFormats[i] != rhs.RTFormats[i])
 				return false;
 		}
 		return true;

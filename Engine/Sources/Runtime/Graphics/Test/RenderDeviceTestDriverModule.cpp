@@ -37,8 +37,9 @@ namespace Yes
 		static const size_t ConstantBufferSize = 512;
 		static const size_t ConstantBufferSlots = 512 / 4;
 		float* mTempBuffer;
+		uint8* mGlobalBuffer;
 		TRef<RenderDeviceTexture> mDepthStencil;
-		TRef<RenderDeviceTexture> mShadowDepth;
+		TRef<RenderDeviceTexture> mShadowDepth[3];
 		std::vector<RenderObject> mObjects;
 		int mFrame;
 		V4F mClearColors[4];
@@ -51,6 +52,7 @@ namespace Yes
 	public:
 		RenderDeviceTestDriverModuleImp()
 			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
+			//: mEyeCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
 			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 100, 0, 100))
 		{
 		}
@@ -60,6 +62,7 @@ namespace Yes
 			tickModule->AddTickable(this);
 			mFileModule = GET_MODULE(FileModule);
 			mTempBuffer = new float[ConstantBufferSlots];
+			mGlobalBuffer = (byte*)new float[ConstantBufferSlots];
 			mFrame = 0;
 			mClearColors[0] = V4F(1, 0, 0, 1);
 			mClearColors[1] = V4F(0, 1, 0, 1);
@@ -94,13 +97,15 @@ namespace Yes
 				RenderDevicePSODesc desc;
 
 				desc.RTCount = 1;
-				desc.RTs[0] = TextureFormat::R8G8B8A8_UNORM;
+				desc.RTFormats[0] = TextureFormat::R8G8B8A8_UNORM;
+				desc.DSFormat = TextureFormat::D32_UNORM_S8_UINT;
 				desc.Shader = normalShader;
 				desc.StateKey = PSOStateKey::Normal;
 				desc.VF = VertexFormat::VF_P3F_T2F;
 				mNormalPSO = mDevice->CreatePSOSimple(desc);
 
 				desc.RTCount = 0;
+				desc.DSFormat = TextureFormat::D32_UNORM_S8_UINT;
 				desc.Shader = shadowShader;
 				desc.StateKey = PSOStateKey::Normal;
 				mShadowPSO = mDevice->CreatePSOSimple(desc);
@@ -147,10 +152,13 @@ namespace Yes
 					(int)size.x, (int)size.y, 
 					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil, 
 					nullptr);
-				mShadowDepth = mDevice->CreateTexture2D(
-					1024, 1024,
-					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil,
-					nullptr);
+				for (int i = 0; i < 3; ++i)
+				{
+					mShadowDepth[i] = mDevice->CreateTexture2D(
+						1024, 1024,
+						TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil,
+						nullptr);
+				}
 			}
 		}
 		void CheckResources()
@@ -171,7 +179,20 @@ namespace Yes
 		void UpdateObjets()
 		{
 			mEyeCamera.UpdateView(mPitch, mYaw, mPosition);
-			mShadowCamera.UpdateView(M44F::LookAt(V3F(0, -1, 0), V3F(0, 1, 0), V3F(0, 100, 0)));
+			mShadowCamera.UpdateView(M44F::LookAt(V3F(0, -1, 0), V3F(1, 0, 0), V3F(0, 50, 0)));
+			{
+				auto mvp = mShadowCamera.GetMVPMatrix();
+				V4F v4 = V4F(0, 0, 0, 1);
+				V4F v42 = V4F(0, 1, 0, 1);
+				V4F transformedV4 = v4 * mvp;
+				transformedV4 = v42 * mvp;
+				transformedV4 = v42 * mvp;
+
+			}
+			
+			memset(mGlobalBuffer, 0, ConstantBufferSize);
+			memcpy(mGlobalBuffer, &mEyeCamera.GetMVPMatrix(), sizeof(M44F));
+			memcpy(mGlobalBuffer + sizeof(M44F), &mShadowCamera.GetMVPMatrix(), sizeof(M44F));
 		}
 		void RenderNormalPass()
 		{
@@ -180,8 +201,7 @@ namespace Yes
 			pass->SetClearColor(mClearColors[3], true, 0);
 			pass->SetDepthStencil(mDepthStencil);
 			pass->SetClearDepth(1.0f, 0, true, true);
-			memcpy(mTempBuffer, &mEyeCamera.GetMVPMatrix(), sizeof(M44F));
-			pass->SetGlobalConstantBuffer(mTempBuffer, ConstantBufferSize);
+			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);
 			for (int i = 0; i < mObjects.size(); ++i)
 			{
 				RenderObject& ro = mObjects[i];
@@ -199,9 +219,11 @@ namespace Yes
 		void RenderShadowPass()
 		{
 			RenderDevicePass* pass = mDevice->AllocPass();
-			pass->SetDepthStencil(mShadowDepth);
+			int fi = mDevice->GetFrameIndex();
+			fi %= 3;
+			pass->SetDepthStencil(mShadowDepth[fi]);
 			pass->SetClearDepth(1.0, 0, true, false);
-			memcpy(mTempBuffer, &mShadowCamera.GetMVPMatrix(), sizeof(M44F));
+			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);
 			for (int i = 0; i < mObjects.size(); ++i)
 			{
 				RenderObject& ro = mObjects[i];
@@ -217,7 +239,7 @@ namespace Yes
 		{
 			UpdateObjets();
 			mDevice->BeginFrame();
-			//RenderShadowPass();
+			RenderShadowPass();
 			RenderNormalPass();
 			mDevice->EndFrame();
 			++mFrame;

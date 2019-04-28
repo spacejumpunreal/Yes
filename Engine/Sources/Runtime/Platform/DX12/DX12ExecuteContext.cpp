@@ -37,5 +37,20 @@ namespace Yes
 			D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 		mWriteOffset += count;
 	}
+	size_t DX12RenderPassContext::GetNextHeapRangeStart()
+	{ 
+		return mHeapOffsets[mReadIndex++]; 
+	}
+	size_t DX12RenderPassContext::GetNextHeapRangeLength()
+	{
+		if (mReadIndex == mHeapOffsets.size() - 1)
+		{
+			return mSRVHeapSize - mHeapOffsets[mReadIndex];
+		}
+		else
+		{
+			return mHeapOffsets[mReadIndex + 1] - mHeapOffsets[mReadIndex];
+		}
+	}
 }
 
