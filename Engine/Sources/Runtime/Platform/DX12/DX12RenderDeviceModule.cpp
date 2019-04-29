@@ -23,7 +23,7 @@
 #include <cstring>
 #include <algorithm>
 
-#define VALIDATION_LEVEL 2
+#define VALIDATION_LEVEL 1
 
 namespace Yes
 {

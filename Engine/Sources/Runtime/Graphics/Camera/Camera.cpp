@@ -30,9 +30,9 @@ namespace Yes
 		MWorld2View = CalcWorld2ViewMatrix(pitch, yaw, position);
 		MVP = MWorld2View * MPerspective;
 	}
-	void Camera::UpdateView(const M44F& view)
+	void Camera::UpdateView(const M44F& world2view)
 	{
-		MWorld2View = view;
+		MWorld2View = world2view;
 		MVP = MWorld2View * MPerspective;
 	}
 	M44F CalcWorld2ViewMatrix(float pitch, float yaw, V3F pos)

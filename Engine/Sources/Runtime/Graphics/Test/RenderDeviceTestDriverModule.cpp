@@ -53,7 +53,7 @@ namespace Yes
 		RenderDeviceTestDriverModuleImp()
 			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
 			//: mEyeCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
-			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 100, 0, 100))
+			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 8, 0, 100))
 		{
 		}
 		virtual void InitializeModule(System* system) override
@@ -179,15 +179,17 @@ namespace Yes
 		void UpdateObjets()
 		{
 			mEyeCamera.UpdateView(mPitch, mYaw, mPosition);
-			mShadowCamera.UpdateView(M44F::LookAt(V3F(0, -1, 0), V3F(1, 0, 0), V3F(0, 50, 0)));
+			auto v2w = M44F::LookAt(V3F(0, -1, 0), V3F(1, 0, 0), V3F(0, 50, 20));
+			auto w2v = v2w.Inverse();
+			mShadowCamera.UpdateView(w2v);
 			{
 				auto mvp = mShadowCamera.GetMVPMatrix();
 				V4F v4 = V4F(0, 0, 0, 1);
-				V4F v42 = V4F(0, 1, 0, 1);
+				V4F v42 = V4F(0, 3, 20, 1);
 				V4F transformedV4 = v4 * mvp;
 				transformedV4 = v42 * mvp;
-				transformedV4 = v42 * mvp;
-
+				auto transformedV44 = v42 * w2v;
+				transformedV44 = v42 * w2v;
 			}
 			
 			memset(mGlobalBuffer, 0, ConstantBufferSize);

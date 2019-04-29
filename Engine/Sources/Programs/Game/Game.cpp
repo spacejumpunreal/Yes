@@ -37,6 +37,7 @@ namespace Yes
 }
 int main(int argc, const char** argv)
 {
+	Yes::TestMath();
 	std::vector<const char*> args
 	{
 		"module=TickModule",
