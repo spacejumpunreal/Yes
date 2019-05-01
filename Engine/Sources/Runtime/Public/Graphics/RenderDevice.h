@@ -10,14 +10,24 @@ namespace Yes
 {
 	struct RenderDeviceDrawcall;
 
+	enum class RenderDeviceResourceState
+	{
+		STATE_COMMON,
+		RENDER_TARGET,
+		DEPTH_WRITE,
+		SHADER_RESOURCE,
+		UNORDERED_ACCESS,
+	};
 	class RenderDeviceResource : public SharedObject
 	{
 	public:
 		virtual ~RenderDeviceResource()
 		{}
+		virtual void SetName(wchar_t* name) {}
 		virtual bool IsReady() = 0; // check if is ready to use
-	protected:
-
+		virtual void SetState(RenderDeviceResourceState state);
+		virtual RenderDeviceResourceState GetState();
+		virtual void* GetTransitionTarget();
 	};
 	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;
 	typedef enum class VertexFormat : byte
@@ -99,8 +109,7 @@ namespace Yes
 		virtual void Prepare(void* ctx) = 0;
 		virtual void Execute(void* ctx) = 0;
 		virtual size_t GetDescriptorHeapSlotCount() = 0;
-	public:
-		RenderCommandType CommandType;
+		virtual RenderCommandType GetCommandType() = 0;
 	};
 	class RenderDevicePass
 	{
@@ -115,6 +124,7 @@ namespace Yes
 		virtual void SetClearColor(const V4F& clearColor, bool needed, int idx) = 0;
 		virtual void SetDepthStencil(const RenderDeviceTextureRef& depthStencil) = 0;
 		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) = 0;
+		virtual void SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture) = 0;
 		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
 		virtual RenderDeviceTextureRef GetBackbuffer() = 0;
 	protected:
@@ -127,6 +137,13 @@ namespace Yes
 		virtual void SetTextures(int idx, RenderDeviceTexture* texture) = 0;
 		virtual void SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass) = 0;
 		virtual void SetPSO(RenderDevicePSO* pso) = 0;
+		RenderCommandType GetCommandType() { return RenderCommandType::Drawcall; }
+	};
+	struct RenderDeviceBarrier : public RenderDeviceCommand
+	{
+	public:
+		virtual void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) = 0;
+		RenderCommandType GetCommandType() { return RenderCommandType::Barrier; }
 	};
 	enum class TextureUsage
 	{

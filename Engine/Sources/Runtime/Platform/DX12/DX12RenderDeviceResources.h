@@ -25,6 +25,8 @@ namespace Yes
 	static const size_t MemoryAllocatorTypeCount = 3;
 	static const size_t DescriptorHeapAllocatorTypeCount = 3;
 
+	D3D12_RESOURCE_STATES StateAbstract2Device(RenderDeviceResourceState st);
+	RenderDeviceResourceState StateDevice2Abstract(D3D12_RESOURCE_STATES st);
 
 	class IDX12ResourceRequest
 	{
@@ -76,18 +78,15 @@ namespace Yes
 		static DX12ResourceManager*				Instance;
 	};
 
-	class DX12ResourceBase
+	class DX12ResourceStateHelper //helper for you to implement some interfaces in RenderDeviceResource
 	{
 	public:
-		DX12ResourceBase();
-		virtual void SetName(wchar_t* name) = 0;
-		//have to be virtual becasue we do not know what is the resource to transit
-		virtual void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) = 0;
-		D3D12_RESOURCE_STATES GetState() { return mState; }
+		DX12ResourceStateHelper();
+		RenderDeviceResourceState GetAbstractState();
+		void SetAbstractState(RenderDeviceResourceState state);
 	protected:
-		D3D12_RESOURCE_STATES mState;
+		D3D12_RESOURCE_STATES mDeviceState;
 	};
-
 	//non GPU resources
 	class DX12ConstantBuffer : public RenderDeviceConstantBuffer
 	{
@@ -136,19 +135,18 @@ namespace Yes
 		CD3DX12_VIEWPORT                      mViewPort;
 		CD3DX12_RECT mScissor;
 	};
-
 	//GPU resources: need to care about memory and maybe DescriptorHeap
-	class DX12Mesh : public RenderDeviceMesh, public DX12ResourceBase
+	class DX12Mesh : public RenderDeviceMesh
 	{
 	public:
 		DX12Mesh(size_t streamSizes[], size_t strides[], size_t indexCount, D3D12_RESOURCE_DESC desc[]);
 		void Destroy() override;
+		void SetName(wchar_t* name) override;
+		bool IsReady() override { return mIsReady; }
+	public:
 		void Apply(ID3D12GraphicsCommandList* cmdList);
 		UINT GetIndexCount() { return mIndexCount; }
-		bool IsReady() override { return mIsReady; }
-		void SetName(wchar_t* name) override;
 		void AsyncInit(ISharedBuffer* bufferData[], size_t vertexStride, size_t indexStride, D3D12_RESOURCE_DESC desc[]);
-		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
 	private:
 		bool                                            mIsReady;
 		ID3D12Resource*                                 mDeviceResource[2];
@@ -158,17 +156,22 @@ namespace Yes
 		UINT											mIndexCount;
 		friend class                                    DX12RenderDeviceMeshCopyRequest;
 	};
-	class DX12Texture2D : public RenderDeviceTexture, public DX12ResourceBase
+	class DX12Texture2D : public RenderDeviceTexture, private DX12ResourceStateHelper
 	{
 	public:
 		DX12Texture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc);
 		DX12Texture2D(ID3D12Resource* resource, TextureFormat format, TextureUsage usage);
 		void Destroy() override;
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(TextureUsage usage);
-		bool IsReady() override { return mIsReady; }
 		void SetName(wchar_t* name);
+		bool IsReady() override { return mIsReady; }
+		void SetState(RenderDeviceResourceState state) override;
+		RenderDeviceResourceState GetState() override;
+		void* GetTransitionTarget() override;
+	public:
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(TextureUsage usage);
 		void AsyncInit(RawImage* image, D3D12_RESOURCE_DESC* desc);
-		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList) override;
+		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
+		
 	protected:
 		void InitTexture(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc);
 		void InitHandles();

@@ -4,6 +4,23 @@
 
 namespace Yes
 {
+	//RenderDeviceResource
+	void RenderDeviceResource::SetState(RenderDeviceResourceState state)
+	{
+		CheckAlways(false, "not supposed to be called");
+	}
+
+	RenderDeviceResourceState RenderDeviceResource::GetState()
+	{
+		CheckAlways(false, "not supposed to be called");
+		return RenderDeviceResourceState::STATE_COMMON;
+	}
+	void* RenderDeviceResource::GetTransitionTarget()
+	{
+		CheckAlways(false, "not supposed to be called");
+		return nullptr;
+	}
+
 	//RenderDevicePSODesc
 	RenderDevicePSODesc::RenderDevicePSODesc(VertexFormat vf, RenderDeviceShaderRef& shader, PSOStateKey stateKey, TextureFormat rts[], int rtCount)
 		: Shader(shader)
@@ -33,4 +50,5 @@ namespace Yes
 		}
 		return true;
 	}
+
 }

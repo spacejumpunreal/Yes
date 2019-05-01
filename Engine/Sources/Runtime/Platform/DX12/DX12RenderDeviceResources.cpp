@@ -71,6 +71,44 @@ namespace Yes
 		}
 		return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
 	}
+	D3D12_RESOURCE_STATES StateAbstract2Device(RenderDeviceResourceState st)
+	{
+		switch (st)
+		{
+		case RenderDeviceResourceState::STATE_COMMON:
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+		case RenderDeviceResourceState::RENDER_TARGET:
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET;
+		case RenderDeviceResourceState::DEPTH_WRITE:
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_DEPTH_WRITE;
+		case RenderDeviceResourceState::SHADER_RESOURCE:
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+		case RenderDeviceResourceState::UNORDERED_ACCESS:
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+		default:
+			CheckAlways(false);
+			return D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON;
+		}
+	}
+	RenderDeviceResourceState StateDevice2Abstract(D3D12_RESOURCE_STATES st)
+	{
+		switch (st)
+		{
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON:
+			return RenderDeviceResourceState::STATE_COMMON;
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_RENDER_TARGET:
+			return RenderDeviceResourceState::RENDER_TARGET;
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_DEPTH_WRITE:
+			return RenderDeviceResourceState::DEPTH_WRITE;
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+			return RenderDeviceResourceState::SHADER_RESOURCE;
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_UNORDERED_ACCESS:
+			return RenderDeviceResourceState::UNORDERED_ACCESS;
+		default:
+			CheckAlways(false);
+			return RenderDeviceResourceState::STATE_COMMON;
+		}
+	}
 
 	DX12ResourceManager* DX12ResourceManager::Instance;
 	DX12ResourceManager::DX12ResourceManager(ID3D12Device* dev)
@@ -176,6 +214,8 @@ namespace Yes
 	{
 		return *mSyncDescriptorHeapAllocator[GetDescriptorHeapAllocatorIndex(resourceType)];
 	}
+
+	//DX12ResourceBase
 
 	//shader
 	DX12Shader::DX12Shader(ID3D12Device* dev, const char* body, size_t size, const char* name)
@@ -307,7 +347,7 @@ namespace Yes
 			mResource->mIsReady = true;
 			for (int i = 0; i < 2; ++i)
 			{
-				mTempResource[i]->Release();
+				ReleaseCOM(mTempResource[i]);
 				creator->GetTempBufferAllocator(ResourceType::Buffer).Free(mTempMemRegion[i]);
 			}
 			delete this;
@@ -378,7 +418,7 @@ namespace Yes
 		IDX12GPUMemoryAllocator& allocator = manager.GetSyncPersistentAllocator(ResourceType::Buffer);
 		for (int i = 0; i < 2; ++i)
 		{
-			mDeviceResource[i]->Release();
+			ReleaseCOM(mDeviceResource[i]);
 			allocator.Free(mMemoryRegion[i]);
 		}
 		SharedObject::Destroy();
@@ -389,14 +429,18 @@ namespace Yes
 			this, bufferData, vertexStride, indexStride, desc);
 		DX12ResourceManager::GetDX12DeviceResourceManager().AddRequest(req);
 	}
-	void DX12Mesh::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
-	{
-		CheckAlways(false);
-	}
-	//DX12ResourceBase
-	DX12ResourceBase::DX12ResourceBase()
-		: mState(D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
+	//DX12ResourceStateHelper
+	DX12ResourceStateHelper::DX12ResourceStateHelper()
+		: mDeviceState(D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_COMMON)
 	{}
+	RenderDeviceResourceState DX12ResourceStateHelper::GetAbstractState()
+	{
+		return StateDevice2Abstract(mDeviceState);
+	}
+	void DX12ResourceStateHelper::SetAbstractState(RenderDeviceResourceState state)
+	{
+		mDeviceState = StateAbstract2Device(state);
+	}
 	//DX12Texture2D
 	class DX12RenderDeviceTexture2DCopyRequest : public IDX12ResourceRequest
 	{
@@ -448,11 +492,8 @@ namespace Yes
 		void FinishRequest(DX12ResourceManager* creator) override
 		{
 			mResource->mIsReady = true;
-			for (int i = 0; i < 2; ++i)
-			{
-				mTempResource->Release();
-				creator->GetTempBufferAllocator(ResourceType::Buffer);
-			}
+			ReleaseCOM(mTempResource);
+			creator->GetTempBufferAllocator(ResourceType::Buffer).Free(mTempMemoryRegion);
 			delete this;
 		}
 	private:
@@ -482,7 +523,7 @@ namespace Yes
 	}
 	void DX12Texture2D::Destroy()
 	{
-		mTexture->Release();
+		ReleaseCOM(mTexture);
 	}
 	void DX12Texture2D::InitTexture(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc)
 	{
@@ -587,6 +628,14 @@ namespace Yes
 	{
 		mTexture->SetName(name);
 	}
+	void DX12Texture2D::SetState(RenderDeviceResourceState state)
+	{
+		DX12ResourceStateHelper::SetAbstractState(state);
+	}
+	RenderDeviceResourceState DX12Texture2D::GetState()
+	{
+		return DX12ResourceStateHelper::GetAbstractState();
+	}
 	void DX12Texture2D::AsyncInit(RawImage * image, D3D12_RESOURCE_DESC* desc)
 	{
 		DX12ResourceManager& manager = DX12ResourceManager::GetDX12DeviceResourceManager();
@@ -595,10 +644,15 @@ namespace Yes
 	}
 	void DX12Texture2D::TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList)
 	{
-		if (mState != newState)
+		D3D12_RESOURCE_STATES& devState = DX12ResourceStateHelper::mDeviceState;
+		if (DX12ResourceStateHelper::mDeviceState != newState)
 		{
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexture, mState, newState));
-			mState = newState;
+			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexture, devState, newState));
+			devState = newState;
 		}
+	}
+	void* DX12Texture2D::GetTransitionTarget()
+	{
+		return mTexture;
 	}
 }

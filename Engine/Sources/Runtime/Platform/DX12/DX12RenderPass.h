@@ -7,6 +7,7 @@
 #include "Platform/DX12/DX12FrameState.h"
 #include "Platform/DX12/DX12RenderDeviceModule.h"
 #include "Platform/DX12/DX12RenderDeviceResources.h"
+#include <vector>
 #include <deque>
 
 namespace Yes
@@ -26,26 +27,30 @@ namespace Yes
 		void SetClearColor(const V4F& clearColor, bool needed, int idx) override;
 		void SetDepthStencil(const RenderDeviceTextureRef& depthStencil) override;
 		void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) override;
+		void SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture) override;
 		void SetGlobalConstantBuffer(void* data, size_t size) override;
-		RenderDeviceTextureRef GetBackbuffer() override;
+
+		RenderDeviceTextureRef GetBackbuffer()  override;
 		void Execute(DX12RenderPassContext& context);
 		DX12FrameState* GetFrameState() { return mFrameState; }
 		size_t GetDescriptorHeapSize() { return mDescritptorHeapSize; }
 		void CollectDescriptorHeapSize();
 		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalConstantBufferGPUAddress();
+		void Prepare(DX12RenderPassContext* ctx);
 	private:
-		std::deque<RenderDeviceCommand*>   mCommands;
-		TRef<DX12Texture2D>				   mOutputTarget[8];
-		V4F								   mClearColorValues[8];
-		bool                               mNeedClearColor[8];
-		TRef<DX12Texture2D>				   mDepthStencil;
-		float                              mClearDepthValue;
-		uint8                              mClearStencilValue;
-		bool                               mNeedClearDepth;
-		bool                               mNeedClearStencil;
-		DX12FrameState*                    mFrameState;
-		DX12GPUBufferRegion                mConstantBuffer;
-		DX12RenderCommandPool*			   mCommandPool;
-		size_t							   mDescritptorHeapSize;
+		std::deque<RenderDeviceCommand*>        mCommands;
+		TRef<DX12Texture2D>				        mOutputTarget[8];
+		V4F								        mClearColorValues[8];
+		bool                                    mNeedClearColor[8];
+		TRef<DX12Texture2D>				        mDepthStencil;
+		float                                   mClearDepthValue;
+		uint8                                   mClearStencilValue;
+		bool                                    mNeedClearDepth;
+		bool                                    mNeedClearStencil;
+		DX12FrameState*                         mFrameState;
+		DX12GPUBufferRegion                     mConstantBuffer;
+		std::vector<TRef<DX12Texture2D>>		mTextures;
+		DX12RenderCommandPool*			        mCommandPool;
+		size_t							        mDescritptorHeapSize;
 	};
 }

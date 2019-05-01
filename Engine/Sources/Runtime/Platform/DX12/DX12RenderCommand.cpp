@@ -46,10 +46,10 @@ namespace Yes
 	}
 	void DX12RenderCommandPool::FreeCommand(RenderDeviceCommand * command)
 	{
-		mFactories[(int)command->CommandType]->FreeCommand(command);
+		mFactories[(int)command->GetCommandType()]->FreeCommand(command);
 	}
 
-	//DX12RenderDeviceDrawcall
+	//DX12Drawcall
 	void DX12Drawcall::Reset()
 	{
 		Mesh = nullptr;
@@ -103,19 +103,58 @@ namespace Yes
 		gl->SetGraphicsRootConstantBufferView(0, context->GlobalConstantBufferGPUAddress.ptr);
 		//local constant buffer
 		gl->SetGraphicsRootConstantBufferView(1, ConstantBuffer.GetGPUAddress());
+		//global textures
+		if (context->GetGlobalDescriptorTableSize() > 0)
+		{
+			gl->SetGraphicsRootDescriptorTable(2, context->GetGlobalDescriptorTableHandle());
+		}
+		//local textures
 		size_t len = context->GetNextHeapRangeLength();
 		size_t idx = (int)context->GetNextHeapRangeStart();
 		if (len > 0)
 		{
 			D3D12_GPU_DESCRIPTOR_HANDLE handle = context->GetHeapSpace().GetGPUHandle((int)idx);
-			gl->SetGraphicsRootDescriptorTable(2, handle);
+			gl->SetGraphicsRootDescriptorTable(3, handle);
 		}
 		Mesh->Apply(gl);
 		UINT ic = Mesh->GetIndexCount();
 		gl->DrawIndexedInstanced(ic, 1, 0, 0, 0);
 	}
+	//DX12Drawcall
 	size_t DX12Drawcall::GetDescriptorHeapSlotCount()
 	{
 		return Textures.size();
+	}
+	void DX12Barrier::Reset()
+	{
+		mResourceBarriers.clear();
+	}
+	void DX12Barrier::Execute(void* ctx)
+	{
+		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
+		ID3D12GraphicsCommandList* gl = context->CommandList;
+		std::vector<D3D12_RESOURCE_BARRIER> barriers;
+		for (int i = 0; i < mResourceBarriers.size(); ++i)
+		{
+			auto* devResource = (ID3D12Resource*)mResourceBarriers[i].Resource->GetTransitionTarget();
+			D3D12_RESOURCE_STATES prevState = StateAbstract2Device(mResourceBarriers[i].Resource->GetState());
+			D3D12_RESOURCE_STATES newState = StateAbstract2Device(mResourceBarriers[i].NewState);
+			if (prevState != newState)
+			{
+				barriers.push_back(CD3DX12_RESOURCE_BARRIER::Transition(
+					devResource,
+					prevState,
+					newState));
+				mResourceBarriers[i].Resource->SetState(mResourceBarriers[i].NewState);
+			}
+		}
+		if (barriers.size() > 0)
+		{
+			gl->ResourceBarrier((UINT)barriers.size(), barriers.data());
+		}
+	}
+	void DX12Barrier::AddResourceBarrier(const TRef<RenderDeviceResource>& resource, RenderDeviceResourceState newState)
+	{
+		mResourceBarriers.push_back({ resource, newState });
 	}
 }

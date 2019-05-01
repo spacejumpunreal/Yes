@@ -1,6 +1,8 @@
 #pragma once
 #include "Yes.h"
 #include "Platform/DX12/DX12ResourceSpace.h"
+#include "Platform/DX12/DX12RenderDeviceResources.h"
+#include "Misc/SharedObject.h"
 
 #include <d3d12.h>
 #include "Platform/DX12/d3dx12.h"
@@ -27,6 +29,9 @@ namespace Yes
 		const DX12DescriptorHeapSpace1& GetHeapSpace() { return mSRVHeap; }
 		size_t GetNextHeapRangeStart();
 		size_t GetNextHeapRangeLength();
+		void Prepare(TRef<DX12Texture2D> textures[], size_t count);
+		size_t GetGlobalDescriptorTableSize() { return mGlobalDescriptorTableSize; }
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalDescriptorTableHandle() { return mGlobalDescriptorTableHandle; }
 	public:
 		ID3D12GraphicsCommandList*			CommandList;
 		const CD3DX12_VIEWPORT				DefaultViewport;
@@ -39,6 +44,7 @@ namespace Yes
 		std::vector<size_t> mHeapOffsets;
 		size_t mWriteOffset;
 		size_t mReadIndex;
-
+		size_t mGlobalDescriptorTableSize;
+		D3D12_GPU_DESCRIPTOR_HANDLE mGlobalDescriptorTableHandle;
 	};
 }

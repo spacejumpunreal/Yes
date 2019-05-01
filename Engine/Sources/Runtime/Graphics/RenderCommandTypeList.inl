@@ -1,1 +1,2 @@
 DefineLabel(Drawcall),
+DefineLabel(Barrier),

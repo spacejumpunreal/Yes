@@ -197,6 +197,7 @@ namespace Yes
 				heapSize,
 				mDevice.GetPtr()
 			);
+			pass->Prepare(&ctx);
 			pass->Execute(ctx);
 			state->GetCommandManager().CloseAndExecuteCommandList();
 			pass->Reset();

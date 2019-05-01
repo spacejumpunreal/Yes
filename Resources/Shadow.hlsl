@@ -11,8 +11,6 @@ struct ObjectConstants
 ConstantBuffer<GlobalConstants> cGlobal : register(b0);
 ConstantBuffer<ObjectConstants> cObject: register(b1);
 
-SamplerState mSampler : register(s0);
-
 struct VSInput
 {
 	float3 position : POSITION;
@@ -23,19 +21,13 @@ struct VSInput
 struct PSInput
 {
 	float4 position : SV_POSITION;
-	float3 wpos : TEXCOORD0;
-	float3 normal: TEXCOORD1;
-	float2 uv : TEXCOORD2;
 };
 
 PSInput VSMain(VSInput input)
 {
 	PSInput result;
-	float4x4 wvp = mul(cGlobal.MShadowViewPerspective, cObject.MWorld);
-	result.position = mul(wvp, float4(input.position, 1));
-	result.wpos = input.position;
-	result.normal = input.normal;
-	result.uv = input.uv;
+	float4 wpos = mul(cObject.MWorld, float4(input.position, 1));
+	result.position = mul(cGlobal.MShadowViewPerspective, wpos);
 	return result;
 }
 

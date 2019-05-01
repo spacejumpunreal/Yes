@@ -1,5 +1,6 @@
 #include "Platform/DX12/DX12ExecuteContext.h"
 #include "Platform/DX12/DX12Parameters.h"
+#include "Platform/DX12/DX12RenderDeviceResources.h"
 #include "Misc/Debug.h"
 #include "d3d12.h"
 
@@ -22,6 +23,8 @@ namespace Yes
 		, mDevice(dev)
 		, mWriteOffset(0)
 		, mReadIndex(0)
+		, mGlobalDescriptorTableSize(0)
+		, mGlobalDescriptorTableHandle({})
 	{}
 	void DX12RenderPassContext::StartDescritorTable()
 	{
@@ -51,6 +54,16 @@ namespace Yes
 		{
 			return mHeapOffsets[mReadIndex + 1] - mHeapOffsets[mReadIndex];
 		}
+	}
+	void DX12RenderPassContext::Prepare(TRef<DX12Texture2D> textures[], size_t count)
+	{
+		for (int i = 0; i < count; ++i)
+		{
+			DX12Texture2D* tex = (DX12Texture2D*)textures[i].GetPtr();
+			AddDescriptor(&tex->GetCPUHandle(TextureUsage::ShaderResource), 1);
+		}
+		mGlobalDescriptorTableHandle = mSRVHeap.GetGPUHandle(0);
+		mGlobalDescriptorTableSize = count;
 	}
 }
 

@@ -33,18 +33,37 @@ namespace Yes
 	{
 	public:
 		void Reset() override;
+		void Prepare(void* ctx) override;
+		void Execute(void* ctx) override;
+		size_t GetDescriptorHeapSlotCount() override;
+
 		void SetMesh(RenderDeviceMesh* mesh) override;
 		void SetTextures(int idx, RenderDeviceTexture* texture) override;
 		void SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass);
 		void SetPSO(RenderDevicePSO* pso) override;
-		void Prepare(void* ctx) override;
-		void Execute(void* ctx) override;
-		size_t GetDescriptorHeapSlotCount() override;
+
 	public:
 		TRef<DX12Mesh> Mesh;
 		DX12GPUBufferRegion ConstantBuffer;
 		TRef<DX12PSO> PSO;
 		std::vector<TRef<DX12Texture2D>> Textures;
+	};
+	class DX12Barrier : public RenderDeviceBarrier
+	{
+	public:
+		void Reset() override;
+		void Prepare(void* ctx) override {}
+		void Execute(void* ctx) override;
+
+		size_t GetDescriptorHeapSlotCount() override { return 0; }
+		void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) override;
+	public:
+		struct ResourceBarrierItem
+		{
+			TRef<RenderDeviceResource> Resource;
+			RenderDeviceResourceState NewState;
+		};
+		std::vector<ResourceBarrierItem> mResourceBarriers;
 	};
 }
 

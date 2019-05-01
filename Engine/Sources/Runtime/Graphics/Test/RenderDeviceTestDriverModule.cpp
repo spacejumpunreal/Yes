@@ -53,7 +53,7 @@ namespace Yes
 		RenderDeviceTestDriverModuleImp()
 			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
 			//: mEyeCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
-			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 8, 0, 100))
+			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 20, 0, 100))
 		{
 		}
 		virtual void InitializeModule(System* system) override
@@ -115,21 +115,24 @@ namespace Yes
 				size_t vertexStride = 8 * 4;//P3FN3FUV2F
 				size_t indexStride = 4;
 				{
-					mObjects.push_back({});
-					RenderObject& ro = mObjects.back();
 					auto vb = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_vb.bin");
 					auto ib = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyHead_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
-					ro.Mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+					RenderDeviceMeshRef mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 
 					auto baseMapBlob = mFileModule->ReadFileContent("Model/MonkeyHead/MonkeyBody.png");
 					TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
-					ro.Texture = mDevice->CreateTexture2D(
-						0, 0,
-						TextureFormat::R8G8B8A8_UNORM,
-						TextureUsage::ShaderResource,
+					RenderDeviceTextureRef tex = mDevice->CreateTexture2D(
+						0, 0, TextureFormat::R8G8B8A8_UNORM, TextureUsage::ShaderResource, 
 						rimage.GetPtr());
-					ro.Transform = M44F::Translate(V3F(0, 3, 20));
+					for (int i = 0; i < 5; ++i)
+					{
+						mObjects.push_back({});
+						RenderObject& ro = mObjects.back();
+						ro.Mesh = mesh;
+						ro.Texture = tex;
+						ro.Transform = M44F::Translate(V3F((float)(3 * i), 2, (float)(10 + 5 * i)));
+					}
 				}
 				{
 					mObjects.push_back({});
@@ -138,24 +141,40 @@ namespace Yes
 					auto ib = mFileModule->ReadFileContent("Mesh/plane_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
 					ro.Mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
-					auto baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
-					TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
-					ro.Texture = mDevice->CreateTexture2D(
-						0, 0, TextureFormat::R8G8B8A8_UNORM,
-						TextureUsage::ShaderResource, rimage.GetPtr());
+					{
+						auto baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
+						TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
+					}
+					std::vector<RGBA> raw;
+					raw.resize(32 * 32);
+					for (int i = 0; i < 32 * 32; ++i)
+					{
+						raw[i].r = 255;
+						raw[i].g = 255;
+						raw[i].b = 255;
+						raw[i].a = 0;
+					}
+					TRef<RawImage> rimage = new RawImage(32, 32, 4, raw.data());
+					RenderDeviceTextureRef tex = mDevice->CreateTexture2D(
+						0, 0,
+						TextureFormat::R8G8B8A8_UNORM,
+						TextureUsage::ShaderResource,
+						rimage.GetPtr());
+					ro.Texture = tex;
 					ro.Transform = M44F::Scale(V3F(25.0f)) * M44F::Translate(V3F(0, 0, 20.0f));
 				}
 			}
 			{//RTs
 				V2F size = mDevice->GetScreenSize();
 				mDepthStencil = mDevice->CreateTexture2D(
-					(int)size.x, (int)size.y, 
-					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil, 
+					(int)size.x, (int)size.y,
+					TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil,
 					nullptr);
 				for (int i = 0; i < 3; ++i)
 				{
+					size_t Size = 512;
 					mShadowDepth[i] = mDevice->CreateTexture2D(
-						1024, 1024,
+						Size, Size,
 						TextureFormat::D32_UNORM_S8_UINT, TextureUsage::DepthStencil,
 						nullptr);
 				}
@@ -198,19 +217,24 @@ namespace Yes
 		}
 		void RenderNormalPass()
 		{
+			int fi = mFrame % 3;
 			RenderDevicePass* pass = mDevice->AllocPass();
 			pass->SetOutput(pass->GetBackbuffer(), 0);
 			pass->SetClearColor(mClearColors[3], true, 0);
 			pass->SetDepthStencil(mDepthStencil);
 			pass->SetClearDepth(1.0f, 0, true, true);
 			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);
+			{
+				auto* barrier = (RenderDeviceBarrier*)pass->AddCommand(RenderCommandType::Barrier);
+				TRef<RenderDeviceResource> ds = mShadowDepth[fi].GetPtr();
+				barrier->AddResourceBarrier(ds, RenderDeviceResourceState::SHADER_RESOURCE);
+				pass->SetGlobalTexture(0, mShadowDepth[fi]);
+			}
 			for (int i = 0; i < mObjects.size(); ++i)
 			{
 				RenderObject& ro = mObjects[i];
 				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
 				memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
-				//auto tmp = ro.Transform * mEyeCamera.GetMVPMatrix();
-				//memcpy(mTempBuffer, &tmp, sizeof(M44F));
 				dc->SetConstantBuffer(mTempBuffer, ConstantBufferSize, pass);
 				dc->SetMesh(ro.Mesh.GetPtr());
 				dc->SetTextures(0, ro.Texture.GetPtr());
@@ -220,9 +244,8 @@ namespace Yes
 		}
 		void RenderShadowPass()
 		{
+			int fi = mFrame % 3;
 			RenderDevicePass* pass = mDevice->AllocPass();
-			int fi = mDevice->GetFrameIndex();
-			fi %= 3;
 			pass->SetDepthStencil(mShadowDepth[fi]);
 			pass->SetClearDepth(1.0, 0, true, false);
 			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);

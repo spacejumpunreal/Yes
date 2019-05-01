@@ -16,22 +16,23 @@ namespace Yes
 	}
 	void DX12Pass::Reset()
 	{
+		mName.clear();
 		CheckAlways(mCommands.empty());
 		mCommands.clear();
-		mName.clear();
 		for (int i = 0; i < MaxRenderTargets; ++i)
 		{
 			mOutputTarget[i] = nullptr;
 			mClearColorValues[i] = V4F{};
 			mNeedClearColor[i] = true;
 		}
-
-		mNeedClearDepth = true;
-		mNeedClearStencil = true;
+		mDepthStencil = nullptr;
 		mClearDepthValue = 1.0f;
 		mClearStencilValue = 0;
-		mDepthStencil = nullptr;
+		mNeedClearDepth = true;
+		mNeedClearStencil = true;
 		mFrameState = nullptr;
+		mConstantBuffer = {};
+		mTextures.clear();
 		mCommandPool = nullptr;
 		mDescritptorHeapSize = 0;
 	}
@@ -62,6 +63,15 @@ namespace Yes
 		mNeedClearDepth = neededDepth;
 		mNeedClearStencil = needStencil;
 	}
+	void DX12Pass::SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture)
+	{
+		DX12Texture2D* tex = dynamic_cast<DX12Texture2D*>(texture.GetPtr());
+		if (idx >= mTextures.size())
+		{
+			mTextures.resize(idx + 1);
+		}
+		mTextures[idx] = tex;
+	}
 	void DX12Pass::SetGlobalConstantBuffer(void* data, size_t size)
 	{
 		const size_t SizeAlign = 4;
@@ -77,6 +87,7 @@ namespace Yes
 	void DX12Pass::CollectDescriptorHeapSize()
 	{
 		mDescritptorHeapSize = 0;
+		mDescritptorHeapSize += mTextures.size();
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			mDescritptorHeapSize += cmd->GetDescriptorHeapSlotCount();
@@ -135,12 +146,12 @@ namespace Yes
 		context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
 		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		ID3D12DescriptorHeap* hs = context.GetHeapSpace().GetHeap();
-		context.CommandList->SetDescriptorHeaps(1, &hs);
 		//context
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Prepare(&context);
 		}
+		context.CommandList->SetDescriptorHeaps(1, &hs);
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Execute(&context);
@@ -152,5 +163,9 @@ namespace Yes
 	D3D12_GPU_DESCRIPTOR_HANDLE DX12Pass::GetGlobalConstantBufferGPUAddress()
 	{
 		return D3D12_GPU_DESCRIPTOR_HANDLE{ mConstantBuffer.GetGPUAddress() };
+	}
+	void DX12Pass::Prepare(DX12RenderPassContext* ctx)
+	{
+		ctx->Prepare(mTextures.data(), mTextures.size());
 	}
 }
