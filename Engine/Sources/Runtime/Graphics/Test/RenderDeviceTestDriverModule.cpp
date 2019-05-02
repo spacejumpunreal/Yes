@@ -53,7 +53,7 @@ namespace Yes
 		RenderDeviceTestDriverModuleImp()
 			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
 			//: mEyeCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
-			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 20, 0, 100))
+			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
 		{
 		}
 		virtual void InitializeModule(System* system) override
@@ -219,10 +219,9 @@ namespace Yes
 		{
 			int fi = mFrame % 3;
 			RenderDevicePass* pass = mDevice->AllocPass();
-			pass->SetOutput(pass->GetBackbuffer(), 0);
-			pass->SetClearColor(mClearColors[3], true, 0);
-			pass->SetDepthStencil(mDepthStencil);
-			pass->SetClearDepth(1.0f, 0, true, true);
+			V2F screenSize = mDevice->GetScreenSize();
+			pass->SetOutput(0, pass->GetBackbuffer(), true, mClearColors[3], pass->GetBackbuffer()->GetDefaultViewport());
+			pass->SetDepthStencil(mDepthStencil, true, 1.0f, true, 0, false, nullptr);
 			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);
 			{
 				auto* barrier = (RenderDeviceBarrier*)pass->AddCommand(RenderCommandType::Barrier);
@@ -246,8 +245,7 @@ namespace Yes
 		{
 			int fi = mFrame % 3;
 			RenderDevicePass* pass = mDevice->AllocPass();
-			pass->SetDepthStencil(mShadowDepth[fi]);
-			pass->SetClearDepth(1.0, 0, true, false);
+			pass->SetDepthStencil(mShadowDepth[fi], true, 1.0f, true, 0, true, &mShadowDepth[fi]->GetDefaultViewport());
 			pass->SetGlobalConstantBuffer(mGlobalBuffer, ConstantBufferSize);
 			for (int i = 0; i < mObjects.size(); ++i)
 			{

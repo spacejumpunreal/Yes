@@ -167,6 +167,7 @@ namespace Yes
 		void SetState(RenderDeviceResourceState state) override;
 		RenderDeviceResourceState GetState() override;
 		void* GetTransitionTarget() override;
+		V3I GetSize() override;
 	public:
 		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(TextureUsage usage);
 		void AsyncInit(RawImage* image, D3D12_RESOURCE_DESC* desc);
@@ -177,6 +178,7 @@ namespace Yes
 		void InitHandles();
 	private:
 		ID3D12Resource* mTexture;
+		V3I mSize;
 		DX12DescriptorHeapSpace1 mHeapSpace[3];
 		TextureFormat mFormat;
 		TextureUsage mUsage;

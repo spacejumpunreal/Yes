@@ -506,7 +506,8 @@ namespace Yes
 	};
 
 	DX12Texture2D::DX12Texture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc)
-		: mFormat(format)
+		: mSize((int32)width, (int32)height, 0)
+		, mFormat(format)
 		, mUsage(usage)
 		, mIsReady(true)
 	{
@@ -518,6 +519,8 @@ namespace Yes
 		, mUsage(usage)
 		, mIsReady(true)
 	{
+		D3D12_RESOURCE_DESC desc = resource->GetDesc();
+		mSize = V3I((int32)desc.Width, (int32)desc.Height, 0);
 		mTexture = resource;
 		InitHandles();
 	}
@@ -654,5 +657,9 @@ namespace Yes
 	void* DX12Texture2D::GetTransitionTarget()
 	{
 		return mTexture;
+	}
+	V3I DX12Texture2D::GetSize()
+	{
+		return mSize;
 	}
 }

@@ -55,22 +55,6 @@ namespace Yes
 	};
 #undef DefineLabel
 	static const int MaxRenderTargets = 8;
-	struct RenderDeviceViewPortDesc
-	{
-		float TopLeftX;
-		float TopLeftY;
-		float Width;
-		float Height;
-		float MinDepth;
-		float MaxDepth;
-	};
-	struct RenderDeviceScissorDesc
-	{
-		int Left;
-		int Top;
-		int Right;
-		int Bottom;
-	};
 	class RenderDeviceShader : public RenderDeviceResource
 	{
 	};
@@ -100,7 +84,11 @@ namespace Yes
 	{};
 	using RenderDeviceMeshRef = TRef<RenderDeviceMesh>;
 	class RenderDeviceTexture : public RenderDeviceResource
-	{};
+	{
+	public:
+		virtual V3I GetSize() = 0;
+		B3F GetDefaultViewport();
+	};
 	using RenderDeviceTextureRef = TRef<RenderDeviceTexture>;
 	class RenderDeviceCommand
 	{
@@ -120,10 +108,8 @@ namespace Yes
 		}
 		virtual void Reset() = 0;
 		virtual RenderDeviceCommand* AddCommand(RenderCommandType cmd) = 0;
-		virtual void SetOutput(const RenderDeviceTextureRef& renderTarget, int idx) = 0;
-		virtual void SetClearColor(const V4F& clearColor, bool needed, int idx) = 0;
-		virtual void SetDepthStencil(const RenderDeviceTextureRef& depthStencil) = 0;
-		virtual void SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil) = 0;
+		virtual void SetOutput(size_t slot, const RenderDeviceTextureRef& renderTarget, bool needClear, const V4F& clearColor, const B3F& viewPort) = 0;
+		virtual void SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport) = 0;
 		virtual void SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture) = 0;
 		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
 		virtual RenderDeviceTextureRef GetBackbuffer() = 0;

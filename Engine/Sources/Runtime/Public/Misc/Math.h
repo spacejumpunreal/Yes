@@ -1,6 +1,7 @@
 #pragma once
 #include "Yes.h"
 #include <cmath>
+#include <algorithm>
 
 namespace Yes
 {
@@ -170,6 +171,14 @@ namespace Yes
 		bool HasNaNs() const
 		{
 			return std::isnan(x) || std::isnan(y) || std::isnan(z);
+		}
+		static Vector3<T> Min(const Vector3<T>& a, const Vector3<T>& b)
+		{
+			return Vector3<T>(std::min(a.x, b.x), std::min(a.y, b.y), std::min(a.z, b.z));
+		}
+		static Vector3<T> Max(const Vector3<T>& a, const Vector3<T>& b)
+		{
+			return Vector3<T>(std::max(a.x, b.x), std::max(a.y, b.y), std::max(a.z, b.z));
 		}
 		Vector3& operator=(const Vector3<T>& other)
 		{
@@ -590,6 +599,43 @@ namespace Yes
 		uint8_t a;
 	};
 	static_assert(sizeof(RGBA) == 4, "size of RGBA should be 32bits");
+	// Bound
+	template<typename T>
+	struct Bound
+	{
+		Vector3<T> Min;
+		Vector3<T> Max;
+
+		static Bound<T> Init2Points(const Vector3<T>& p0, const Vector3<T>& p1)
+		{
+			Bound ret;
+			ret.Min = Vector3<T>::Min(p0, p1);
+			ret.Max = Vector3<T>::Max(p0, p1);
+			return ret;
+		}
+		static Bound<T> InitCenterRadius(const Vector3<T>& center, T r)
+		{
+			Bound ret;
+			ret.Min = center - Vector3<T>(r, r, r);
+			ret.Max = center + Vector3<T>(r, r, r);
+			return ret;
+		}
+		Bound<T> Encapsule(const Vector3<T>& p)
+		{
+			Bound ret;
+			ret.Min = Vector3<T>::Min(p, ret.Min);
+			ret.Max = Vector3<T>::Max(p, ret.Max);
+		}
+		bool IsValid() const
+		{
+			return Min.x <= Max.x && Min.y <= Max.y && Min.z <= Max.z;
+		}
+		Vector3<T> Size() const
+		{
+			return Max - Min;
+		}
+	};
+	typedef Bound<float> B3F;
 }
 
 //useful macros

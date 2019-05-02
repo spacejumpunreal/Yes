@@ -24,12 +24,15 @@ namespace Yes
 			mOutputTarget[i] = nullptr;
 			mClearColorValues[i] = V4F{};
 			mNeedClearColor[i] = true;
+			mViewport[i] = {};
+			mScissor[i] = {};
 		}
 		mDepthStencil = nullptr;
 		mClearDepthValue = 1.0f;
 		mClearStencilValue = 0;
 		mNeedClearDepth = true;
 		mNeedClearStencil = true;
+		mUseDepthOnlyViewport = false;
 		mFrameState = nullptr;
 		mConstantBuffer = {};
 		mTextures.clear();
@@ -42,26 +45,43 @@ namespace Yes
 		mCommands.push_back(cmd);
 		return cmd;
 	}
-	void DX12Pass::SetOutput(const RenderDeviceTextureRef& renderTarget, int idx)
+	void GetDeviceViewport(const V3I& rtSize, const B3F viewport, D3D12_VIEWPORT& deviceViewport, D3D12_RECT& scissor)
+	{
+		deviceViewport = CD3DX12_VIEWPORT(
+			viewport.Min.x, (float)(rtSize.y) - (viewport.Max.y),
+			viewport.Max.x - viewport.Min.x, viewport.Max.y - viewport.Min.y,
+			viewport.Min.z, viewport.Max.z);
+		scissor.left = (LONG)viewport.Min.x;
+		scissor.right = (LONG)(viewport.Max.x);
+		scissor.top = (LONG)(rtSize.y - viewport.Max.y);
+		scissor.bottom = (LONG)(rtSize.y - viewport.Min.y);
+	}
+	void DX12Pass::SetOutput(
+		size_t slot, const RenderDeviceTextureRef& renderTarget, 
+		bool needClear, const V4F& clearColor, 
+		const B3F& viewport)
 	{
 		DX12Texture2D* rt = dynamic_cast<DX12Texture2D*>(renderTarget.GetPtr());
-		mOutputTarget[idx] = rt;
+		mOutputTarget[slot] = rt;
+		mClearColorValues[slot] = clearColor;
+		mNeedClearColor[slot] = needClear;
+		V3I rtSize = rt->GetSize();
+		GetDeviceViewport(rtSize, viewport, mViewport[slot], mScissor[slot]);
 	}
-	void DX12Pass::SetClearColor(const V4F& clearColor, bool needed, int idx)
-	{
-		mClearColorValues[idx] = clearColor;
-		mNeedClearColor[idx] = needed;
-	}
-	void DX12Pass::SetDepthStencil(const RenderDeviceTextureRef& depthStencil)
+
+	void DX12Pass::SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport)
 	{
 		mDepthStencil = dynamic_cast<DX12Texture2D*>(depthStencil.GetPtr());
-	}
-	void DX12Pass::SetClearDepth(float depth, uint8 stencil, bool neededDepth, bool needStencil)
-	{
+		mNeedClearDepth = clearDepth;
 		mClearDepthValue = depth;
+		mNeedClearStencil = clearStencil;
 		mClearStencilValue = stencil;
-		mNeedClearDepth = neededDepth;
-		mNeedClearStencil = needStencil;
+		mUseDepthOnlyViewport = setViewport;
+		if (setViewport)
+		{
+			V3I rtSize = depthStencil->GetSize();
+			GetDeviceViewport(rtSize, *viewport, mDepthOnlyViewport, mDepthOnlyScissor);
+		}
 	}
 	void DX12Pass::SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture)
 	{
@@ -142,8 +162,16 @@ namespace Yes
 			handlePtr = &dsHandle;
 		}
 		context.CommandList->OMSetRenderTargets(activeRTCount, outputRTHandles, FALSE, handlePtr);
-		context.CommandList->RSSetViewports(1, &context.DefaultViewport);
-		context.CommandList->RSSetScissorRects(1, &context.DefaultScissor);
+		if (mUseDepthOnlyViewport)
+		{
+			context.CommandList->RSSetViewports(1, &mDepthOnlyViewport);
+			context.CommandList->RSSetScissorRects(1, &mDepthOnlyScissor);
+		}
+		else
+		{
+			context.CommandList->RSSetViewports(8, mViewport);
+			context.CommandList->RSSetScissorRects(8, mScissor);
+		}
 		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 		ID3D12DescriptorHeap* hs = context.GetHeapSpace().GetHeap();
 		//context

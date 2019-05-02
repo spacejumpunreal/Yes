@@ -50,5 +50,9 @@ namespace Yes
 		}
 		return true;
 	}
-
+	B3F RenderDeviceTexture::GetDefaultViewport()
+	{
+		V3I sz = GetSize();  
+		return B3F::Init2Points(V3F(0, 0, 0), V3F((float)sz.x, (float)sz.y, 1.0f));
+	}
 }
