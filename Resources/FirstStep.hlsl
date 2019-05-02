@@ -74,6 +74,7 @@ float4 PSMain(PSInput input) : SV_TARGET
 	{
 		litColor = float4(1, 0, 1, 0);
 	}
-	return tObject[0].SampleLevel(mSampler, float2(input.uv.x, 1 - input.uv.y), 0) * litColor;
+	return float4(input.normal, 1) * litColor;
+	//return tObject[0].SampleLevel(mSampler, float2(input.uv.x, 1 - input.uv.y), 0) * litColor;
 	//return lit;
 }

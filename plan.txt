@@ -1,9 +1,6 @@
 - doing
 	- SimpleDX12Renderer
 		- shadowmap
-			- global texture
-			- Write/Read RT
-			- shadow map shader
 			- Mesh Debug
 			- use handle for frame constant buffer
 			- use 1 buffer for vertex and index buffer, don't know if there's alignment issue

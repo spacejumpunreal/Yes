@@ -135,26 +135,41 @@ namespace Yes
 					}
 				}
 				{
+					auto vb = mFileModule->ReadFileContent("Model/Statue/Statue_vb.bin");
+					auto ib = mFileModule->ReadFileContent("Model/Statue/Statue_ib.bin");
+					size_t indexCount = ib->GetSize() / indexStride;
+					RenderDeviceMeshRef mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
+
+					/*
+					auto baseMapBlob = mFileModule->ReadFileContent("Model/Statue/BaseColor.jpeg");
+					TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
+					*/
+					TRef<RawImage> rimage = BuildSingleColorTexture(V4F(1, 0, 0, 1), 16, 16);
+					RenderDeviceTextureRef tex = mDevice->CreateTexture2D(
+						0, 0, TextureFormat::R8G8B8A8_UNORM, TextureUsage::ShaderResource,
+						rimage.GetPtr());
+					for (int i = 0; i < 1; ++i)
+					{
+						mObjects.push_back({});
+						RenderObject& ro = mObjects.back();
+						ro.Mesh = mesh;
+						ro.Texture = tex;
+						ro.Transform = M44F::Translate(V3F((float)(3 * i), 0, (float)(10 + 5 * i)));
+					}
+				}
+				{
 					mObjects.push_back({});
 					RenderObject& ro = mObjects.back();
-					auto vb = mFileModule->ReadFileContent("Mesh/plane_vb.bin");
-					auto ib = mFileModule->ReadFileContent("Mesh/plane_ib.bin");
+					auto vb = mFileModule->ReadFileContent("Model/Plane/Plane_vb.bin");
+					auto ib = mFileModule->ReadFileContent("Model/Plane/Plane_ib.bin");
 					size_t indexCount = ib->GetSize() / indexStride;
 					ro.Mesh = mDevice->CreateMeshSimple(vb, ib, vertexStride, indexCount, indexStride);
 					{
 						auto baseMapBlob = mFileModule->ReadFileContent("Model/Plane/Plane_basemap.png");
 						TRef<RawImage> rimage = LoadRawImage(baseMapBlob.GetPtr());
 					}
-					std::vector<RGBA> raw;
-					raw.resize(32 * 32);
-					for (int i = 0; i < 32 * 32; ++i)
-					{
-						raw[i].r = 255;
-						raw[i].g = 255;
-						raw[i].b = 255;
-						raw[i].a = 0;
-					}
-					TRef<RawImage> rimage = new RawImage(32, 32, 4, raw.data());
+					
+					TRef<RawImage> rimage = BuildSingleColorTexture(V4F(1, 1, 1, 1), 16, 16);
 					RenderDeviceTextureRef tex = mDevice->CreateTexture2D(
 						0, 0,
 						TextureFormat::R8G8B8A8_UNORM,

@@ -1,5 +1,6 @@
 #pragma once
 #include "Yes.h"
+#include "Misc/Math.h"
 #include "Misc/SharedObject.h"
 
 namespace Yes
@@ -7,7 +8,7 @@ namespace Yes
 	class RawImage : public SharedObject
 	{
 	public:
-		RawImage(size_t width, size_t height, size_t bpp, void* content);
+		RawImage(size_t width, size_t height, size_t bpp, void* content, size_t actualBpp);
 		~RawImage();
 		size_t GetWidth() { return mWidth; }
 		size_t GetRowSize() { return mWidth * mTexelSize;  }
@@ -21,4 +22,5 @@ namespace Yes
 		void* mData;
 	};
 	TRef<RawImage> LoadRawImage(ISharedBuffer* buffer);
+	TRef<RawImage> BuildSingleColorTexture(const V4F& color, size_t width, size_t height);
 }
