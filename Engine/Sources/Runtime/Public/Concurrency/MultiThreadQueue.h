@@ -40,6 +40,7 @@ namespace Yes
 		template<typename... Args>
 		void PushBack(Args&&... args)
 		{
+			std::unique_lock<std::mutex> lk(mLock);
 			mData.emplace_back(std::forward<Args>(args)...);
 			mCondition.notify_one();
 		}

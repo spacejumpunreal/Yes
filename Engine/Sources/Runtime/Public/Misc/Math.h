@@ -592,6 +592,15 @@ namespace Yes
 			ret.a = (uint8_t)(a * 255);
 			return ret;
 		}
+		static RGBA FromV4F(const V4F& v)
+		{
+			RGBA ret;
+			ret.r = (uint8_t)(v.x * 255);
+			ret.g = (uint8_t)(v.y * 255);
+			ret.b = (uint8_t)(v.z * 255);
+			ret.a = (uint8_t)(v.w * 255);
+			return ret;
+		}
 	public:
 		uint8_t r;
 		uint8_t g;

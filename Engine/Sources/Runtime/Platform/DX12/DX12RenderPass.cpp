@@ -9,12 +9,13 @@
 namespace Yes
 {
 	//DX12RenderDevicePass
-	void DX12Pass::Init(DX12FrameState* state, DX12RenderCommandPool* pool)
+	void DX12RenderPass::Init(DX12FrameState* state, DX12RenderCommandPool* pool, size_t argsCount)
 	{
 		mFrameState = state;
 		mCommandPool = pool;
+		mArgs.resize(argsCount);
 	}
-	void DX12Pass::Reset()
+	void DX12RenderPass::Reset()
 	{
 		mName.clear();
 		CheckAlways(mCommands.empty());
@@ -34,12 +35,10 @@ namespace Yes
 		mNeedClearStencil = true;
 		mUseDepthOnlyViewport = false;
 		mFrameState = nullptr;
-		mConstantBuffer = {};
-		mTextures.clear();
+		mArgs.clear();
 		mCommandPool = nullptr;
-		mDescritptorHeapSize = 0;
 	}
-	RenderDeviceCommand* DX12Pass::AddCommand(RenderCommandType type)
+	RenderDeviceCommand* DX12RenderPass::AddCommand(RenderCommandType type)
 	{
 		RenderDeviceCommand* cmd = mCommandPool->AllocCommand(type);
 		mCommands.push_back(cmd);
@@ -56,7 +55,7 @@ namespace Yes
 		scissor.top = (LONG)(rtSize.y - viewport.Max.y);
 		scissor.bottom = (LONG)(rtSize.y - viewport.Min.y);
 	}
-	void DX12Pass::SetOutput(
+	void DX12RenderPass::SetOutput(
 		size_t slot, const RenderDeviceTextureRef& renderTarget, 
 		bool needClear, const V4F& clearColor, 
 		const B3F& viewport)
@@ -68,8 +67,7 @@ namespace Yes
 		V3I rtSize = rt->GetSize();
 		GetDeviceViewport(rtSize, viewport, mViewport[slot], mScissor[slot]);
 	}
-
-	void DX12Pass::SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport)
+	void DX12RenderPass::SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport)
 	{
 		mDepthStencil = dynamic_cast<DX12Texture2D*>(depthStencil.GetPtr());
 		mNeedClearDepth = clearDepth;
@@ -83,37 +81,16 @@ namespace Yes
 			GetDeviceViewport(rtSize, *viewport, mDepthOnlyViewport, mDepthOnlyScissor);
 		}
 	}
-	void DX12Pass::SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture)
+	void DX12RenderPass::SetArgument(int slot, RenderDeviceDrawcallArgument* arg)
 	{
-		DX12Texture2D* tex = dynamic_cast<DX12Texture2D*>(texture.GetPtr());
-		if (idx >= mTextures.size())
-		{
-			mTextures.resize(idx + 1);
-		}
-		mTextures[idx] = tex;
+		CheckAlways(slot < mArgs.size());
+		mArgs[slot] = arg;
 	}
-	void DX12Pass::SetGlobalConstantBuffer(void* data, size_t size)
-	{
-		const size_t SizeAlign = 4;
-		size_t alignedSize = AlignSize(size, SizeAlign);
-		CheckAlways(alignedSize == size);
-		mConstantBuffer = mFrameState->GetConstantBufferAllocator()->Allocate(alignedSize, SizeAlign);
-		mConstantBuffer.Write(data, size);
-	}
-	RenderDeviceTextureRef DX12Pass::GetBackbuffer()
+	RenderDeviceTextureRef DX12RenderPass::GetBackbuffer()
 	{
 		return mFrameState->GetBackbuffer();
 	}
-	void DX12Pass::CollectDescriptorHeapSize()
-	{
-		mDescritptorHeapSize = 0;
-		mDescritptorHeapSize += mTextures.size();
-		for (RenderDeviceCommand* cmd : mCommands)
-		{
-			mDescritptorHeapSize += cmd->GetDescriptorHeapSlotCount();
-		}
-	}
-	void DX12Pass::Execute(DX12RenderPassContext& context)
+	void DX12RenderPass::Execute(DX12RenderPassContext& context)
 	{
 		UINT activeRTCount;
 		D3D12_CPU_DESCRIPTOR_HANDLE outputRTHandles[MaxRenderTargets];
@@ -135,6 +112,7 @@ namespace Yes
 				break;
 			}
 		}
+		//depth stencil
 		CD3DX12_CPU_DESCRIPTOR_HANDLE dsHandle = {};
 		D3D12_CPU_DESCRIPTOR_HANDLE* handlePtr = nullptr;
 		if (mDepthStencil.GetPtr())
@@ -173,13 +151,11 @@ namespace Yes
 			context.CommandList->RSSetScissorRects(8, mScissor);
 		}
 		context.CommandList->IASetPrimitiveTopology(D3D12_PRIMITIVE_TOPOLOGY::D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		ID3D12DescriptorHeap* hs = context.GetHeapSpace().GetHeap();
 		//context
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Prepare(&context);
 		}
-		context.CommandList->SetDescriptorHeaps(1, &hs);
 		for (RenderDeviceCommand* cmd : mCommands)
 		{
 			cmd->Execute(&context);
@@ -188,12 +164,11 @@ namespace Yes
 		}
 		mCommands.clear();
 	}
-	D3D12_GPU_DESCRIPTOR_HANDLE DX12Pass::GetGlobalConstantBufferGPUAddress()
-	{
-		return D3D12_GPU_DESCRIPTOR_HANDLE{ mConstantBuffer.GetGPUAddress() };
-	}
-	void DX12Pass::Prepare(DX12RenderPassContext* ctx)
-	{
-		ctx->Prepare(mTextures.data(), mTextures.size());
+	void DX12RenderPass::PreparePassArgs(DX12RenderPassContext* ctx)
+	{//set pass global args
+		for (size_t i = 0; i < mArgs.size(); ++i)
+		{
+			mArgs[i]->Apply(i, ctx);
+		}
 	}
 }

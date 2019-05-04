@@ -43,7 +43,12 @@ namespace Yes
 	DX12FrameState::DX12FrameState(ID3D12Device* dev, DX12Texture2D* frameBuffer, ID3D12CommandQueue* cq, int backBufferIndex)
 		: mExpectedValue(0)
 		, mConstantBufferAllocator(CreateDX12LinearBlockBufferAllocator(dev, 512 * 1024, 512 * 1024))
-		, mLinearDescriptorHeapAllocator(CreateShaderVisibileDescriptorHeapAllocator(dev))
+		, mLinearDescriptorHeapAllocator(CreateDX12LinearBlockDescriptorHeapAllocator(
+			dev, 
+			D3D12_DESCRIPTOR_HEAP_TYPE::D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV, 
+			HeapSlotBlockCount, 
+			HeapSlotBlockCount, 
+			true))
 		, mCommandManager(dev, cq, backBufferIndex)
 		, mFrameBuffer(frameBuffer)
 		, mCommandQueue(cq)

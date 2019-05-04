@@ -6,6 +6,8 @@
 #include "Platform/DX12/DX12RenderPass.h"
 #include "Platform/DX12/DX12ExecuteContext.h"
 #include "Platform/DX12/DX12RenderCommand.h"
+#include "Platform/DX12/DX12DrawcallArgument.h"
+#include "Platform/DX12/DX12Device.h"
 #include "Platform/WindowsWindowModule.h"
 #include "Platform/DXUtils.h"
 #include "Memory/ObjectPool.h"
@@ -32,10 +34,40 @@ namespace Yes
 		//forward declarations
 	public:
 		//Resource related
-		RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) override
+		TRef<RenderDeviceConstantBuffer> CreateConstantBuffer(bool isTemp, size_t size) override
 		{
-			DX12ConstantBuffer* cb = new DX12ConstantBuffer(size);
-			return cb; 
+			const size_t testMask = 255;
+			CheckAlways((size & testMask) == 0, "constant buffer must be 256 bytes aligned");
+			IDX12GPUBufferAllocator* allocator;
+			if (isTemp)
+			{
+				DX12FrameState* fs = mFrameStates[mCurrentBackbufferIndex];
+				allocator = fs->GetConstantBufferAllocator();
+			}
+			else
+			{
+				allocator = &mResourceManager->GetPersistentBufferAllocator();
+			}
+			auto region = allocator->Allocate(size, 0);
+			DX12ConstantBufferArgument* arg = new DX12ConstantBufferArgument(region, isTemp ? nullptr : allocator);
+			return arg;
+		}
+		TRef<RenderDeviceDescriptorHeap> CreateDescriptorHeap(bool isTemp, size_t size) override
+		{
+			IDX12DescriptorHeapAllocator* allocator;
+			if (isTemp)
+			{
+				DX12FrameState* fs = mFrameStates[mCurrentBackbufferIndex];
+				allocator = &fs->GetTempDescriptorHeapAllocator();
+			}
+			else
+			{
+				//we need SRV heap and visible
+				allocator = &mResourceManager->GetPersistentDescriptorHeapAllocator(ResourceType::Buffer, true);
+			}
+			auto region = allocator->Allocate(size);
+			RenderDeviceDescriptorHeap* arg = new DX12DescriptorHeap(region, isTemp ? nullptr : allocator);
+			return arg;
 		}
 		RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) override
 		{
@@ -87,10 +119,10 @@ namespace Yes
 			fs->CPUFinish();
 			mSwapChain->Present(1, 0);
 		}
-		RenderDevicePass* AllocPass() override
+		RenderDevicePass* AllocPass(size_t argsCount) override
 		{
-			DX12Pass* pass = mPassPool.Allocate();
-			pass->Init(GetCurrentFrameState(), &mRenderCommandPool);
+			DX12RenderPass* pass = mPassPool.Allocate();
+			pass->Init(GetCurrentFrameState(), &mRenderCommandPool, argsCount);
 			return pass;
 		}
 		V2F GetScreenSize() override
@@ -123,12 +155,12 @@ namespace Yes
 					debugController1->SetEnableGPUBasedValidation(true);
 #endif
 				}
-				
 				CheckSucceeded(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&factory)));
 				COMRef<IDXGIAdapter1> hardwareAdapter;
 				auto featureLevel = D3D_FEATURE_LEVEL_12_1;
 				GetHardwareAdapter(factory.GetPtr(), &hardwareAdapter, featureLevel);
 				CheckSucceeded(D3D12CreateDevice(hardwareAdapter.GetPtr(), featureLevel, IID_PPV_ARGS(&mDevice)));
+				RegisterDX12Device(mDevice.GetPtr());
 			}
 			InitDX12RuntimeParameters(mDevice.GetPtr());
 			{//command queue: 2 queues, 1 for command, 1 for resource copy
@@ -183,27 +215,14 @@ namespace Yes
 		}
 		void ExecutePass(RenderDevicePass* renderPass) override
 		{
-			DX12Pass* pass = (DX12Pass*)renderPass;
+			DX12RenderPass* pass = (DX12RenderPass*)renderPass;
 			DX12FrameState* state = GetCurrentFrameState();
-			pass->CollectDescriptorHeapSize();
-			size_t heapSize = pass->GetDescriptorHeapSize();
-			DX12DescriptorHeapSpace1 heapSpace = state->GetTempDescriptorHeapAllocator().Allocate(heapSize);
-			DX12RenderPassContext ctx(
-				state->GetCommandManager().ResetAndGetCommandList(),
-				CD3DX12_VIEWPORT(0.0f, 0.0f, (float)mScreenWidth, (float)mScreenHeight),
-				CD3DX12_RECT(0, 0, mScreenWidth, mScreenHeight),
-				pass->GetGlobalConstantBufferGPUAddress(),
-				heapSpace,
-				heapSize,
-				mDevice.GetPtr()
-			);
-			pass->Prepare(&ctx);
+			DX12RenderPassContext ctx(state->GetCommandManager().ResetAndGetCommandList(), pass);
 			pass->Execute(ctx);
 			state->GetCommandManager().CloseAndExecuteCommandList();
 			pass->Reset();
 			mPassPool.Deallocate(pass);
 		}
-
 		DX12RenderDeviceModuleImp()
 			: mPassPool(16)
 		{
@@ -228,7 +247,7 @@ namespace Yes
 		DX12FrameState* mFrameStates[NFrames];
 
 		//pass and drawcall
-		ObjectPool<DX12Pass> mPassPool;
+		ObjectPool<DX12RenderPass> mPassPool;
 
 		//submodules
 		DX12ResourceManager* mResourceManager;
@@ -239,7 +258,6 @@ namespace Yes
 		int mScreenHeight;
 		size_t mAllocatorBlockSize;
 
-	private:
 	public:
 		DEFINE_MODULE_IN_CLASS(DX12RenderDeviceModule, DX12RenderDeviceModuleImp);
 	};

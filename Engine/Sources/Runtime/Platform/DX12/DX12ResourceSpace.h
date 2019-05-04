@@ -29,16 +29,18 @@ namespace Yes
 	public:
 		DX12DescriptorHeapSpace1(const DX12DescriptorHeapSpace1& other) = default;
 		DX12DescriptorHeapSpace1(DX12DescriptorHeapSpace1&& other) = default;
-		DX12DescriptorHeapSpace1(ID3D12DescriptorHeap* heap, UINT64 offset, UINT64 stepSize)
+		DX12DescriptorHeapSpace1(ID3D12DescriptorHeap* heap, UINT64 offset, UINT64 stepSize, size_t count)
 			: mHeap(heap)
 			, mOffset(offset)
 			, mStepSize(stepSize)
+			, mCount(count)
 		{}
 		DX12DescriptorHeapSpace1& operator=(DX12DescriptorHeapSpace1&& other)
 		{
 			mHeap = other.mHeap;
 			mOffset = other.mOffset;
 			mStepSize = other.mStepSize;
+			mCount = other.mCount;
 			return *this;
 		}
 		DX12DescriptorHeapSpace1()
@@ -56,23 +58,18 @@ namespace Yes
 		{
 			return mOffset;
 		}
-		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(int slotIndex) const
+		size_t GetSize() const
 		{
-			D3D12_CPU_DESCRIPTOR_HANDLE ret;
-			ret.ptr = (mOffset + slotIndex) * mStepSize + mHeap->GetCPUDescriptorHandleForHeapStart().ptr;
-			return ret;
+			return mCount;
 		}
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(int slotIndex) const
-		{
-			D3D12_GPU_DESCRIPTOR_HANDLE ret;
-			ret.ptr = (mOffset + slotIndex) * mStepSize + mHeap->GetGPUDescriptorHandleForHeapStart().ptr;
-			return ret;
-		}
+		D3D12_CPU_DESCRIPTOR_HANDLE GetCPUHandle(size_t slotIndex) const;
+		D3D12_GPU_DESCRIPTOR_HANDLE GetGPUHandle(size_t slotIndex) const;
 
 	private:
 		ID3D12DescriptorHeap* mHeap;
 		UINT64 mOffset;
 		UINT64 mStepSize;
+		size_t mCount;
 
 		friend class DX12LinearBlockDescriptorHeapAllocator;
 		friend class DX12BestFitDescriptorHeapAllocator;
@@ -82,11 +79,13 @@ namespace Yes
 	{
 	public:
 		DX12GPUBufferRegion(ID3D12Resource* buffer, UINT64 offset, UINT64 size);
+		DX12GPUBufferRegion(const DX12GPUBufferRegion& other) = default;
 		DX12GPUBufferRegion& operator=(const DX12GPUBufferRegion& other) = default;
 		DX12GPUBufferRegion& operator=(DX12GPUBufferRegion&& other) = default;
 		DX12GPUBufferRegion();
-		void Write(void* src, UINT64 size);
+		void Write(void* src, UINT64 size, UINT64 offset);
 		bool IsValid() { return mResource != nullptr; }
+		size_t GetSize() { return mSize; }
 		UINT64 GetGPUAddress();
 	private:
 		UINT64 mOffset;

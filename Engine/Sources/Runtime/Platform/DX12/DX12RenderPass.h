@@ -17,46 +17,41 @@ namespace Yes
 	class RenderDeviceCommand;
 	class DX12RenderCommandPool;
 
-	class DX12Pass : public RenderDevicePass
+	class DX12RenderPass : public RenderDevicePass
 	{
 	public:
-		void Init(DX12FrameState* state, DX12RenderCommandPool* pool);
+		void Init(DX12FrameState* state, DX12RenderCommandPool* pool, size_t argsCount);
 		void Reset() override;
 		RenderDeviceCommand* AddCommand(RenderCommandType type) override;
 		void SetOutput(size_t slot, const RenderDeviceTextureRef& renderTarget, bool needClear, const V4F& clearColor, const B3F& viewPort) override;
 		void SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport) override;
-		void SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture) override;
-		void SetGlobalConstantBuffer(void* data, size_t size) override;
+		void SetArgument(int slot, RenderDeviceDrawcallArgument* arg) override;
 
-		RenderDeviceTextureRef GetBackbuffer()  override;
+		RenderDeviceTextureRef GetBackbuffer() override;
 		void Execute(DX12RenderPassContext& context);
 		DX12FrameState* GetFrameState() { return mFrameState; }
-		size_t GetDescriptorHeapSize() { return mDescritptorHeapSize; }
-		void CollectDescriptorHeapSize();
-		D3D12_GPU_DESCRIPTOR_HANDLE GetGlobalConstantBufferGPUAddress();
-		void Prepare(DX12RenderPassContext* ctx);
+		void PreparePassArgs(DX12RenderPassContext* ctx);
+		size_t GetPassArgCount() { return mArgs.size(); }
 	private:
-		std::deque<RenderDeviceCommand*>        mCommands;
+		std::deque<RenderDeviceCommand*>				mCommands;
 		//rendertarget
-		TRef<DX12Texture2D>				        mOutputTarget[8];
-		V4F								        mClearColorValues[8];
-		bool                                    mNeedClearColor[8];
-		D3D12_VIEWPORT							mViewport[8];
-		D3D12_RECT								mScissor[8];
+		TRef<DX12Texture2D>				                mOutputTarget[8];
+		V4F								                mClearColorValues[8];
+		bool                                            mNeedClearColor[8];
+		D3D12_VIEWPORT							        mViewport[8];
+		D3D12_RECT								        mScissor[8];
 		//depth stencil
-		TRef<DX12Texture2D>				        mDepthStencil;
-		float                                   mClearDepthValue;
-		uint8                                   mClearStencilValue;
-		bool                                    mNeedClearDepth;
-		bool                                    mNeedClearStencil;
-		bool									mUseDepthOnlyViewport;
-		D3D12_VIEWPORT							mDepthOnlyViewport;
-		D3D12_RECT								mDepthOnlyScissor;
+		TRef<DX12Texture2D>				                mDepthStencil;
+		float                                           mClearDepthValue;
+		uint8                                           mClearStencilValue;
+		bool                                            mNeedClearDepth;
+		bool                                            mNeedClearStencil;
+		bool									        mUseDepthOnlyViewport;
+		D3D12_VIEWPORT							        mDepthOnlyViewport;
+		D3D12_RECT								        mDepthOnlyScissor;
 
-		DX12FrameState*                         mFrameState;
-		DX12GPUBufferRegion                     mConstantBuffer;
-		std::vector<TRef<DX12Texture2D>>		mTextures;
-		DX12RenderCommandPool*			        mCommandPool;
-		size_t							        mDescritptorHeapSize;
+		DX12FrameState*                                 mFrameState;
+		std::vector<TRef<RenderDeviceDrawcallArgument>> mArgs;
+		DX12RenderCommandPool*			                mCommandPool;
 	};
 }

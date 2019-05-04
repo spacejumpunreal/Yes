@@ -8,8 +8,13 @@
 
 namespace Yes
 {
+	//forward declarations
 	struct RenderDeviceDrawcall;
+	class RenderDeviceTexture;
+	class RenderDevice;
+	class RenderDeviceDescriptorHeap;
 
+	//enums
 	enum class RenderDeviceResourceState
 	{
 		STATE_COMMON,
@@ -18,18 +23,6 @@ namespace Yes
 		SHADER_RESOURCE,
 		UNORDERED_ACCESS,
 	};
-	class RenderDeviceResource : public SharedObject
-	{
-	public:
-		virtual ~RenderDeviceResource()
-		{}
-		virtual void SetName(wchar_t* name) {}
-		virtual bool IsReady() = 0; // check if is ready to use
-		virtual void SetState(RenderDeviceResourceState state);
-		virtual RenderDeviceResourceState GetState();
-		virtual void* GetTransitionTarget();
-	};
-	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;
 	typedef enum class VertexFormat : byte
 	{
 		VF_P3F_T2F,
@@ -45,17 +38,35 @@ namespace Yes
 		D24_UNORM_S8_UINT,
 		D32_UNORM_S8_UINT,
 	};
-
+	enum class TextureUsage
+	{
+		ShaderResource,
+		RenderTarget,
+		DepthStencil,
+	};
 #define DefineLabel(label) label
-
 	enum class RenderCommandType
 	{
 #include "Graphics/RenderCommandTypeList.inl"
 		RenderCommandTypeCount,
 	};
 #undef DefineLabel
+
 	static const int MaxRenderTargets = 8;
-	class RenderDeviceShader : public RenderDeviceResource
+	class RenderDeviceResource : public SharedObject
+	{
+	public:
+		virtual ~RenderDeviceResource()
+		{}
+		virtual void SetName(wchar_t* name) {}
+		virtual bool IsReady() = 0; // check if is ready to use
+		virtual void SetState(RenderDeviceResourceState state);
+		virtual RenderDeviceResourceState GetState();
+		virtual void* GetTransitionTarget();
+	};
+	using RenderDeviceResourceRef = TRef<RenderDeviceResource>;
+	//pso & shader
+	class RenderDeviceShader : public SharedObject
 	{
 	};
 	using RenderDeviceShaderRef = TRef<RenderDeviceShader>;
@@ -72,14 +83,37 @@ namespace Yes
 		RenderDevicePSODesc();
 		friend bool operator==(const struct RenderDevicePSODesc& lhs, const struct RenderDevicePSODesc& rhs);
 	};
-	class RenderDeviceConstantBuffer : public RenderDeviceResource
-	{
-	};
-	using RenderDeviceConstantBufferRef = TRef<RenderDeviceConstantBuffer>;
-	class RenderDevicePSO : public RenderDeviceResource
+	class RenderDevicePSO : public SharedObject
 	{
 	};
 	using RenderDevicePSORef = TRef<RenderDevicePSO>;
+	//drawcall resources
+	class RenderDeviceDrawcallArgument : public SharedObject
+	{
+	public:
+		virtual void Apply(size_t slot, void* ctx) = 0;
+	};
+	class RenderDeviceConstantBuffer : public RenderDeviceDrawcallArgument
+	{
+	public:
+		virtual void Write(size_t offset, size_t size, void * content) = 0;
+		virtual size_t GetSize() = 0;
+	};
+	class RenderDeviceDescriptorHeapRange : public RenderDeviceDrawcallArgument
+	{
+	public:
+		virtual void SetRange(size_t offset, size_t length, const RenderDeviceTexture* textures[]) = 0;
+		virtual void Apply(size_t slot, void* ctx) = 0;
+		virtual size_t GetSize() = 0;
+		virtual TRef<RenderDeviceDescriptorHeap> GetDescriptorHeap() = 0;
+	};
+	class RenderDeviceDescriptorHeap : public SharedObject
+	{
+	public:
+		virtual TRef<RenderDeviceDescriptorHeapRange> CreateRange(size_t offset, size_t length) = 0;
+		virtual size_t GetSize() = 0;
+	};
+	//heap resources
 	class RenderDeviceMesh : public RenderDeviceResource
 	{};
 	using RenderDeviceMeshRef = TRef<RenderDeviceMesh>;
@@ -90,15 +124,31 @@ namespace Yes
 		B3F GetDefaultViewport();
 	};
 	using RenderDeviceTextureRef = TRef<RenderDeviceTexture>;
+	//commands
 	class RenderDeviceCommand
 	{
 	public:
 		virtual void Reset() = 0;
 		virtual void Prepare(void* ctx) = 0;
 		virtual void Execute(void* ctx) = 0;
-		virtual size_t GetDescriptorHeapSlotCount() = 0;
 		virtual RenderCommandType GetCommandType() = 0;
 	};
+	struct RenderDeviceDrawcall : public RenderDeviceCommand
+	{
+	public:
+		virtual void SetPSO(RenderDevicePSO* pso) = 0;
+		virtual void SetMesh(RenderDeviceMesh* mesh) = 0;
+		virtual void SetArgument(int slot, RenderDeviceDrawcallArgument* arg) = 0;
+		virtual void SetDescriptorHeap(RenderDeviceDescriptorHeap* descriptorHeap) = 0;
+		RenderCommandType GetCommandType() { return RenderCommandType::Drawcall; }
+	};
+	struct RenderDeviceBarrier : public RenderDeviceCommand
+	{
+	public:
+		virtual void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) = 0;
+		RenderCommandType GetCommandType() { return RenderCommandType::Barrier; }
+	};
+	//pass
 	class RenderDevicePass
 	{
 	public:
@@ -110,38 +160,17 @@ namespace Yes
 		virtual RenderDeviceCommand* AddCommand(RenderCommandType cmd) = 0;
 		virtual void SetOutput(size_t slot, const RenderDeviceTextureRef& renderTarget, bool needClear, const V4F& clearColor, const B3F& viewPort) = 0;
 		virtual void SetDepthStencil(const RenderDeviceTextureRef& depthStencil, bool clearDepth, float depth, bool clearStencil, uint8 stencil, bool setViewport, const B3F* viewport) = 0;
-		virtual void SetGlobalTexture(int idx, const RenderDeviceTextureRef& texture) = 0;
-		virtual void SetGlobalConstantBuffer(void* data, size_t size) = 0;
+		virtual void SetArgument(int slot, RenderDeviceDrawcallArgument* arg) = 0;
 		virtual RenderDeviceTextureRef GetBackbuffer() = 0;
 	protected:
 		std::string mName;
-	};
-	struct RenderDeviceDrawcall : public RenderDeviceCommand
-	{
-	public:
-		virtual void SetMesh(RenderDeviceMesh* mesh) = 0;
-		virtual void SetTextures(int idx, RenderDeviceTexture* texture) = 0;
-		virtual void SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass) = 0;
-		virtual void SetPSO(RenderDevicePSO* pso) = 0;
-		RenderCommandType GetCommandType() { return RenderCommandType::Drawcall; }
-	};
-	struct RenderDeviceBarrier : public RenderDeviceCommand
-	{
-	public:
-		virtual void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) = 0;
-		RenderCommandType GetCommandType() { return RenderCommandType::Barrier; }
-	};
-	enum class TextureUsage
-	{
-		ShaderResource,
-		RenderTarget,
-		DepthStencil,
 	};
 	class RenderDevice
 	{
 	public:
 		//Resource related
-		virtual RenderDeviceConstantBufferRef CreateConstantBufferSimple(size_t size) = 0;
+		virtual TRef<RenderDeviceConstantBuffer> CreateConstantBuffer(bool isTemp, size_t size) = 0;
+		virtual TRef<RenderDeviceDescriptorHeap> CreateDescriptorHeap(bool isTemp, size_t size) = 0;
 		virtual RenderDeviceMeshRef CreateMeshSimple(SharedBufferRef& vertex, SharedBufferRef& index, size_t vertexStride, size_t indexCount, size_t indexStride) = 0;
 		virtual RenderDeviceTextureRef CreateTexture2D(size_t width, size_t height, TextureFormat format, TextureUsage usage, RawImage* image) = 0;
 		virtual RenderDevicePSORef CreatePSOSimple(RenderDevicePSODesc& desc) = 0;
@@ -153,7 +182,7 @@ namespace Yes
 		virtual void EndFrame() = 0;
 
 		//allocate related
-		virtual RenderDevicePass* AllocPass() = 0;
+		virtual RenderDevicePass* AllocPass(size_t argsCount) = 0;
 
 		//query
 		virtual V2F GetScreenSize() = 0;

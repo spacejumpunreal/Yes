@@ -13,6 +13,7 @@ namespace Yes
 	class IDX12RenderTarget;
 	class DX12DepthStencil;
 	class IDX12ShaderReadableTexture;
+	class DX12DescriptorHeap;
 
 	struct ICommandFactory
 	{
@@ -35,18 +36,16 @@ namespace Yes
 		void Reset() override;
 		void Prepare(void* ctx) override;
 		void Execute(void* ctx) override;
-		size_t GetDescriptorHeapSlotCount() override;
 
-		void SetMesh(RenderDeviceMesh* mesh) override;
-		void SetTextures(int idx, RenderDeviceTexture* texture) override;
-		void SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass);
 		void SetPSO(RenderDevicePSO* pso) override;
-
-	public:
-		TRef<DX12Mesh> Mesh;
-		DX12GPUBufferRegion ConstantBuffer;
-		TRef<DX12PSO> PSO;
-		std::vector<TRef<DX12Texture2D>> Textures;
+		void SetMesh(RenderDeviceMesh* mesh) override;
+		void SetArgument(int slot, RenderDeviceDrawcallArgument* arg) override;
+		void SetDescriptorHeap(RenderDeviceDescriptorHeap* descriptorHeap) override;
+	private:
+		TRef<DX12PSO> mPSO;
+		TRef<DX12Mesh> mMesh;
+		std::vector<TRef<RenderDeviceDrawcallArgument>> mArgs;
+		TRef<DX12DescriptorHeap> mDescriptorHeap;
 	};
 	class DX12Barrier : public RenderDeviceBarrier
 	{
@@ -55,7 +54,6 @@ namespace Yes
 		void Prepare(void* ctx) override {}
 		void Execute(void* ctx) override;
 
-		size_t GetDescriptorHeapSlotCount() override { return 0; }
 		void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) override;
 	public:
 		struct ResourceBarrierItem

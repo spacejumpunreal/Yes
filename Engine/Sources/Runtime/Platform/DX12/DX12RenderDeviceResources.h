@@ -5,6 +5,7 @@
 #include "Concurrency/Thread.h"
 #include "Concurrency/MultiThreadQueue.h"
 #include "Platform/DX12/DX12MemAllocators.h"
+#include "Platform/DX12/DX12BufferAllocator.h"
 #include "Platform/DX12/DX12DescriptorHeapAllocators.h"
 
 #include <deque>
@@ -48,24 +49,24 @@ namespace Yes
 		void AddRequest(IDX12ResourceRequest* request);
 		static void Entry(void* s);
 		void Loop();
-		IDX12GPUMemoryAllocator& GetTempBufferAllocator(ResourceType resourceType);
-		IDX12GPUMemoryAllocator& GetAsyncPersistentAllocator(ResourceType resourceType);
-		IDX12GPUMemoryAllocator& GetSyncPersistentAllocator(ResourceType resourceType);
-		IDX12DescriptorHeapAllocator& GetAsyncDescriptorHeapAllocator(ResourceType resourceType);
-		IDX12DescriptorHeapAllocator& GetSyncDescriptorHeapAllocator(ResourceType resourceType);
+		//used by async uploader only
+		IDX12GPUMemoryAllocator& GetAsyncUploadBufferAllocator(ResourceType resourceType);
+		//used by render thread
+		IDX12GPUBufferAllocator& GetPersistentBufferAllocator();
+		IDX12GPUMemoryAllocator& GetPersistentMemAllocator(ResourceType resourceType);
+		IDX12DescriptorHeapAllocator& GetPersistentDescriptorHeapAllocator(ResourceType resourceType, bool shaderVisible);
 		ID3D12GraphicsCommandList* GetCommandList() { return mCommandList.GetPtr(); }
 		ID3D12Device* GetDevice()                       { return mDevice; }
 	private:
 		ID3D12Device*									mDevice;
-		//async creator side allocators
+		//async uploader side allocators, actually only need for buffer
 		IDX12GPUMemoryAllocator*                        mUploadTempBufferAllocator[MemoryAllocatorTypeCount];
-		IDX12GPUMemoryAllocator*                        mAsyncMemoryAllocator[MemoryAllocatorTypeCount];
-		IDX12DescriptorHeapAllocator*					mAsyncDescriptorHeapAllocator[DescriptorHeapAllocatorTypeCount];
 		//render thread side allocators
-		IDX12GPUMemoryAllocator*                        mSyncMemoryAllocator[MemoryAllocatorTypeCount];
-		IDX12DescriptorHeapAllocator*					mSyncDescriptorHeapAllocator[DescriptorHeapAllocatorTypeCount];
-
-		//only used in async creator thread
+		IDX12GPUBufferAllocator*						mPersistentBufferAllocator;
+		IDX12GPUMemoryAllocator*                        mPersistentMemoryAllocator[MemoryAllocatorTypeCount];
+		//(ShaderVisible/Invisible) * DescriptorHeapAllocatorCount, all persistent
+		IDX12DescriptorHeapAllocator*					mPersistentDescriptorHeapAllocator[2][DescriptorHeapAllocatorTypeCount];
+		//only used in async uploader thread
 		COMRef<ID3D12Fence>                             mFence;
 		COMRef<ID3D12CommandQueue>                      mCopyCommandQueue;
 		COMRef<ID3D12CommandAllocator>                  mCommandAllocator;
@@ -75,7 +76,7 @@ namespace Yes
 		HANDLE											mFenceEvent;
 
 		Thread											mResourceWorker;
-		static DX12ResourceManager*				Instance;
+		static DX12ResourceManager*				        Instance;
 	};
 
 	class DX12ResourceStateHelper //helper for you to implement some interfaces in RenderDeviceResource
@@ -87,31 +88,11 @@ namespace Yes
 	protected:
 		D3D12_RESOURCE_STATES mDeviceState;
 	};
-	//non GPU resources
-	class DX12ConstantBuffer : public RenderDeviceConstantBuffer
-	{
-	public:
-		DX12ConstantBuffer(size_t size)
-			: mData(malloc(size))
-		{
-		}
-		~DX12ConstantBuffer()
-		{
-			free(mData);
-		}
-		bool IsReady()
-		{
-			return true;
-		}
-		void* Data() { return mData; }
-	private:
-		void* mData;
-	};
 	class DX12Shader : public RenderDeviceShader
 	{
 	public:
 		DX12Shader(ID3D12Device* dev, const char* body, size_t size, const char* name);
-		bool IsReady() override
+		bool IsReady()
 		{
 			return true;
 		}

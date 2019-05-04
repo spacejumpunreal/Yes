@@ -18,10 +18,7 @@ namespace Yes
 
 	size_t GetDescriptorHeapTypeCount();
 	size_t GetDescriptorHeapAllocatorIndex(ResourceType type);
-	void CreateNonShaderVisibleDescriptorHeapAllocators(
-		ID3D12Device* dev,
-		bool isTemp,
-		IDX12DescriptorHeapAllocator* outAllocators[]);
+	void CreatePersistentDescriptorHeapAllocators(ID3D12Device* dev, IDX12DescriptorHeapAllocator* outAllocators[]);
 
 	IDX12DescriptorHeapAllocator* CreateDX12LinearBlockDescriptorHeapAllocator(
 		ID3D12Device* dev, 
@@ -33,7 +30,6 @@ namespace Yes
 		ID3D12Device* dev, 
 		D3D12_DESCRIPTOR_HEAP_TYPE heapType, 
 		size_t blockSize,
-		size_t maxReservation);
-	IDX12DescriptorHeapAllocator* CreateShaderVisibileDescriptorHeapAllocator(
-		ID3D12Device* dev);
+		size_t maxReservation,
+		bool shaderVisible);
 }

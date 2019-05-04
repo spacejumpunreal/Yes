@@ -80,6 +80,7 @@ namespace Yes
 		}
 		void Allocate(RangeKey& allocatedKey, RangePtr& allocatedStart, size_t size, size_t align = 1)
 		{
+			align = align == 0 ? 1 : align;
 			++mCount;
 			bool currentOK = false;
 			if (mCurrentRange != nullptr)
@@ -241,6 +242,7 @@ namespace Yes
 		void Allocate(RangeKey& allocatedKey, RangePtr& allocatedStart, size_t size, size_t align = 1)
 		{
 			++mCount;
+			align = align == 0 ? 1 : align;
 			auto it = mSize2Range.lower_bound(size);
 			KeyAndStart kas;
 			while (it != mSize2Range.end())

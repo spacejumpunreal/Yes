@@ -2,6 +2,7 @@
 #include "Platform/DX12/DX12RenderDeviceResources.h"
 #include "Platform/DX12/DX12ExecuteContext.h"
 #include "Platform/DX12/DX12RenderPass.h"
+#include "Platform/DX12/DX12DrawcallArgument.h"
 #include "Public/Memory/ObjectPool.h"
 #include "Public/Misc/Utils.h"
 #include "Public/Memory/SizeUtils.h"
@@ -52,79 +53,54 @@ namespace Yes
 	//DX12Drawcall
 	void DX12Drawcall::Reset()
 	{
-		Mesh = nullptr;
-		ConstantBuffer = {};
-		PSO = nullptr;
-		Textures.clear();
+		mMesh = nullptr;
+		mArgs.clear();
+		mPSO = nullptr;
+		mDescriptorHeap = nullptr;
 	}
 	void DX12Drawcall::SetMesh(RenderDeviceMesh* mesh)
 	{
-		Mesh = mesh;
+		mMesh = mesh;
 	}
-	void DX12Drawcall::SetTextures(int idx, RenderDeviceTexture* texture)
+	void DX12Drawcall::SetArgument(int slot, RenderDeviceDrawcallArgument* arg)
 	{
-		DX12Texture2D* tex = dynamic_cast<DX12Texture2D*>(texture);
-		if (idx >= Textures.size())
+		if (slot >= mArgs.size())
 		{
-			Textures.resize(idx + 1);
+			mArgs.resize(slot + 1);
 		}
-		Textures[idx] = tex;
+		mArgs[slot] = arg;
 	}
-	void DX12Drawcall::SetConstantBuffer(void* data, size_t size, RenderDevicePass* pass)
+	void DX12Drawcall::SetDescriptorHeap(RenderDeviceDescriptorHeap * descriptorHeap)
 	{
-		DX12Pass* dx12Pass = dynamic_cast<DX12Pass*>(pass);
-		DX12FrameState* state = dx12Pass->GetFrameState();
-		const size_t SizeAlign = 4;
-		size_t alignedSize = AlignSize(size, SizeAlign);
-		CheckAlways(alignedSize == size);
-		ConstantBuffer = state->GetConstantBufferAllocator()->Allocate(alignedSize, SizeAlign);
-		ConstantBuffer.Write(data, size);
+		mDescriptorHeap = descriptorHeap;
 	}
 	void DX12Drawcall::SetPSO(RenderDevicePSO* pso)
 	{
-		PSO = pso;
+		mPSO = pso;
 	}
 	void DX12Drawcall::Prepare(void* ctx)
 	{
-		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
-		context->StartDescritorTable();
-		for (int i = 0; i < Textures.size(); ++i)
-		{
-			D3D12_CPU_DESCRIPTOR_HANDLE handle = Textures[i]->GetCPUHandle(TextureUsage::ShaderResource);
-			context->AddDescriptor(&handle, 1);
-		}
 	}
 	void DX12Drawcall::Execute(void * ctx)
 	{
 		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
 		ID3D12GraphicsCommandList* gl = context->CommandList;
-		PSO->Apply(gl);
-		//global constant buffer
-		gl->SetGraphicsRootConstantBufferView(0, context->GlobalConstantBufferGPUAddress.ptr);
-		//local constant buffer
-		gl->SetGraphicsRootConstantBufferView(1, ConstantBuffer.GetGPUAddress());
-		//global textures
-		if (context->GetGlobalDescriptorTableSize() > 0)
+		mPSO->Apply(gl);
+		if (mDescriptorHeap != nullptr)
 		{
-			gl->SetGraphicsRootDescriptorTable(2, context->GetGlobalDescriptorTableHandle());
+			mDescriptorHeap->Apply(gl);
 		}
-		//local textures
-		size_t len = context->GetNextHeapRangeLength();
-		size_t idx = (int)context->GetNextHeapRangeStart();
-		if (len > 0)
+		context->Pass->PreparePassArgs(context);
+		size_t baseSlot = context->Pass->GetPassArgCount();
+		for (size_t i = 0; i < mArgs.size(); ++i)
 		{
-			D3D12_GPU_DESCRIPTOR_HANDLE handle = context->GetHeapSpace().GetGPUHandle((int)idx);
-			gl->SetGraphicsRootDescriptorTable(3, handle);
+			mArgs[i]->Apply(baseSlot + i, ctx);
 		}
-		Mesh->Apply(gl);
-		UINT ic = Mesh->GetIndexCount();
+		mMesh->Apply(gl);
+		UINT ic = mMesh->GetIndexCount();
 		gl->DrawIndexedInstanced(ic, 1, 0, 0, 0);
 	}
 	//DX12Drawcall
-	size_t DX12Drawcall::GetDescriptorHeapSlotCount()
-	{
-		return Textures.size();
-	}
 	void DX12Barrier::Reset()
 	{
 		mResourceBarriers.clear();
