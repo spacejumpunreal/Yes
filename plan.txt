@@ -1,14 +1,24 @@
 - doing
 	- SimpleDX12Renderer
-		- test alpha black white test
-		- try using persistent CB for static things and dynamiclly update nonstatic
 		- SimplePipeline
+			- Entity
+				- GameObject
+			- System
+				- SceneManagerModule
+				- CullModule
+				- ForardRendererModule
+				- DeferredRendererModule
+				- JobSystem
+			- Component
+				- StaticRenderElement
+				- DynamicRenderElement
+			
 		- SceneManagement & blender export
 			- can import/render scenes like sponza
 		- TestDriver
 			- normal transform
 		- PBR
 		- virtual texture
+		- indirect draw
 		- GPU driven pipeline
-		- 感觉descriptor heap和memory heap的分配按照API的来好了???什么意思不理解
 		

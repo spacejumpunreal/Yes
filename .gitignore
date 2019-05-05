@@ -1,4 +1,6 @@
 .vs
+*.psess
+*.vspx
 *.sln
 *.vcxproj
 *.lib

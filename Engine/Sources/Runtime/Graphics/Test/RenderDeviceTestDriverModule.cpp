@@ -24,6 +24,7 @@ namespace Yes
 		TRef<RenderDeviceMesh> Mesh;
 		TRef<RenderDeviceTexture> Texture;
 		TRef<RenderDeviceDescriptorHeapRange> DescriptorTable;
+		TRef<RenderDeviceConstantBuffer> LocalConstant;
 		M44F Transform;
 	};
 
@@ -167,7 +168,6 @@ namespace Yes
 						ro.Mesh = mesh;
 						ro.Texture = tex;
 						ro.DescriptorTable = range;
-						
 						ro.Transform = M44F::Translate(V3F((float)(3 * i), 2, (float)(10 + 5 * i)));
 					}
 				}
@@ -201,6 +201,10 @@ namespace Yes
 						ro.Texture = tex;
 						ro.DescriptorTable = range;
 						ro.Transform = M44F::Translate(V3F((float)(3 * i), 0, (float)(10 + 5 * i)));
+						ro.LocalConstant = mDevice->CreateConstantBuffer(false, ConstantBufferSize);
+						memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+						ro.LocalConstant->Write(0, ConstantBufferSize, mTempBuffer);
+						
 					}
 				}
 				{
@@ -324,6 +328,15 @@ namespace Yes
 			memset(mGlobalBuffer, 0, ConstantBufferSize);
 			memcpy(mGlobalBuffer, &mEyeCamera.GetMVPMatrix(), sizeof(M44F));
 			memcpy(mGlobalBuffer + sizeof(M44F), &mShadowCamera.GetMVPMatrix(), sizeof(M44F));
+			for (size_t i = 0; i < mObjects.size(); ++i)
+			{
+				if (mObjects[i].LocalConstant.GetPtr() == nullptr)
+				{
+					float rad = mObjects[i].Transform.Translation().z * 0.1f;
+					float phase = (mFrame / 180.0f * 3.1415f * 2.0f + rad);
+					mObjects[i].Transform.Translation() += V3F(0, 1.0f * std::sin(phase), 0);
+				}
+			}
 		}
 		void UpdateGlobals()
 		{
@@ -340,10 +353,17 @@ namespace Yes
 			{
 				RenderObject& ro = mObjects[i];
 				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-				memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
-				TRef<RenderDeviceConstantBuffer> cb = mDevice->CreateConstantBuffer(true, ConstantBufferSize);
-				cb->Write(0, ConstantBufferSize, mTempBuffer);
-				dc->SetArgument(0, cb.GetPtr());
+				if (ro.LocalConstant.GetPtr() != nullptr)
+				{
+					dc->SetArgument(0, ro.LocalConstant.GetPtr());
+				}
+				else
+				{
+					TRef<RenderDeviceConstantBuffer> cb = mDevice->CreateConstantBuffer(true, ConstantBufferSize);
+					memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+					cb->Write(0, ConstantBufferSize, mTempBuffer);
+					dc->SetArgument(0, cb.GetPtr());
+				}
 				dc->SetMesh(ro.Mesh.GetPtr());
 				dc->SetPSO(mShadowPSO.GetPtr());
 			}
@@ -367,10 +387,17 @@ namespace Yes
 			{
 				RenderObject& ro = mObjects[i];
 				auto* dc = (RenderDeviceDrawcall*)pass->AddCommand(RenderCommandType::Drawcall);
-				memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
-				TRef<RenderDeviceConstantBuffer> cb = mDevice->CreateConstantBuffer(true, ConstantBufferSize);
-				cb->Write(0, ConstantBufferSize, mTempBuffer);
-				dc->SetArgument(0, cb.GetPtr());
+				if (ro.LocalConstant.GetPtr() != nullptr)
+				{
+					dc->SetArgument(0, ro.LocalConstant.GetPtr());
+				}
+				else
+				{
+					TRef<RenderDeviceConstantBuffer> cb = mDevice->CreateConstantBuffer(true, ConstantBufferSize);
+					memcpy(mTempBuffer, &ro.Transform, sizeof(M44F));
+					cb->Write(0, ConstantBufferSize, mTempBuffer);
+					dc->SetArgument(0, cb.GetPtr());
+				}
 				dc->SetArgument(1, ro.DescriptorTable.GetPtr());
 				dc->SetMesh(ro.Mesh.GetPtr());
 				dc->SetPSO(mNormalPSO.GetPtr());
