@@ -2,21 +2,38 @@
 	- SimpleDX12Renderer
 		- SimplePipeline
 			- Entity
-				- GameObject
+				- GameEntity
 			- System
+				- JobModule: use parallel power of threads other than dedicated threads
+				- FrameTaskModule: for better profiling, overview, understanding load
+					- DeclareTask
+					- ActivateTask
+					- Task
+						- Inputs
+						- TaskID
+						- TaskInstanceID
+						- ThreadingRequirement
+					- Blackboard?(Frame global variables)
+				- GameLogicModule(LogicComponnet)
+				- ResourceModule(ResourceComponet)
 				- SceneManagerModule
-				- CullModule
+					- LoadScene
+					- FindGameEntity
+					- Culling(Cameras)
 				- ForardRendererModule
 				- DeferredRendererModule
-				- JobSystem
+				- RenderDeviceModule
+					- Resource
+					- DrawPass/DrawCommand
 			- Component
-				- StaticRenderElement
-				- DynamicRenderElement
+				- LogicComponent(GameLogicModule)
+				- CameraComponent(SceneManagerModule)
+				- RenderComponent(SceneManagerModule)
+				- SceneComponent(SceneManagerModule)
+				- ResourceComponent(ResourceModule)
 			
 		- SceneManagement & blender export
 			- can import/render scenes like sponza
-		- TestDriver
-			- normal transform
 		- PBR
 		- virtual texture
 		- indirect draw
