@@ -1,6 +1,7 @@
 # -*- encoding: utf-8 -*-
 import os
 import uuid
+import _winreg
 from xml_format import XmlNode
 
 
@@ -45,29 +46,52 @@ VisualStudioVersion = 15.0.27130.2036
 MinimumVisualStudioVersion = 10.0.40219.1
 {ProjectsBlock}
 Global
-	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+    GlobalSection(SolutionConfigurationPlatforms) = preSolution
 {SolutionConfigurationPlatforms}
-	EndGlobalSection
-	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+    EndGlobalSection
+    GlobalSection(ProjectConfigurationPlatforms) = postSolution
 {ProjectConfigurationPlatforms}
-	EndGlobalSection
-	GlobalSection(SolutionProperties) = preSolution
-		HideSolutionNode = FALSE
-	EndGlobalSection
-	GlobalSection(NestedProjects) = preSolution
+    EndGlobalSection
+    GlobalSection(SolutionProperties) = preSolution
+        HideSolutionNode = FALSE
+    EndGlobalSection
+    GlobalSection(NestedProjects) = preSolution
 {NestedProjects}
-	EndGlobalSection
-	GlobalSection(ExtensibilityGlobals) = postSolution
-		SolutionGuid = {SolutionGUID}
-	EndGlobalSection
+    EndGlobalSection
+    GlobalSection(ExtensibilityGlobals) = postSolution
+        SolutionGuid = {SolutionGUID}
+    EndGlobalSection
 EndGlobal
 
 """
 
 Configurations = ("Debug", "Release")
 Platforms = ("x64", "Win32")
-WindowSDKVersion = "10.0.17763.0"
 PlatformToolset = "v141"
+
+
+def get_latest_windows_sdk_version():
+    def cmp_version(a, b):
+        a = a.split('.')
+        b = b.split('.')
+        la, lb = len(a), len(b)
+        cmp_length = min(la, lb)
+        for c in cmp_length:
+            if a[c] < b[c]:
+                return -1
+            elif a[c] > b[c]:
+                return 1
+        return -1
+    root = _winreg.OpenKey(_winreg.HKEY_LOCAL_MACHINE, r"SOFTWARE\Microsoft\Windows Kits\Installed Roots")
+    idx = 0
+    subs = []
+    while True:
+        try:
+            subs.append(_winreg.EnumKey(root, idx))
+            idx += 1
+        except EnvironmentError:
+            break
+    return sorted(subs, cmp_version)[-1]
 
 
 class VS2017Generator(object):
@@ -186,7 +210,7 @@ class VS2017Generator(object):
                                 XmlNode("Optimization", "Disabled" if is_debug else "MaxSpeed"),
                                 XmlNode("SDLCheck", "true"),
                                 XmlNode("ConformanceMode", "true"),
-								XmlNode("MultiProcessorCompilation", "true"),
+                                XmlNode("MultiProcessorCompilation", "true"),
                                 XmlNode("AdditionalIncludeDirectories", ";".join(additional_include_directories)),
                                 XmlNode("LanguageStandard", "stdcpplatest"),
                             )),
@@ -221,11 +245,12 @@ class VS2017Generator(object):
                     attrib={"Include": self.get_vcxproj_file_name(d)})
                 item_group_project_reference.append(pnode)
 
+            sdk_version = get_latest_windows_sdk_version()
             content = VCXPROJ_TEMPLATE.format(
                 ProjectConfiguration=prj_config.format(indent, 1),
                 TargetGUID="{%s}" % target.guid,
                 TargetName=self.get_target_name(target),
-                WindowsTargetPlatformVersion=WindowSDKVersion,
+                WindowsTargetPlatformVersion=sdk_version,
                 PropertyGroupConfiguration="".join(map(lambda x: x.format(indent, 1), prop_group_config_frags)),
                 ImportGroupPropertySheet="".join(map(lambda x: x.format(indent, 1), import_group_property_sheet)),
                 ItemDefinitionGroup="".join(map(lambda x: x.format(indent, 1), item_def_group)),

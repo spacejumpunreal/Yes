@@ -1,4 +1,8 @@
 - doing
+	- learning SH
+		- ball model
+		- add light to SH
+		- shade with SH
 	- SimpleDX12Renderer
 		- SimplePipeline
 			- Entity
