@@ -44,7 +44,7 @@ namespace Yes
 			: mFrameDuration(1.0 / 60)
 		{
 		}
-		void ParseArgs(int argc, const char** argv)
+		void ParseArgs(size_t argc, const char** argv)
 		{
 			for (int i = 1; i < argc; ++i)
 			{
@@ -64,40 +64,39 @@ namespace Yes
 		}
 	};
 	
-	System::System(int argc, const char** argv)
+	System::System()
 		: mPrivate(new SystemPrivateData())
 	{
 		CheckAlways(GSystem == nullptr);
 		GSystem = this;
 		CollectAllModules();
-		
-		mPrivate->ParseArgs(argc, argv);
 	}
 
 	const ArgMap& System::GetArguments() const
 	{
 		return mPrivate->mArgs;
 	}
-	void System::Initialize()
+	void System::Initialize(size_t argc, const char** argv)
 	{
+		mPrivate->ParseArgs(argc, argv);
 		Thread::SetAsMainThread();
 		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
 		mPrivate->mArgs.insert(std::make_pair("module", "FileModule"));
 		//find need to initialize modules from args
 		ArgMap::iterator s, e;
 		std::tie(s, e) = mPrivate->mArgs.equal_range("module");
-		std::unordered_set<std::string> toInitialize;
-		std::unordered_map<ModuleID, ModuleDescription*> initializedDescriptions;
+		std::unordered_set<std::string> modulesToInitialize;
+		std::unordered_map<ModuleID, const ModuleDescription*> initializedDescriptions;
 		while (s != e)
 		{
-			toInitialize.insert(s->second);
+			modulesToInitialize.insert(s->second);
 			++s;
 		}
 		//enumerate available modules and create
 		for (auto& i : mPrivate->mRegisteredModules)
 		{
 			std::string n = i.Name;
-			if (!toInitialize.count(n))
+			if (!modulesToInitialize.count(n))
 				continue;
 			if (mPrivate->mModules.count(i.ModuleID) > 0)
 			{
@@ -105,13 +104,14 @@ namespace Yes
 				CheckAlways(false, usedName);
 			}
 			IModule* mod = mPrivate->mModules[i.ModuleID] = i.Creator();
+			initializedDescriptions[i.ModuleID] = &i;
 			mod->InitializeModule(this);
 		}
 		//initialize
 		for (auto& i : mPrivate->mRegisteredModules)
 		{
 			std::string n = i.Name;
-			if (!toInitialize.count(n))
+			if (!modulesToInitialize.count(n))
 				continue;
 			mPrivate->mModules[i.ModuleID]->Start(this);
 		}

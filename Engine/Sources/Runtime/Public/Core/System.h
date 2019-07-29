@@ -28,8 +28,8 @@ namespace Yes
 	protected:
 		struct SystemPrivateData;
 	public:
-		System(int argc, const char** argv);
-		void Initialize();
+		System();
+		void Initialize(size_t argc, const char** argv);
 		IModule* GetModule(ModuleID moduleID);
 		//used for pre main module registry
 		static void RegisterModule(const ModuleDescription& desc);

@@ -41,6 +41,7 @@ int main(int argc, const char** argv)
 	std::vector<const char*> args
 	{
 		"module=TickModule",
+		"module=ConcurrencyModule",
 		"module=FileModule",
 		R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
 		"module=WindowsWindowModule",
@@ -51,8 +52,8 @@ int main(int argc, const char** argv)
 		"module=RenderDeviceTestDriverModule",
 #endif	
 	};
-	auto sys = new Yes::System((int)args.size(), args.data());
-	sys->Initialize();
+	auto sys = new Yes::System();
+	sys->Initialize(args.size(), args.data());
 	Yes::TickModule* tickModule = GET_MODULE(TickModule);
 	tickModule->AddTickable(new TestTick());
 	start = Yes::TimeStamp::Now();
