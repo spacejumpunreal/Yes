@@ -2,15 +2,16 @@
 
 #include "Yes.h"
 
+#include "Public/Concurrency/Concurrency.h"
 #include <mutex>
 
 namespace Yes
 {
-	using ThreadFunctionPrototype = void(*)(void*);
+	
 	class Thread
 	{
 	public:
-		Thread(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"WorkerThread", size_t stackSize = 256 * 1024);
+		Thread(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"YesThread", size_t stackSize = 256 * 1024);
 		Thread();
 		static void SetCurrentThreadName(const wchar_t* name);
 		Thread& operator=(Thread&& other);
