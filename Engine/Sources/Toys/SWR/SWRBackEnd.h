@@ -14,7 +14,7 @@ namespace Yes::SWR
 		void operator()()
 		{
 			//do present
-			mSemaphore->Notify();
+			mSemaphore->Increase();
 		}
 	private:
 		Semaphore<>* mSemaphore;

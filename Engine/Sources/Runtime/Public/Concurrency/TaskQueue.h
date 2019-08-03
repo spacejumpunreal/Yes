@@ -5,21 +5,16 @@
 #include <functional>
 #include <condition_variable>
 
-class TaskQueue
+using TaskFunction = void(*)();
+struct TaskItem
+{
+	TaskFunction Entry;
+	void* Context;
+};
+
+class TaskQueue2
 {
 public:
-	template<typename Functor, typename... Args>
-	void PutBack(Functor&& f, Args&&... args)
-	{
-		auto ff = std::bind(std::forward<Functor>(f), std::forward<Args>(args)...);
-		Put(true, std::move(ff));
-	}
-	template<typename Functor, typename... Args>
-	void PutFront(Functor&& f, Args&&... args)
-	{
-		auto ff = std::bind(std::forward<Functor>(f), std::forward<Args>(args)...);
-		Put(false, std::move(ff));
-	}
 	void Put(bool atBack, std::function<void()>&& f)
 	{
 		{

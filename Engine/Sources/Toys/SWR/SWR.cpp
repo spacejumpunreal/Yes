@@ -117,7 +117,7 @@ namespace Yes::SWR
 		}
 		virtual void Present()
 		{
-			mPLimit.Wait();
+			mPLimit.Decrease();
 			mDeviceCore.JobSystem->PutBack(SWRPresentJob(&mPLimit));
 		}
 		//3. state management

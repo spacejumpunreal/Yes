@@ -3,6 +3,8 @@
 #include "Core/FileModule.h"
 #include "Misc/Time.h"
 #include "Memory/RangeAllocator.h"
+#include "Misc/Functional.h"
+
 #include <map>
 #include <list>
 #include <cstdio>
@@ -35,29 +37,45 @@ namespace Yes
 	void TestRangeAllocators();
 	void TestMath();
 }
+
+namespace Yes
+{
+
+
+	int Main(int argc, const char** argv)
+	{
+		TestMath();
+		std::vector<const char*> args
+		{
+			"module=TickModule",
+			"module=ConcurrencyModule",
+			"module=FileModule",
+			R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
+			"module=WindowsWindowModule",
+	#if DEMO
+			"module=DX12DemoModule",
+	#else
+			"module=DX12RenderDeviceModule",
+			"module=RenderDeviceTestDriverModule",
+	#endif	
+		};
+		auto sys = new Yes::System();
+		sys->Initialize(args.size(), args.data());
+		Yes::TickModule* tickModule = GET_MODULE(TickModule);
+		tickModule->AddTickable(new TestTick());
+		start = Yes::TimeStamp::Now();
+		sys->Loop();
+
+		return 0;
+	}
+}
+namespace Yes
+{
+	int TestFunctional();
+}
 int main(int argc, const char** argv)
 {
-	Yes::TestMath();
-	std::vector<const char*> args
-	{
-		"module=TickModule",
-		"module=ConcurrencyModule",
-		"module=FileModule",
-		R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
-		"module=WindowsWindowModule",
-#if DEMO
-		"module=DX12DemoModule",
-#else
-		"module=DX12RenderDeviceModule",
-		"module=RenderDeviceTestDriverModule",
-#endif	
-	};
-	auto sys = new Yes::System();
-	sys->Initialize(args.size(), args.data());
-	Yes::TickModule* tickModule = GET_MODULE(TickModule);
-	tickModule->AddTickable(new TestTick());
-	start = Yes::TimeStamp::Now();
-	sys->Loop();
-	
-	return 0;
+	//return Yes::TestFunctional();
+	return Yes::Main(argc, argv);
 }
+

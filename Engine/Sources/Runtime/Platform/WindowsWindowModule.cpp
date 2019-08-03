@@ -55,7 +55,7 @@ namespace Yes
 			ZeroFill(mOutputInputStates);
 			ZeroFill(mInternalInputStates);
 			mThread = Thread(WindowThreadFunction, this, L"WindowsPlatformUIThread");
-			mInitState.Wait();
+			mInitState.Decrease();
 		}
 		void* GetWindowHandle() override
 		{
@@ -112,7 +112,7 @@ namespace Yes
 				hInstance,
 				self);
 			::ShowWindow(self->mHwnd, SW_SHOW);
-			self->mInitState.Notify();
+			self->mInitState.Increase();
 			MSG msg = {};
 			while (msg.message != WM_QUIT)
 			{

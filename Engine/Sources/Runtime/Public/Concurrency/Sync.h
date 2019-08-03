@@ -1,6 +1,7 @@
 #pragma once
 #include "Misc/Debug.h"
 #include <mutex>
+#include <atomic>
 #include <condition_variable>
 
 namespace Yes
@@ -11,35 +12,52 @@ namespace Yes
 	private:
 		LockType mLock;
 		std::condition_variable mCondition;
-		int mCount;
+		std::atomic<uint> mCount;
 	public:
-		Semaphore(int count = 0)
+		Semaphore(uint count = 0)
 			: mCount(count)
 		{}
-		void Notify()
+		void Increase()
 		{
-			std::unique_lock<LockType> lock(mLock);
-			++mCount;
+			mCount.fetch_add(1, std::memory_order_acq_rel);
 			mCondition.notify_one();
 		}
-		void Wait()
+		void Decrease()
 		{
 			std::unique_lock<LockType> lock(mLock);
-			while (!mCount)
-				mCondition.wait(lock);
-			--mCount;
-
-		}
-		bool TryWait()
-		{
-			std::unique_lock<LockType> lock(mLock);
-			if (mCount)
+			while (true)
 			{
-				--mCount;
-				return true;
+				uint a = mCount.load(std::memory_order_acquire);
+				if (a == 0)
+				{
+					mCondition.wait(lock);
+				}
+				else
+				{
+					uint aa = a - 1;
+					bool success = mCount.compare_exchange_weak(a, aa, std::memory_order_acq_rel);
+					if (success)
+					{
+						break;
+					}
+					else
+					{
+						mCondition.notify_one();
+					}
+				}
 			}
-			else
+		}
+		bool TryDecrease()
+		{
+			uint a = mCount.load(std::memory_order_relaxed);
+			if (a == 0)
 				return false;
+			uint aa = a - 1;
+			if (!mCount.compare_exchange_weak(aa, a, std::memory_order_acq_rel))
+			{
+				return false;
+			}
+			return true;
 		}
 	};
 	using Signal = Semaphore<>;
