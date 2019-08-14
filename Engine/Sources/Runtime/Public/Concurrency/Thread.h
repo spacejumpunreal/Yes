@@ -7,23 +7,32 @@
 
 namespace Yes
 {
-	
+	struct InitAsMainThread
+	{};
 	class Thread
 	{
+		/*
+		NOTE: can't be moved because thread_local ThisThread will be set, you can't move that
+		*/
 	public:
-		Thread(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"YesThread", size_t stackSize = 256 * 1024);
+		Thread(InitAsMainThread);
 		Thread();
-		static void SetCurrentThreadName(const wchar_t* name);
-		Thread& operator=(Thread&& other);
 		~Thread();
+
+		void Run(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"YesThread", size_t stackSize = 256 * 1024);
 		void Join();
-		static std::thread::id GetThreadID();
-		static std::thread::id GetMainThreadID();
-		static void SetAsMainThread();
+
+		static void SetCurrentThreadName(const wchar_t* name);
+		static Thread* GetThisThread();
+		static Thread* GetMainThread();
 		static bool CurrentThreadIsMainThread();
+
+		static void Sleep(float seconds);
 	private:
-		std::mutex* mLock;
 		static void ThreadBody(void* p);
-		static std::thread::id MainThreadID;
+	private:
+		static Thread* MainThread;
+	private:
+		std::mutex mJoinLock;
 	};
 }

@@ -6,19 +6,20 @@
 namespace Yes
 {
 	class Thread;
-	using FiberHandle = void*;
+	using OSFiberHandle = void*;
 	class Fiber
 	{
 	public:
 		Fiber(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"OtherYesFiber", size_t stackSize = 16 * 1024);
 		Fiber(Thread* thread, void* param, const wchar_t* name = L"ThreadYesFiber");
+		~Fiber();
 		static Fiber* GetCurrentFiber();
+		static void SwitchTo(Fiber* dest);
 		void* GetParam() { return mParam; }
 		const wchar_t* GetName() { return mName; }
-		void SwitchTo(Fiber* dest);
 	private:
 		void* mParam;
-		FiberHandle mHandle;
+		OSFiberHandle mHandle;
 		const wchar_t* mName;
 		Thread* mOriginThread;
 	};

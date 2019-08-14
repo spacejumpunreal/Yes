@@ -20,11 +20,17 @@ namespace Yes
 	}
 	Fiber* Fiber::GetCurrentFiber()
 	{
-		return (Fiber*)GetFiberData();
+		return (Fiber*)::GetFiberData();
 	}
 	void Fiber::SwitchTo(Fiber* dest)
 	{
-		SwitchToFiber(dest->mHandle);
+		::SwitchToFiber(dest->mHandle);
+	}
+	Fiber::~Fiber()
+	{
+		HANDLE h = mHandle;
+		mHandle = nullptr;
+		::DeleteFiber(h);
 	}
 }
 

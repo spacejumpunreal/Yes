@@ -1,9 +1,9 @@
 #pragma once
 #include "Yes.h"
-
 #include "Public/Misc/Debug.h"
 
 #include <mutex>
+#include <atomic>
 
 namespace Yes
 {
@@ -20,5 +20,47 @@ namespace Yes
 		}
 	private:
 		std::mutex mLock;
+	};
+
+	class SimpleSpinLock
+	{//note: I thought about acquire/release, it will allow critical sections to overlap, so I decide to use sequential consistency
+	public:
+		SimpleSpinLock()
+		{
+			mFlag.clear();
+		}
+		void Lock()
+		{
+			while (mFlag.test_and_set())
+			{
+			}
+		}
+		bool TryLock()
+		{
+			return mFlag.test_and_set();
+		}
+		void Unlock()
+		{
+			mFlag.clear();
+		}
+	private:
+		std::atomic_flag mFlag;
+	};
+
+	template<typename TLock>
+	class AutoLock
+	{
+	public:
+		AutoLock(TLock& lk)
+			: mLock(&lk)
+		{
+			lk.Lock();
+		}
+		~AutoLock()
+		{
+			mLock->Unlock();
+		}
+	private:
+		TLock* mLock;
 	};
 }

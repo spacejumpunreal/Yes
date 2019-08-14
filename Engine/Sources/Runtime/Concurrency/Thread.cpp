@@ -1,64 +1,83 @@
 #include "Concurrency/Thread.h"
-
+#include "Concurrency/Sync.h"
 #include "Misc/Debug.h"
+#include <atomic>
 #include "Windows.h"
 
 namespace Yes
 {
-	std::thread::id Thread::MainThreadID;
+	Thread* Thread::MainThread;
+	thread_local Thread* ThisThread;
 
-	Thread::Thread(ThreadFunctionPrototype func, void* param, const wchar_t* name, size_t stackSize)
-		: mLock(new std::mutex())
+	struct ThreadInitParams
 	{
-		mLock->lock();
-		HANDLE thisThreadHandle = ::CreateThread(nullptr, stackSize, (LPTHREAD_START_ROUTINE)func, param, 0, NULL);
-		CheckSucceeded(SetThreadDescription(thisThreadHandle, name));
+		Semaphore<> InitV;
+		Thread* ThisThread;
+		ThreadFunctionPrototype Function;
+		void* Context;
+		const wchar_t* Name;
+	};
+
+	Thread::Thread(InitAsMainThread)
+	{
+		Check(ThisThread == nullptr);
+		Check(MainThread == nullptr);
+		SetCurrentThreadName(L"EngineMainThread");
+		MainThread = ThisThread = this;
 	}
 	Thread::Thread()
-		: mLock(nullptr)
 	{}
-	void Thread::SetCurrentThreadName(const wchar_t* name)
-	{
-		CheckSucceeded(SetThreadDescription(GetCurrentThread(), name));
-	}
-	Thread& Thread::operator=(Thread&& other)
-	{
-		mLock = other.mLock;
-		other.mLock = nullptr;
-		return *this;
-	}
 	Thread::~Thread()
 	{
-		if (mLock)
-		{
-			delete mLock;
-		}
+		Join();
+	}
+
+	void Thread::Run(ThreadFunctionPrototype func, void* param, const wchar_t* name, size_t stackSize)
+	{
+		ThreadInitParams d;
+		d.ThisThread = this;
+		d.Function = func;
+		d.Context = param;
+		d.Name = name;
+		HANDLE thisThreadHandle = ::CreateThread(nullptr, stackSize, (LPTHREAD_START_ROUTINE)ThreadBody, &d, 0, NULL);
+		d.InitV.Decrease();
 	}
 	void Thread::Join()
 	{
-		mLock->lock();
-		mLock->unlock();
+		mJoinLock.lock();
+		mJoinLock.unlock();
 	}
-	std::thread::id Thread::GetThreadID()
+	void Thread::SetCurrentThreadName(const wchar_t* name)
 	{
-		return std::this_thread::get_id();
+		CheckSucceeded(::SetThreadDescription(::GetCurrentThread(), name));
 	}
-	std::thread::id Thread::GetMainThreadID()
+	Thread* Thread::GetThisThread()
 	{
-		return MainThreadID;
+		return ThisThread;
 	}
-	void Thread::SetAsMainThread()
+	Thread* Thread::GetMainThread()
 	{
-		SetCurrentThreadName(L"EngineMainThread");
-		MainThreadID = GetThreadID();
+		return MainThread;
 	}
 	bool Thread::CurrentThreadIsMainThread()
 	{
-		return MainThreadID == GetThreadID();
+		return MainThread == ThisThread;
 	}
-	void Thread::ThreadBody(void* p)
+	void Thread::Sleep(float seconds)
 	{
-		Thread* self = (Thread*)p;
-		self->mLock->unlock();
+		seconds = seconds < 0.001f ? 0 : seconds;
+		::Sleep((DWORD)(seconds * 1000));
+
+	}
+	void Thread::ThreadBody(void* _)
+	{
+		ThreadInitParams* p = (ThreadInitParams*)_;
+		ThisThread = p->ThisThread;
+		auto fn = p->Function;
+		auto ctx = p->Context;
+		::SetThreadDescription(::GetCurrentThread(), p->Name);
+		p->InitV.Increase();
+		fn(ctx);
+		ThisThread->mJoinLock.unlock();
 	}
 }

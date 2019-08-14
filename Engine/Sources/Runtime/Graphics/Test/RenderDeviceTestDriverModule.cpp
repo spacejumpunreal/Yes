@@ -2,6 +2,7 @@
 #include "Public/Core/System.h"
 #include "Public/Core/TickModule.h"
 #include "Public/Core/FileModule.h"
+#include "Public/Core/ConcurrencyModule.h"
 #include "Graphics/ImageUtil.h"
 #include "Public/Platform/IWindowModule.h"
 #include "Public/Misc/Utils.h"
@@ -74,6 +75,11 @@ namespace Yes
 			mClearColors[3] = V4F(0, 0, 0, 0);
 
 			mWindowModule = GET_MODULE_AS(WindowsWindowModule, IWindowModule);
+		}
+		virtual void Start(System* system) override
+		{
+			//test start
+			ConcurrencyModule* cm = GET_MODULE(ConcurrencyModule);
 		}
 		virtual void Tick() override
 		{

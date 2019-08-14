@@ -46,7 +46,7 @@ namespace Yes
 		}
 		void ParseArgs(size_t argc, const char** argv)
 		{
-			for (int i = 1; i < argc; ++i)
+			for (int i = 0; i < argc; ++i)
 			{
 				const char* p = argv[i];
 				const char* s = p;
@@ -79,7 +79,8 @@ namespace Yes
 	void System::Initialize(size_t argc, const char** argv)
 	{
 		mPrivate->ParseArgs(argc, argv);
-		Thread::SetAsMainThread();
+		new Thread(InitAsMainThread{});
+		mPrivate->mArgs.insert(std::make_pair("module", "ConcurrencyModule"));
 		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
 		mPrivate->mArgs.insert(std::make_pair("module", "FileModule"));
 		//find need to initialize modules from args

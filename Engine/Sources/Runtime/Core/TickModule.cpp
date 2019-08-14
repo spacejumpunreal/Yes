@@ -62,5 +62,5 @@ namespace Yes
 
 	DEFINE_MODULE_IN_CLASS(TickModule, TickModuleImp);
 	};
-	DEFINE_MODULE_REGISTRY(TickModule, TickModuleImp, -1000)
+	DEFINE_MODULE_REGISTRY(TickModule, TickModuleImp, -800)
 }

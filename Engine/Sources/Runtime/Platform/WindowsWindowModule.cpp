@@ -54,7 +54,7 @@ namespace Yes
 			mClientHeight = 600;
 			ZeroFill(mOutputInputStates);
 			ZeroFill(mInternalInputStates);
-			mThread = Thread(WindowThreadFunction, this, L"WindowsPlatformUIThread");
+			mThread.Run(WindowThreadFunction, this, L"WindowsPlatformUIThread");
 			mInitState.Decrease();
 		}
 		void* GetWindowHandle() override

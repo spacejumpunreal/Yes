@@ -131,7 +131,7 @@ namespace Yes
 		size_t descTypeCount = GetDescriptorHeapTypeCount();
 		CheckAlways(descTypeCount == DescriptorHeapAllocatorTypeCount);
 		CreatePersistentDescriptorHeapAllocators(dev, &mPersistentDescriptorHeapAllocator[0][0]);
-		mResourceWorker = std::move(Thread(Entry, this, L"ResourceManagerThread"));
+		mResourceWorker.Run(Entry, this, L"ResourceManagerThread");
 	}
 	void DX12ResourceManager::AddRequest(IDX12ResourceRequest* request)
 	{

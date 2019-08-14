@@ -32,5 +32,5 @@ namespace Yes
 		IAllocator* mAllocators[MaxAllocators];
 		DEFINE_MODULE_IN_CLASS(MemoryModule, MemoryModuleImp);
 	};
-	DEFINE_MODULE_REGISTRY(MemoryModule, MemoryModuleImp, -2000);
+	DEFINE_MODULE_REGISTRY(MemoryModule, MemoryModuleImp, -1100);
 }

@@ -47,9 +47,7 @@ namespace Yes
 		TestMath();
 		std::vector<const char*> args
 		{
-			"module=TickModule",
-			"module=ConcurrencyModule",
-			"module=FileModule",
+			"NumberOfJobsThreads=4",
 			R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
 			"module=WindowsWindowModule",
 	#if DEMO
@@ -57,6 +55,7 @@ namespace Yes
 	#else
 			"module=DX12RenderDeviceModule",
 			"module=RenderDeviceTestDriverModule",
+			"module=ConcurrencyTestDriverModule",
 	#endif	
 		};
 		auto sys = new Yes::System();

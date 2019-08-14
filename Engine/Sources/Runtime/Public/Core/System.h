@@ -12,14 +12,14 @@ namespace Yes
 
 	struct ModuleDescription
 	{
-		ModuleDescription(const char* name, int initOrder, ModuleCreatorFunction creator, ModuleID moduleID)
+		ModuleDescription(const char* name, float initOrder, ModuleCreatorFunction creator, ModuleID moduleID)
 			: ModuleID(moduleID)
 			, InitOrder(initOrder)
 			, Name(name)
 			, Creator(creator)
 		{}
 		ModuleID ModuleID;
-		int InitOrder;
+		float InitOrder;
 		const char* Name;
 		ModuleCreatorFunction Creator;
 	};

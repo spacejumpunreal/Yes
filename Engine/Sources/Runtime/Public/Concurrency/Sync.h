@@ -60,7 +60,6 @@ namespace Yes
 			return true;
 		}
 	};
-	using Signal = Semaphore<>;
 	template<typename ElemType, typename LockType = std::mutex>
 	class RingBuffer
 	{
