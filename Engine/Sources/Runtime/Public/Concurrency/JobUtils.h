@@ -1,5 +1,6 @@
 #pragma once
 #include "Public/Concurrency/Concurrency.h"
+#include "Public/Concurrency/Lock.h"
 #include <atomic>
 
 namespace Yes
@@ -20,9 +21,18 @@ namespace Yes
 		void Sync();
 	};
 
-	class JobLock
-	{};
+	class JobLock : public SimpleSpinLock
+	{
+	};
 
 	class JobSemaphore
-	{};
+	{
+	private:
+		std::atomic<size_t> mCount;
+	public:
+		JobSemaphore(size_t count);
+		void Increase();
+		void Decrease();
+		bool TryDecrease();
+	};
 }

@@ -16,4 +16,45 @@ namespace Yes
 			return;
 		mJobData.Function(mJobData.Context);
 	}
+
+	JobSemaphore::JobSemaphore(size_t count)
+		: mCount(count)
+	{
+	}
+
+	void JobSemaphore::Increase()
+	{
+		mCount.fetch_add(1, std::memory_order_release);
+	}
+
+	void JobSemaphore::Decrease()
+	{
+		while (true)
+		{
+			size_t v = mCount.load(std::memory_order_acquire);
+			if (v > 0)
+			{
+				size_t nv = v - 1;
+				if (mCount.compare_exchange_strong(v, nv, std::memory_order_acq_rel))
+				{
+					break;
+				}
+			}
+		}
+	}
+
+	bool JobSemaphore::TryDecrease()
+	{
+		size_t v = mCount.load(std::memory_order_acquire);
+		if (v > 0)
+		{
+			size_t nv = v - 1;
+			if (mCount.compare_exchange_strong(v, nv, std::memory_order_acq_rel))
+			{
+				return true;
+			}
+		}
+		return false;
+	}
+
 }

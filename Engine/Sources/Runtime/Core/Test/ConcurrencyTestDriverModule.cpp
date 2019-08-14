@@ -11,23 +11,34 @@ namespace Yes
 	static std::atomic<int> TakenJobs[8];
 	static std::atomic<int> DoneJobs;
 	static const size_t NJobs = 256;
+	static const bool TestSpawn = false;
+	static const bool TestLock = true;
 	struct ConcurrencyTestDriverModuleImp : public ConcurrencyTestDriverModule, public ITickable
 	{
 	private:
 		static JobSyncPoint* SyncPoint;
 	public:
+		static int fab(int x)
+		{
+			if (x == 0 || x == 1)
+				return x;
+			return fab(x - 1) + fab(x - 2);
+		}
 		virtual void Start(System* sys) override
 		{
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
-			SyncPoint = m->CreateJobSyncPoint(NJobs, UniteAction, nullptr);
-			JobData j
+			if (TestSpawn)
 			{
-				ConcurrencyTestDriverModuleImp::Spawn,
-				reinterpret_cast<void*>(1),
-			};
-			m->AddJobs(&j, 1);
+				SyncPoint = m->CreateJobSyncPoint(NJobs, SpawnTestUniteAction, nullptr);
+				JobData j
+				{
+					ConcurrencyTestDriverModuleImp::SpawnTestSpawn,
+					reinterpret_cast<void*>(1),
+				};
+				m->AddJobs(&j, 1);
+			}
 		}
-		static void UniteAction(void* data)
+		static void SpawnTestUniteAction(void* data)
 		{
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
 			printf("****************************************************************\n");
@@ -36,13 +47,7 @@ namespace Yes
 				printf("thread(%zd):%d\n", i, (int)TakenJobs[i]);
 			}
 		}
-		static int fab(int x)
-		{
-			if (x == 0 || x == 1)
-				return x;
-			return fab(x - 1) + fab(x - 2);
-		}
-		static void Spawn(void* data)
+		static void SpawnTestSpawn(void* data)
 		{
 			//need to be able to get job system worker thread index
 			size_t index = reinterpret_cast<size_t>(data);
@@ -59,7 +64,7 @@ namespace Yes
 					continue;
 				jd[todo++] =
 				{
-					ConcurrencyTestDriverModuleImp::Spawn,
+					ConcurrencyTestDriverModuleImp::SpawnTestSpawn,
 					reinterpret_cast<void*>(index * 2 + i)
 				};
 			}

@@ -12,9 +12,9 @@ namespace Yes
 	private:
 		LockType mLock;
 		std::condition_variable mCondition;
-		std::atomic<uint> mCount;
+		std::atomic<size_t> mCount;
 	public:
-		Semaphore(uint count = 0)
+		Semaphore(size_t count = 0)
 			: mCount(count)
 		{}
 		void Increase()
@@ -27,14 +27,14 @@ namespace Yes
 			std::unique_lock<LockType> lock(mLock);
 			while (true)
 			{
-				uint a = mCount.load(std::memory_order_acquire);
+				size_t a = mCount.load(std::memory_order_acquire);
 				if (a == 0)
 				{
 					mCondition.wait(lock);
 				}
 				else
 				{
-					uint aa = a - 1;
+					size_t aa = a - 1;
 					bool success = mCount.compare_exchange_weak(a, aa, std::memory_order_acq_rel);
 					if (success)
 					{
@@ -49,10 +49,10 @@ namespace Yes
 		}
 		bool TryDecrease()
 		{
-			uint a = mCount.load(std::memory_order_relaxed);
+			size_t a = mCount.load(std::memory_order_relaxed);
 			if (a == 0)
 				return false;
-			uint aa = a - 1;
+			size_t aa = a - 1;
 			if (!mCount.compare_exchange_weak(aa, a, std::memory_order_acq_rel))
 			{
 				return false;
