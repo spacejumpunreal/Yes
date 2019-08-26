@@ -1,8 +1,10 @@
 #pragma once
 
 #include "Yes.h"
-
 #include "Public/Concurrency/Concurrency.h"
+
+#include <string>
+
 namespace Yes
 {
 	class Thread;
@@ -16,11 +18,11 @@ namespace Yes
 		static Fiber* GetCurrentFiber();
 		static void SwitchTo(Fiber* dest);
 		void* GetParam() { return mParam; }
-		const wchar_t* GetName() { return mName; }
+		const wchar_t* GetName() { return mName.c_str(); }
 	private:
 		void* mParam;
 		OSFiberHandle mHandle;
-		const wchar_t* mName;
+		std::wstring mName;
 		Thread* mOriginThread;
 	};
 }

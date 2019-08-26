@@ -5,6 +5,7 @@
 
 namespace Yes
 {
+	class Fiber;
 	class ConcurrencyModule : public IModule
 	{//this is for job users
 	public:
@@ -21,12 +22,16 @@ namespace Yes
 		//API for job function
 		static size_t GetJobThrreadIndex();
 
+		//API for implementing primitives
+		static void SwitchOutCurrentJob();
+		virtual void SwitchInJob(Fiber* job);
+
 		//stats
 		virtual void GetFiberStats(size_t& living, size_t& everCreated) = 0;
 		virtual size_t GetWorkersCount() = 0;
 
 		//primitives
-		virtual JobSyncPoint* CreateJobSyncPoint(size_t initialCount, ThreadFunctionPrototype function, void* arg) = 0;
+		virtual JobUnitePoint* CreateJobUnitePoint(size_t initialCount, ThreadFunctionPrototype function, void* arg) = 0;
 		virtual JobLock* CreateJobLock() = 0;
 		virtual JobSemaphore* CreateJobSemaphore(size_t initial) = 0;
 

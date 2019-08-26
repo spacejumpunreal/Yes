@@ -51,41 +51,61 @@ namespace Yes
 		return JobSystemWorkerThreadIndex;
 	}
 
+	void AddJobs(ConcurrencyModule* module, const JobData* datum, size_t count, uint32 dispatchPolicy)
+	{
+		module->AddJobs(datum, count, dispatchPolicy);
+	}
+
+
 	struct ConcurrencyModuleImp : public ConcurrencyModule
 	{
-	private:
-
-		struct WorkerThread : public Thread
+		struct JobSystemFiber : public Fiber
+		{
+			JobSystemFiber(ThreadFunctionPrototype func, void* param, const wchar_t* name, size_t stackSize)
+				: Fiber(func, param, name, stackSize)
+				, LockOnThread(-1)
+			{}
+			JobSystemFiber(Thread* thread, void* param, const wchar_t* name)
+				: Fiber(thread, param, name)
+				, LockOnThread(-1)
+			{}
+			int32 LockOnThread;
+		};
+		struct JobSystemWorkerThread : public Thread
 		{
 		public:
 			uint32 ThreadIndex;
 			uint32 StealState;
-			uint32 LockFailTolerance;
 			ConcurrencyModuleImp* Module;
 			void Run(size_t threadIndex)
 			{
 				ThreadIndex = (uint32)threadIndex;
 				StealState = 0;
-				LockFailTolerance = 0;
+				Module = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
 				Thread::Run(WorkerThreadFunction, nullptr, L"JobSystemWorkerThread", 32 * 1024);
 			}
 			static void WorkerThreadFunction(void*)
 			{
-				WorkerThread* thisThread = (WorkerThread*)Thread::GetThisThread();
+				//setup things
+				JobSystemWorkerThread* thisThread = (JobSystemWorkerThread*)Thread::GetThisThread();
 				JobSystemWorkerThreadIndex = thisThread->ThreadIndex;
-				thisThread->Module = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
-				InternalJobData ijd;
+				new Fiber(thisThread, nullptr, nullptr);
 				while (true)
 				{
-					thisThread->Get1Job(&ijd);
-					if (ijd.IsFiber)
-					{//free current fiber, use that fiber
-						Fiber::SwitchTo(ijd.Data.Fiber);
-					}
-					else
-					{//directly call on this
-						ijd.Data.JobData.Function(ijd.Data.JobData.Context);
-					}
+					thisThread->TakeAndFinish1Job();
+				}
+			}
+			void TakeAndFinish1Job()
+			{
+				InternalJobData ijd;
+				Get1Job(&ijd);
+				if (ijd.IsFiber)
+				{//free current fiber, use that fiber
+					Fiber::SwitchTo(ijd.Data.Fiber);
+				}
+				else
+				{//directly call on this
+					ijd.Data.JobData.Function(ijd.Data.JobData.Context);
 				}
 			}
 			void Get1Job(InternalJobData* jdata)
@@ -135,7 +155,7 @@ namespace Yes
 		std::atomic<size_t> mLivingFibers;
 
 		//things almost not accessed
-		WorkerThread* mThreads;
+		JobSystemWorkerThread* mThreads;
 
 	public:
 		virtual void AddJobs(const JobData* datum, size_t count, uint32 dispatchPolicy) override
@@ -174,24 +194,23 @@ namespace Yes
 		{
 			return mThreadCount;
 		}
-		virtual JobSyncPoint* CreateJobSyncPoint(size_t initialCount, ThreadFunctionPrototype function, void* arg) override
+		virtual JobUnitePoint* CreateJobUnitePoint(size_t initialCount, ThreadFunctionPrototype function, void* arg) override
 		{
-			return new JobSyncPoint(initialCount, function, arg);
+			return new JobUnitePoint(initialCount, function, arg);
 		}
 		virtual JobLock* CreateJobLock() override
 		{
-			return nullptr;
+			return new JobLock();
 		}
 		virtual JobSemaphore* CreateJobSemaphore(size_t initial) override
 		{
-			return nullptr;
+			return new JobSemaphore(initial);
 		}
 
 	private:
 		//fiber management
 		void FreeFiber(Fiber* fb)
 		{
-			
 			mFreeFiberLock.Lock();
 			if (mFreeFibers.size() > MaxFreeFibers)
 			{
@@ -217,7 +236,7 @@ namespace Yes
 			}
 			else
 			{
-				new Fiber(WorkerThread::WorkerThreadFunction, this);
+				new Fiber(JobSystemWorkerThread::WorkerThreadFunction, this);
 				mFreeFiberLock.Unlock();
 				mLivingFibers.fetch_add(1, std::memory_order_relaxed);
 			}
@@ -313,7 +332,7 @@ namespace Yes
 		virtual void Start(System* system)
 		{
 			mPerThreadData = new PerThreadData[mThreadCount];
-			mThreads = new WorkerThread[mThreadCount];
+			mThreads = new JobSystemWorkerThread[mThreadCount];
 			for (size_t i = 0; i < mThreadCount; ++i)
 			{
 				mThreads[i].Run(i);
@@ -327,4 +346,15 @@ namespace Yes
 		DEFINE_MODULE_IN_CLASS(ConcurrencyModule, ConcurrencyModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(ConcurrencyModule, ConcurrencyModuleImp, -900);
+
+	void ConcurrencyModule::SwitchOutCurrentJob()
+	{
+		//current implementation is wrong, should first left some cue if needed(some std::function later to be executed to put
+		//the job on some waiting list) and jump on to some common worker fiber to do cleanup(at this time the thread will
+		//be truely halted
+
+		//the 'can wait lock''s current implementaiton is  also wrong, should use a count initial value == 0
+		ConcurrencyModuleImp::JobSystemWorkerThread* wt = (ConcurrencyModuleImp::JobSystemWorkerThread*)Thread::GetThisThread();
+		wt->TakeAndFinish1Job();
+	}
 }

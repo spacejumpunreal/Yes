@@ -3,20 +3,32 @@
 #include "Public/Core/TickModule.h"
 #include "Public/Core/ConcurrencyModule.h"
 #include "Public/Concurrency/Thread.h"
+#include "Public/Concurrency/JobUtils.h"
 
 #include <atomic>
 
 namespace Yes
 {
+	static const bool TestSpawn = false;
+	static const bool TestLock = true;
+
+	static JobUnitePoint* SyncPoint;
+	static JobLock* aJobLock;
+
 	static std::atomic<int> TakenJobs[8];
 	static std::atomic<int> DoneJobs;
 	static const size_t NJobs = 256;
-	static const bool TestSpawn = false;
-	static const bool TestLock = true;
+
+	static const int LockTestN = 2048;
+	static int TakenValues[LockTestN];
+	static int GV;
+	static std::atomic<int> Acc;
+
+	
 	struct ConcurrencyTestDriverModuleImp : public ConcurrencyTestDriverModule, public ITickable
 	{
 	private:
-		static JobSyncPoint* SyncPoint;
+
 	public:
 		static int fab(int x)
 		{
@@ -29,13 +41,23 @@ namespace Yes
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
 			if (TestSpawn)
 			{
-				SyncPoint = m->CreateJobSyncPoint(NJobs, SpawnTestUniteAction, nullptr);
+				SyncPoint = m->CreateJobUnitePoint(NJobs, SpawnTestUniteAction, nullptr);
 				JobData j
 				{
 					ConcurrencyTestDriverModuleImp::SpawnTestSpawn,
 					reinterpret_cast<void*>(1),
 				};
 				m->AddJobs(&j, 1);
+			}
+			if (TestLock)
+			{
+				SyncPoint = m->CreateJobUnitePoint(LockTestN, LockTestUniteAction, nullptr);
+				aJobLock = m->CreateJobLock();
+				JobDataBatch jb(m, 0);
+				for (size_t i = 0; i < LockTestN; ++i)
+				{
+					jb.PutJobData(LockTestJob, reinterpret_cast<void*>(i));
+				}
 			}
 		}
 		static void SpawnTestUniteAction(void* data)
@@ -71,7 +93,30 @@ namespace Yes
 			m->AddJobs(jd, todo);
 			++DoneJobs;
 			fab(20);
-			SyncPoint->Sync();
+			SyncPoint->Unite();
+		}
+		static void LockTestJob(void* data)
+		{
+			int tv = 0;
+			aJobLock->Lock();
+			tv = GV++;
+			aJobLock->Unlock();
+			Acc += tv;
+			SyncPoint->Unite();
+		}
+		static void LockTestUniteAction(void* data)
+		{
+			int trueValue = LockTestN * (LockTestN - 1) / 2;
+			int Accv = Acc;
+			CheckAlways(trueValue == Accv);
+			if (trueValue == Accv)
+			{
+				printf("LockTest Passed\n");
+			}
+			else
+			{
+				printf("LockTest Failed\n");
+			}
 		}
 		virtual void Tick() override
 		{}
@@ -79,7 +124,6 @@ namespace Yes
 	public:
 		DEFINE_MODULE_IN_CLASS(ConcurrencyTestDriverModule, ConcurrencyTestDriverModuleImp);
 	};
-	JobSyncPoint* ConcurrencyTestDriverModuleImp::SyncPoint;
 
 	DEFINE_MODULE_REGISTRY(ConcurrencyTestDriverModule, ConcurrencyTestDriverModuleImp, 1000);
 }

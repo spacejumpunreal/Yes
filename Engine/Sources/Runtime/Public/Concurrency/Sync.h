@@ -123,7 +123,7 @@ namespace Yes
 		{
 			CheckDebug(n > 0);
 		}
-		void Sync()
+		void Unite()
 		{
 			std::unique_lock<std::mutex> lk(mLock);
 			CheckDebug(mToWait >= 1);
