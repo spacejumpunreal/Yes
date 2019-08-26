@@ -1,0 +1,4 @@
+# JobSystem reborn development(2019.8.26-?)
+## waiting mechanism(2019.8.26-?)
+- goal there was waiting mechanism, so worker threads can busy wait/find jobs all the time which will make the cpu 100% occupied
+- tmp plan: need a global condition_variable for waiting, but what about private list? portable solution for waiting on 2 locks/cv?
