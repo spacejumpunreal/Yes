@@ -11,20 +11,11 @@ namespace Yes
 	public:
 		//parameters
 		static const size_t MaxFreeFibers = 32;
-
-		//flags
-		static const uint32 DispatchPolicyOnCurrent = 1 << 16;
-		static const uint32 DispatchPolicyLocked = 2 << 16;
-
-		//jobs
-		virtual void AddJobs(const JobData* datum, size_t count, uint32 dispatchPolicy = 0) = 0;
+		//job management
+		virtual void AddJobs(const JobData* datum, size_t count) = 0;
 
 		//API for job function
-		static size_t GetJobThrreadIndex();
-
-		//API for implementing primitives
-		static void SwitchOutCurrentJob();
-		virtual void SwitchInJob(Fiber* job);
+		static size_t GetJobThreadIndex();
 
 		//stats
 		virtual void GetFiberStats(size_t& living, size_t& everCreated) = 0;
