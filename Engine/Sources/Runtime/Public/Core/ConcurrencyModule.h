@@ -10,10 +10,10 @@ namespace Yes
 	{//this is for job users
 	public:
 		//parameters
-		static const size_t MaxFreeFibers = 32;
+		static const size_t MaxFreeFibers = 8;
 		//job management
 		virtual void AddJobs(const JobData* datum, size_t count) = 0;
-
+		virtual void SwitchOutAndReleaseLock(JobLock* lock) = 0;
 		//API for job function
 		static size_t GetJobThreadIndex();
 

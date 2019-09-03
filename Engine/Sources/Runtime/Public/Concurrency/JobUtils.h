@@ -7,6 +7,8 @@
 namespace Yes
 {
 	class ConcurrencyModule;
+	class Fiber;
+	using JobWaitingList = std::list<Fiber*>;
 
 	struct JobData
 	{
@@ -14,7 +16,6 @@ namespace Yes
 		void* Context;
 	};
 
-	void AddJobs(ConcurrencyModule* module, const JobData* datum, size_t count, uint32 dispatchPolicy);
 	template<size_t BatchSize = 32>
 	class JobDataBatch
 	{
@@ -38,7 +39,7 @@ namespace Yes
 		}
 		void Flush()
 		{
-			mModule->AddJobs(mJobDatas, mCount, mPolicy);
+			mModule->AddJobs(mJobDatas, mCount);
 			mCount = 0;
 		}
 	private:
@@ -58,20 +59,21 @@ namespace Yes
 		void Unite();
 	};
 
-	class Fiber;
-	class JobConditionVariable
-	{//a waiting list
-	public:
-		void Wait();
-		void NotifyOne();
-		void NotifyAll();
-	private:
-		std::list<Fiber*> mWaitList;
-	};
-
 	class JobLock : public SimpleSpinLock
 	{
 	};
+
+	class JobConditionVariable
+	{//a waiting list
+	public:
+		void Wait(JobLock* lock);
+		void NotifyOne();
+		void NotifyAll();
+	private:
+		JobWaitingList mWaitList;
+	};
+
+
 
 	class JobSemaphore
 	{

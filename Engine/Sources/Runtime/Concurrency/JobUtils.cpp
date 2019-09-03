@@ -1,6 +1,7 @@
 #include "Public/Concurrency/JobUtils.h"
 #include "Public/Concurrency/Fiber.h"
 #include "Public/Core/ConcurrencyModule.h"
+#include "Public/Core/System.h"
 #include "Public/Misc/Debug.h"
 
 namespace Yes
@@ -19,10 +20,11 @@ namespace Yes
 		mJobData.Function(mJobData.Context);
 	}
 
-	void JobConditionVariable::Wait()
+	void JobConditionVariable::Wait(JobLock* lock)
 	{
 		mWaitList.push_back(Fiber::GetCurrentFiber());
-		ConcurrencyModule::SwitchOutCurrentJob();
+		auto module = GET_MODULE(ConcurrencyModule);
+		module->SwitchOutAndReleaseLock(lock);
 	}
 
 	void JobConditionVariable::NotifyOne()
@@ -74,5 +76,4 @@ namespace Yes
 		}
 		return false;
 	}
-
 }

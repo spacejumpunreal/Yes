@@ -1,5 +1,5 @@
 #include "Public/Concurrency/Fiber.h"
-
+#include "Public/Misc/Debug.h"
 #include <windows.h>
 
 namespace Yes
@@ -25,7 +25,6 @@ namespace Yes
 	void Fiber::SwitchTo(Fiber* dest)
 	{
 		::SwitchToFiber(dest->mHandle);
-
 	}
 	Fiber::~Fiber()
 	{

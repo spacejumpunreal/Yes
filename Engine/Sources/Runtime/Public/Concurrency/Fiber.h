@@ -14,6 +14,7 @@ namespace Yes
 	public:
 		Fiber(ThreadFunctionPrototype func, void* param, const wchar_t* name = L"OtherYesFiber", size_t stackSize = 16 * 1024);
 		Fiber(Thread* thread, void* param, const wchar_t* name = L"ThreadYesFiber");
+		Fiber(const Fiber&) = delete;
 		~Fiber();
 		static Fiber* GetCurrentFiber();
 		static void SwitchTo(Fiber* dest);

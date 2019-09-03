@@ -10,6 +10,8 @@
 
 namespace Yes
 {
+	struct ConcurrencyModuleImp;
+
 	struct InternalJobData
 	{
 		union
@@ -45,13 +47,20 @@ namespace Yes
 	{
 		NoAction,
 		FreeFiber,
-		HangOnWaitList,
+		RelesaeLock,
 	};
 	struct PerThreadPrivateData
 	{
 		uint32 ThreadIndex;
 		FiberCleanupAction Action;
 		Fiber* PreviousFiber;
+		union
+		{
+			struct
+			{
+				JobLock* Lock;
+			} ReleaseParams;
+		};
 		PerThreadPrivateData()
 			: ThreadIndex(0)
 			, Action(FiberCleanupAction::NoAction)
@@ -64,12 +73,6 @@ namespace Yes
 	{
 		return JobThreadPrivateData.ThreadIndex;
 	}
-	/*
-	void AddJobs(ConcurrencyModule* module, const JobData* datum, size_t count)
-	{
-		module->AddJobs(datum, count);
-	}
-	*/
 
 	struct JobSystemWorkerThread : public Thread
 	{
@@ -81,25 +84,10 @@ namespace Yes
 		void Run(size_t threadIndex);
 		static void WorkerThreadFunction(void*);
 	};
-	void JobSystemWorkerThread::Run(size_t threadIndex)
-	{
-		ThreadIndex = (uint32)threadIndex;
-		StealState = 0;
-		Module = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
-		Thread::Run(WorkerThreadFunction, nullptr, L"JobSystemWorkerThread", 32 * 1024);
-	}
-	void JobSystemWorkerThread::WorkerThreadFunction(void*)
-	{
-		//setup things
-		JobSystemWorkerThread* thisThread = (JobSystemWorkerThread*)Thread::GetThisThread();
-		JobThreadPrivateData.ThreadIndex = thisThread->ThreadIndex;
-		new Fiber(thisThread, nullptr, nullptr);
-		//todo
-	}
 
 	struct ConcurrencyModuleImp : public ConcurrencyModule
 	{
-	private:
+	public:
 		//readonly global data
 		size_t mThreadCount;
 		std::atomic<bool> mShouldQuit;
@@ -110,7 +98,7 @@ namespace Yes
 		//shared global
 		std::condition_variable mWaitingList;
 		std::mutex mGlobalLock;
-		uint mPendingJobs;
+		size_t mPendingJobs;
 
 		//fiber management
 		SimpleSpinLock mFreeFiberLock;
@@ -122,11 +110,12 @@ namespace Yes
 		//things almost not accessed
 		JobSystemWorkerThread* mThreads;
 	public:
-		//job management
-		virtual void AddJobs(const JobData* datum, size_t count);
-		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, JobData* jobs, size_t count);
-		void WaitFor1Job(InternalJobData& job);
-		//API for fibers
+		//for job system users
+		virtual void AddJobs(const JobData* datum, size_t count) override;
+		//API for fiber worker
+		static void JobFiberBody(void*);
+		void FreeCurrentAndSwitchTo(Fiber* fiber);//used by fiber when they find fiber job
+		virtual void SwitchOutAndReleaseLock(JobLock* lock) override;
 	public:
 		//--------------------stats--------------------------------------------------
 		virtual void GetFiberStats(size_t& living, size_t& everCreated) override;
@@ -144,41 +133,38 @@ namespace Yes
 		{
 			return new JobSemaphore(initial);
 		}
+	private:
+		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, JobData* jobs, size_t count);
+		void HandleJob(InternalJobData& job);
+		void WaitFor1Job(InternalJobData& job);
+		void CleanupPreviousFiber();
+		void FreeFiber(Fiber* fiber);
+		Fiber* AllocFiber();
 	public:
-		virtual void InitializeModule(System* system)
-		{
-			mShouldQuit = false;
-			const Yes::ArgMap& mp = system->GetArguments();
-			auto it = mp.equal_range("NumberOfJobsThreads");
-			if (it.first != it.second)
-			{
-				mThreadCount = atoi(it.first->second.c_str());
-			}
-			else
-			{
-				mThreadCount = (size_t)std::thread::hardware_concurrency();
-			}
-			mPendingJobs = 0;
-		}
-		virtual void Start(System* system)
-		{
-			mPerThreadSharedData = new PerThreadSharedData[mThreadCount];
-			mThreads = new JobSystemWorkerThread[mThreadCount];
-			for (size_t i = 0; i < mThreadCount; ++i)
-			{
-				mThreads[i].Run(i);
-#if DEBUG
-				++mCreatedFibers;
-#endif
-			}
-			mLivingFibers.fetch_add(mThreadCount, std::memory_order_relaxed);
-		}
+		virtual void InitializeModule(System* system);
+		virtual void Start(System* system);
 	public:
 		DEFINE_MODULE_IN_CLASS(ConcurrencyModule, ConcurrencyModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(ConcurrencyModule, ConcurrencyModuleImp, -900);
 
-	//--------------------job and fiber management-----------------------------------------
+	void JobSystemWorkerThread::Run(size_t threadIndex)
+	{
+		ThreadIndex = (uint32)threadIndex;
+		StealState = 0;
+		Module = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
+		Thread::Run(WorkerThreadFunction, nullptr, L"JobSystemWorkerThread", 32 * 1024);
+	}
+	void JobSystemWorkerThread::WorkerThreadFunction(void*)
+	{
+		//setup things
+		JobSystemWorkerThread* thisThread = (JobSystemWorkerThread*)Thread::GetThisThread();
+		JobThreadPrivateData.ThreadIndex = thisThread->ThreadIndex;
+		new Fiber(thisThread, nullptr, nullptr);
+		ConcurrencyModuleImp::JobFiberBody(nullptr);
+	}
+
+	//--------------------job management------------------------------------------
 	void ConcurrencyModuleImp::AddJobs(const JobData* datum, size_t count)
 	{
 		std::vector<JobData> tmpDatum;
@@ -242,6 +228,107 @@ namespace Yes
 		}
 		CheckAlways(false, "should never reach here, should be able to find a job");
 	}
+	void ConcurrencyModuleImp::HandleJob(InternalJobData& job)
+	{
+		if (job.IsFiber)
+		{
+			FreeCurrentAndSwitchTo(job.Data.Fiber);
+		}
+		else
+		{
+			ThreadFunctionPrototype f = job.Data.JobData.Function;
+			void* a = job.Data.JobData.Context;
+			f(a);
+		}
+	}
+	void ConcurrencyModuleImp::CleanupPreviousFiber()
+	{
+		auto act = JobThreadPrivateData.Action;
+		JobThreadPrivateData.Action = FiberCleanupAction::NoAction;
+		switch (act)
+		{
+			case FiberCleanupAction::FreeFiber:
+			{
+				FreeFiber(JobThreadPrivateData.PreviousFiber);
+				break;
+			}
+			case FiberCleanupAction::RelesaeLock:
+			{
+				JobThreadPrivateData.ReleaseParams.Lock->Unlock();
+				break;
+			}
+			default:
+				break;
+		}
+	}
+	//--------------------fiber management----------------------------------------
+	Fiber* CreateOriginalFiber()
+	{
+		return new Fiber(Thread::GetThisThread(), nullptr, L"OriginalFiber");
+	}
+	Fiber* CreateJobFiber()
+	{
+		return new Fiber(ConcurrencyModuleImp::JobFiberBody, nullptr, L"JobFiber");
+	}
+	void DestroyJobFiber(Fiber* f)
+	{
+		delete f;
+	}
+	void ConcurrencyModuleImp::FreeFiber(Fiber* fiber)
+	{
+		mFreeFiberLock.Lock();
+		if (mFreeFibers.size() < MaxFreeFibers)
+		{
+			mFreeFibers.push_back(fiber);
+			fiber = nullptr;
+		}
+		mFreeFiberLock.Unlock();
+		if (fiber != nullptr)
+		{
+			DestroyJobFiber(fiber);
+		}
+	}
+	Fiber* ConcurrencyModuleImp::AllocFiber()
+	{
+		Fiber* ret = nullptr;
+		mFreeFiberLock.Lock();
+		if (mFreeFibers.size() > 0)
+		{
+			ret = mFreeFibers.back();
+			mFreeFibers.pop_back();
+		}
+		mFreeFiberLock.Unlock();
+		if (ret == nullptr)
+			ret = CreateJobFiber();
+		return ret;
+	}
+	void ConcurrencyModuleImp::FreeCurrentAndSwitchTo(Fiber* fiber)
+	{
+		JobThreadPrivateData.Action = FiberCleanupAction::FreeFiber;
+		JobThreadPrivateData.PreviousFiber = Fiber::GetCurrentFiber();
+		//newly created will cleanup for us
+		Fiber::SwitchTo(fiber);
+		//when we are back, cleanup previous
+		CleanupPreviousFiber();
+	}
+	void ConcurrencyModuleImp::SwitchOutAndReleaseLock(JobLock* lock)
+	{
+		JobThreadPrivateData.Action = FiberCleanupAction::RelesaeLock;
+		JobThreadPrivateData.PreviousFiber = Fiber::GetCurrentFiber();
+		JobThreadPrivateData.ReleaseParams.Lock = lock;
+	}
+	void ConcurrencyModuleImp::JobFiberBody(void*)
+	{
+		ConcurrencyModuleImp* m = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
+		JobSystemWorkerThread* thread = (JobSystemWorkerThread*)Thread::GetThisThread();
+		m->CleanupPreviousFiber();
+		while (!m->mShouldQuit.load(std::memory_order_relaxed))
+		{
+			InternalJobData data;
+			m->WaitFor1Job(data);
+			m->HandleJob(data);
+		}
+	}
 	//--------------------stats--------------------------------------------------
 	void ConcurrencyModuleImp::GetFiberStats(size_t& living, size_t& everCreated)
 	{
@@ -250,5 +337,34 @@ namespace Yes
 #if DEBUG
 		everCreated = mCreatedFibers.load(std::memory_order_relaxed);
 #endif
+	}
+	//--------------------module convensions--------------------------------------
+	void ConcurrencyModuleImp::InitializeModule(System* system)
+	{
+		mShouldQuit = false;
+		const Yes::ArgMap& mp = system->GetArguments();
+		auto it = mp.equal_range("NumberOfJobsThreads");
+		if (it.first != it.second)
+		{
+			mThreadCount = atoi(it.first->second.c_str());
+		}
+		else
+		{
+			mThreadCount = (size_t)std::thread::hardware_concurrency();
+		}
+		mPendingJobs = 0;
+	}
+	void ConcurrencyModuleImp::Start(System* system)
+	{
+		mPerThreadSharedData = new PerThreadSharedData[mThreadCount];
+		mThreads = new JobSystemWorkerThread[mThreadCount];
+		for (size_t i = 0; i < mThreadCount; ++i)
+		{
+			mThreads[i].Run(i);
+#if DEBUG
+			++mCreatedFibers;
+#endif
+		}
+		mLivingFibers.fetch_add(mThreadCount, std::memory_order_relaxed);
 	}
 }

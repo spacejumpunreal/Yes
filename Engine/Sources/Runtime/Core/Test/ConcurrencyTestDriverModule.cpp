@@ -73,7 +73,7 @@ namespace Yes
 		{
 			//need to be able to get job system worker thread index
 			size_t index = reinterpret_cast<size_t>(data);
-			size_t cthread = ConcurrencyModule::GetJobThrreadIndex();
+			size_t cthread = ConcurrencyModule::GetJobThreadIndex();
 			printf("job(%03zd) run on thread(%02zd)\n", index, cthread);
 			TakenJobs[cthread].fetch_add(1, std::memory_order_relaxed);
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
