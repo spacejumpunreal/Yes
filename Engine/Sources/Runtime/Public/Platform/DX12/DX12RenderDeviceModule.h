@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Yes.h"
-#include "Core/IModule.h"
-#include "Graphics/RenderDevice.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Core/IModule.h"
+#include "Runtime/Public/Graphics/RenderDevice.h"
 
 namespace Yes
 {

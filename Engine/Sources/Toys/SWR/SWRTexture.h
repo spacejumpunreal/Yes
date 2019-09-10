@@ -1,8 +1,9 @@
 #pragma once
-#include "Yes.h"
-#include "SWR.h"
-#include "SWRCommon.h"
-#include "SWRSampler.h"
+#include "Runtime/Public/Yes.h"
+#include "Toys/SWR/Public/SWR.h"
+#include "Toys/SWR/Public/SWRSampler.h"
+#include "Toys/SWR/SWRCommon.h"
+
 
 namespace Yes::SWR
 {

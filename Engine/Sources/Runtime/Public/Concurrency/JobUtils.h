@@ -1,6 +1,7 @@
 #pragma once
-#include "Public/Concurrency/Concurrency.h"
-#include "Public/Concurrency/Lock.h"
+#include "Runtime/Public/Concurrency/Concurrency.h"
+#include "Runtime/Public/Concurrency/Lock.h"
+#include "Runtime/Public/Core/System.h"
 #include <atomic>
 #include <list>
 
@@ -8,7 +9,6 @@ namespace Yes
 {
 	class ConcurrencyModule;
 	class Fiber;
-	using JobWaitingList = std::list<Fiber*>;
 
 	struct JobData
 	{
@@ -21,10 +21,9 @@ namespace Yes
 	{
 		static_assert(BatchSize > 0, "BatchSize should be larger than 0");
 	public:
-		JobDataBatch(ConcurrencyModule* module, uint32 dispatchPolicy = 0)
+		JobDataBatch(ConcurrencyModule* module)
 			: mCount(0)
 			, mModule(module)
-			, mPolicy(dispatchPolicy)
 		{
 		}
 		void PutJobData(ThreadFunctionPrototype func, void* context)
@@ -39,14 +38,20 @@ namespace Yes
 		}
 		void Flush()
 		{
-			mModule->AddJobs(mJobDatas, mCount);
-			mCount = 0;
+			if (mCount > 0)
+			{
+				mModule->AddJobs(mJobDatas, mCount);
+				mCount = 0;
+			}
+		}
+		~JobDataBatch()
+		{
+			Flush();
 		}
 	private:
 		JobData mJobDatas[BatchSize];
 		size_t mCount;
 		ConcurrencyModule* mModule;
-		uint32 mPolicy;
 	};
 
 	class JobUnitePoint
@@ -63,6 +68,16 @@ namespace Yes
 	{
 	};
 
+	class JobWaitingList
+	{
+	public:
+		void Append(Fiber* fiber);
+		void Pop(size_t n);
+	private:
+		JobLock ListLock;
+		std::list<Fiber*> Entries;
+	};
+
 	class JobConditionVariable
 	{//a waiting list
 	public:
@@ -73,16 +88,15 @@ namespace Yes
 		JobWaitingList mWaitList;
 	};
 
-
-
 	class JobSemaphore
 	{
 	public:
 		JobSemaphore(size_t count);
 		void Increase();
 		void Decrease();
-		bool TryDecrease();
 	private:
-		std::atomic<size_t> mCount;
+		size_t mCount;
+		JobLock mLock;
+		JobWaitingList mWaitList;
 	};
 }

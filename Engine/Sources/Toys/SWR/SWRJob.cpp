@@ -1,7 +1,8 @@
 #pragma once
-#include "Yes.h"
-#include "SWRJob.h"
-#include "Concurrency/Sync.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Concurrency/Sync.h"
+#include "Toys/SWR/SWRJob.h"
+
 #include <thread>
 #include <deque>
 

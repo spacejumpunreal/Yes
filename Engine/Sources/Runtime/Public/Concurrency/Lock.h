@@ -1,6 +1,6 @@
 #pragma once
-#include "Yes.h"
-#include "Public/Misc/Debug.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/Debug.h"
 
 #include <mutex>
 #include <atomic>

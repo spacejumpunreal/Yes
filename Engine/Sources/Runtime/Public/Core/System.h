@@ -1,5 +1,5 @@
 #pragma once
-#include "Core/IModule.h"
+#include "Runtime/Public/Core/IModule.h"
 
 #include <map>
 

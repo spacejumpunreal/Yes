@@ -1,7 +1,7 @@
 #pragma once
-#include "Yes.h"
-#include "Memory/SizeUtils.h"
-#include "Misc/Debug.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Memory/SizeUtils.h"
+#include "Runtime/Public/Misc/Debug.h"
 
 #include <map>
 #include <unordered_map>

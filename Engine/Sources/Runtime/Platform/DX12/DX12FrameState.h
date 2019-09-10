@@ -1,11 +1,11 @@
 #pragma once
-#include "Yes.h"
+#include "Runtime/Public/Yes.h"
 
-#include "Misc/Utils.h"
-#include "Platform/DX12/DX12MemAllocators.h"
-#include "Platform/DX12/DX12BufferAllocator.h"
-#include "Platform/DX12/DX12RenderDeviceResources.h"
-#include "Platform/DX12/DX12ResourceSpace.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Platform/DX12/DX12MemAllocators.h"
+#include "Runtime/Platform/DX12/DX12BufferAllocator.h"
+#include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 #include "Windows.h"
 #include <dxgi1_2.h>

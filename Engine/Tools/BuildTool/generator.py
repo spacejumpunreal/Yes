@@ -103,17 +103,17 @@ class VS2017Generator(object):
 
     def get_all_dependencies(self, target):
         q = [target]
-        all = set()
+        all_deps = set()
         while q:
             x = q.pop()
-            if x in all:
+            if x in all_deps:
                 continue
-            all.add(x)
+            all_deps.add(x)
             for d in x.dependencies:
                 dd = self._targets[d]
-                if dd not in all:
+                if dd not in all_deps:
                     q.append(dd)
-        return all
+        return all_deps
 
     @staticmethod
     def get_vcxproj_file_name(target):
@@ -177,12 +177,12 @@ class VS2017Generator(object):
             for c in Configurations:
                 for p in Platforms:
                     d = {
-                        "Label": "PropertySheets"
+                        "Label": "PropertySheets",
+                        "Condition": "'$(Configuration)|$(Platform)'=='%s|%s'" % (c, p)
                     }
-                    d["Condition"] = "'$(Configuration)|$(Platform)'=='%s|%s'" % (c, p)
                     dd = {
-                        "Project": "$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props",
-                        "Condition": "exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')",
+                        "Project": r'$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props',
+                        "Condition": r"exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')",
                         "Label": "LocalAppDataPlatform",
                     }
                     import_group_property_sheet.append(
@@ -193,12 +193,17 @@ class VS2017Generator(object):
 
             item_def_group = []
             all_deps = self.get_all_dependencies(target)
-            additional_include_directories = [
-                os.path.relpath(d, self._build_dir) for t in all_deps for d in t.public_dirs]
-            additional_include_directories.append(os.path.relpath(target.base_dir, self._build_dir))  # add self root
+
+            if target.include_source_dir:
+                additional_include_directories = [self._source_root_dir]
+            else:
+                additional_include_directories = []
+            additional_include_directories += [
+                os.path.relpath(d, self._build_dir) for t in all_deps for d in t.exported_dirs]
+            if target.export_base_dir:
+                additional_include_directories.append(os.path.relpath(target.base_dir, self._build_dir))
             additional_include_directories.append("%(AdditionalIncludeDirectories)")
-            additional_link_libs = ["d3d12.lib", "dxgi.lib", "d3dcompiler.lib"]
-            additional_link_libs.append("%(AdditionalDependencies)")
+            additional_link_libs = ["d3d12.lib", "dxgi.lib", "d3dcompiler.lib", "%(AdditionalDependencies)"]
             for c in Configurations:
                 for p in Platforms:
                     is_debug = c == "Debug"
@@ -263,8 +268,8 @@ class VS2017Generator(object):
                 wf.write(content)
 
             # write filter file
-
             used_filters = set()
+
             def add_all_parents_for_path(pth, st):
                 while pth:
                     st.add(pth)

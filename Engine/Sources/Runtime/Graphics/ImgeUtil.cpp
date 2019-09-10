@@ -1,4 +1,4 @@
-#include "Graphics/ImageUtil.h"
+#include "Runtime/Public/Graphics/ImageUtil.h"
 #include <vector>
 
 #define STB_IMAGE_IMPLEMENTATION

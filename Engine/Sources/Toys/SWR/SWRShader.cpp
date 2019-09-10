@@ -1,6 +1,6 @@
-#include "Yes.h"
-#include "SWR.h"
-#include "SWRShader.h"
+#include "Runtime/Public/Yes.h"
+#include "Toys/SWR/Public/SWR.h"
+#include "Toys/SWR/SWRShader.h"
 namespace Yes::SWR
 {
 	SWRHandle CreateSWRVertexShader(const VertexShaderDesc * desc)

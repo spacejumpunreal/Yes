@@ -1,8 +1,9 @@
-#include "Platform/DX12/DX12MemAllocators.h"
-#include "Memory/RangeAllocator.h"
-#include "Misc/Debug.h"
-#include "Misc/Math.h"
-#include "Memory/ObjectPool.h"
+#include "Runtime/Platform/DX12/DX12MemAllocators.h"
+#include "Runtime/Public/Memory/RangeAllocator.h"
+#include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Misc/Math.h"
+#include "Runtime/Public/Memory/ObjectPool.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 #include <d3d12.h>
 #include "d3dx12.h"
@@ -13,7 +14,7 @@
 
 #define CHECK_THREAD_ACCESS 1
 #if CHECK_THREAD_ACCESS
-#include "Concurrency/Thread.h"
+#include "Runtime/Public/Concurrency/Thread.h"
 #endif
 
 namespace Yes

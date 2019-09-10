@@ -11,18 +11,17 @@ HEADER_SUFFIXES = re.compile(r".*\.h"),
 def is_parent_of(directory, path):
     return os.path.join(path, "").startswith(os.path.join(directory, ""))
 
+
 class BuildTarget(object):
     def __init__(self, base_dir):
         self.is_library = True
+        self.export_base_dir = False
+        self.include_source_dir = True
         self.base_dir = base_dir
         self.dependencies = []
-        self.public_dirs = []
+        self.exported_dirs = []
         self.excluded_paths = []
-        # if has Public dir, use it as public include
-        public_dir = os.path.join(base_dir, "Public")
         self.guid = uuid.uuid4()
-        if os.path.exists(public_dir):
-            self.public_dirs.append(public_dir)
 
     def collect_source_files(self):
         headers = []

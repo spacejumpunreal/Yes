@@ -1,10 +1,8 @@
 #pragma once
-#include "Yes.h"
-
-#include "Public/Memory/RangeAllocator.h"
-#include "Platform/DX12/DX12BufferAllocator.h"
-
-#include "Platform/DX12/d3dx12.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Memory/RangeAllocator.h"
+#include "Runtime/Platform/DX12/DX12BufferAllocator.h"
+#include "Runtime/Platform/DX12/d3dx12.h"
 
 namespace Yes
 {

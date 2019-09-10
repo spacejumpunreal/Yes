@@ -1,7 +1,5 @@
 #pragma once
-
-#include "Yes.h"
-
+#include "Runtime/Public/Yes.h"
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
@@ -9,8 +7,6 @@
 #if YES_WINDOWS
 #include "Windows.h"
 #endif
-
-
 
 namespace Yes
 {

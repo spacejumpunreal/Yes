@@ -1,6 +1,6 @@
 #pragma once
-#include "Yes.h"
-#include "Misc/SharedObject.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/SharedObject.h"
 
 #include <vector>
 

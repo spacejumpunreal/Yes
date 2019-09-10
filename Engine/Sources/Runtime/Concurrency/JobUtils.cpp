@@ -1,8 +1,8 @@
-#include "Public/Concurrency/JobUtils.h"
-#include "Public/Concurrency/Fiber.h"
-#include "Public/Core/ConcurrencyModule.h"
-#include "Public/Core/System.h"
-#include "Public/Misc/Debug.h"
+#include "Runtime/Public/Concurrency/JobUtils.h"
+#include "Runtime/Public/Concurrency/Fiber.h"
+#include "Runtime/Public/Core/ConcurrencyModule.h"
+#include "Runtime/Public/Core/System.h"
+#include "Runtime/Public/Misc/Debug.h"
 
 namespace Yes
 {
@@ -14,27 +14,50 @@ namespace Yes
 	}
 	void JobUnitePoint::Unite()
 	{
-		size_t old = mCount.fetch_sub(1, std::memory_order_release);
+		size_t old = mCount.fetch_sub(1, std::memory_order_relaxed);
 		if (old != 1)
 			return;
 		mJobData.Function(mJobData.Context);
 	}
 
+	void JobWaitingList::Append(Fiber* fiber)
+	{
+		ListLock.Lock();
+		Entries.push_back(fiber);
+		ListLock.Unlock();
+	}
+	void JobWaitingList::Pop(size_t n)
+	{
+		std::vector<Fiber*> fibers;
+		ListLock.Lock();
+		for (size_t i = 0; i < n && Entries.size() > 0; ++i)
+		{
+			fibers.emplace_back(Entries.front());
+			Entries.pop_front();
+		}
+		ListLock.Unlock();
+		if (fibers.size() > 0)
+			GET_MODULE(ConcurrencyModule)->RescheduleFibers(fibers.data(), fibers.size());
+	}
+
 	void JobConditionVariable::Wait(JobLock* lock)
 	{
-		mWaitList.push_back(Fiber::GetCurrentFiber());
+		//lock should be already acquired by current fiber
+		mWaitList.Append(Fiber::GetCurrentFiber());
 		auto module = GET_MODULE(ConcurrencyModule);
 		module->SwitchOutAndReleaseLock(lock);
+		//after switch back in, need to get the lock again
+		lock->Lock();
 	}
 
 	void JobConditionVariable::NotifyOne()
 	{
-		Fiber* f = mWaitList.front();
-		mWaitList.pop_front();
+		mWaitList.Pop(1);
 	}
 
 	void JobConditionVariable::NotifyAll()
 	{
+		mWaitList.Pop(std::numeric_limits<size_t>::max());
 	}
 
 	JobSemaphore::JobSemaphore(size_t count)
@@ -44,36 +67,27 @@ namespace Yes
 
 	void JobSemaphore::Increase()
 	{
-		mCount.fetch_add(1, std::memory_order_release);
+		mLock.Lock();
+		++mCount;
+		mLock.Unlock();
+		mWaitList.Pop(1);
 	}
 
 	void JobSemaphore::Decrease()
 	{
 		while (true)
 		{
-			size_t v = mCount.load(std::memory_order_acquire);
-			if (v > 0)
+			mLock.Lock();
+			if (mCount > 0)
 			{
-				size_t nv = v - 1;
-				if (mCount.compare_exchange_strong(v, nv, std::memory_order_acq_rel))
-				{
-					break;
-				}
+				--mCount;
+				mLock.Unlock();
+				return;
 			}
+			mWaitList.Append(Fiber::GetCurrentFiber());
+			auto module = GET_MODULE(ConcurrencyModule);
+			module->SwitchOutAndReleaseLock(&mLock);
 		}
-	}
-
-	bool JobSemaphore::TryDecrease()
-	{
-		size_t v = mCount.load(std::memory_order_acquire);
-		if (v > 0)
-		{
-			size_t nv = v - 1;
-			if (mCount.compare_exchange_strong(v, nv, std::memory_order_acq_rel))
-			{
-				return true;
-			}
-		}
-		return false;
+		
 	}
 }

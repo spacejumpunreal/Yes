@@ -1,12 +1,13 @@
 #pragma once
-#include "Yes.h"
-#include "Graphics/RenderDevice.h"
-#include "Misc/Utils.h"
-#include "Concurrency/Thread.h"
-#include "Concurrency/MultiThreadQueue.h"
-#include "Platform/DX12/DX12MemAllocators.h"
-#include "Platform/DX12/DX12BufferAllocator.h"
-#include "Platform/DX12/DX12DescriptorHeapAllocators.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Graphics/RenderDevice.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public/Concurrency/Thread.h"
+#include "Runtime/Public/Concurrency/MultiThreadQueue.h"
+#include "Runtime/Platform/DX12/DX12MemAllocators.h"
+#include "Runtime/Platform/DX12/DX12BufferAllocator.h"
+#include "Runtime/Platform/DX12/DX12DescriptorHeapAllocators.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 #include <deque>
 #include "Windows.h"

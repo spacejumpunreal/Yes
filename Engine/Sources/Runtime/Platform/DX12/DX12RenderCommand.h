@@ -1,10 +1,10 @@
 #pragma once
-#include "Yes.h"
+#include "Runtime/Public/Yes.h"
 
-#include "Public/Memory/ObjectPool.h"
-#include "Public/Graphics/RenderDevice.h"
-#include "Platform/DX12/DX12FrameState.h"
-#include "Platform/DX12/DX12ResourceSpace.h"
+#include "Runtime/Public/Memory/ObjectPool.h"
+#include "Runtime/Public/Graphics/RenderDevice.h"
+#include "Runtime/Platform/DX12/DX12FrameState.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 namespace Yes
 {

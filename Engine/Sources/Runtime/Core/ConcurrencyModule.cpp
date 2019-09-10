@@ -1,9 +1,9 @@
-#include "Core/ConcurrencyModule.h"
-#include "Public/Core/System.h"
-#include "Public/Concurrency/Fiber.h"
-#include "Public/Concurrency/Lock.h"
-#include "Public/Concurrency/Thread.h"
-#include "Public/Concurrency/JobUtils.h"
+#include "Runtime/Public/Core/ConcurrencyModule.h"
+#include "Runtime/Public/Core/System.h"
+#include "Runtime/Public/Concurrency/Fiber.h"
+#include "Runtime/Public/Concurrency/Lock.h"
+#include "Runtime/Public/Concurrency/Thread.h"
+#include "Runtime/Public/Concurrency/JobUtils.h"
 #include <deque>
 #include <atomic>
 #include <mutex>
@@ -112,10 +112,12 @@ namespace Yes
 	public:
 		//for job system users
 		virtual void AddJobs(const JobData* datum, size_t count) override;
+		virtual void RescheduleFibers(Fiber* fibers[], size_t count) override;
 		//API for fiber worker
 		static void JobFiberBody(void*);
 		void FreeCurrentAndSwitchTo(Fiber* fiber);//used by fiber when they find fiber job
 		virtual void SwitchOutAndReleaseLock(JobLock* lock) override;
+		
 	public:
 		//--------------------stats--------------------------------------------------
 		virtual void GetFiberStats(size_t& living, size_t& everCreated) override;
@@ -134,9 +136,10 @@ namespace Yes
 			return new JobSemaphore(initial);
 		}
 	private:
-		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, JobData* jobs, size_t count);
+		void AddInternalJobs(const InternalJobData* datum, size_t count);
+		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, InternalJobData* jobs, size_t count);
 		void HandleJob(InternalJobData& job);
-		void WaitFor1Job(InternalJobData& job);
+		bool WaitFor1Job(InternalJobData& job);
 		void CleanupPreviousFiber();
 		void FreeFiber(Fiber* fiber);
 		Fiber* AllocFiber();
@@ -160,14 +163,24 @@ namespace Yes
 		//setup things
 		JobSystemWorkerThread* thisThread = (JobSystemWorkerThread*)Thread::GetThisThread();
 		JobThreadPrivateData.ThreadIndex = thisThread->ThreadIndex;
-		new Fiber(thisThread, nullptr, nullptr);
+		new Fiber(thisThread, nullptr, L"JobWorkerFiber");
 		ConcurrencyModuleImp::JobFiberBody(nullptr);
 	}
 
 	//--------------------job management------------------------------------------
 	void ConcurrencyModuleImp::AddJobs(const JobData* datum, size_t count)
 	{
-		std::vector<JobData> tmpDatum;
+		std::vector<InternalJobData> ijd;
+		ijd.reserve(count);
+		for (size_t i = 0; i < count; ++i)
+		{
+			ijd.emplace_back(InternalJobData(datum[i]));
+		}
+		AddInternalJobs(ijd.data(), count);
+	}
+	void ConcurrencyModuleImp::AddInternalJobs(const InternalJobData* datum, size_t count)
+	{
+		std::vector<InternalJobData> tmpDatum;
 		//TODO: should do load balancing here
 		tmpDatum.reserve((count + mThreadCount - 1) / mThreadCount);
 		for (size_t tid = 0; tid < mThreadCount; ++tid)
@@ -188,7 +201,7 @@ namespace Yes
 		if (needWakeup)
 			mWaitingList.notify_all();
 	}
-	void ConcurrencyModuleImp::EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, JobData* jobs, size_t count)
+	void ConcurrencyModuleImp::EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, InternalJobData* jobs, size_t count)
 	{
 		sdata->Lock.Lock();
 		sdata->Queue.reserve(sdata->Queue.size() + count);
@@ -198,7 +211,7 @@ namespace Yes
 		}
 		sdata->Lock.Unlock();
 	}
-	void ConcurrencyModuleImp::WaitFor1Job(InternalJobData& job)
+	bool ConcurrencyModuleImp::WaitFor1Job(InternalJobData& job)
 	{
 		size_t tid = GetJobThreadIndex();
 		{
@@ -219,13 +232,14 @@ namespace Yes
 				job = sd.Queue.back();
 				sd.Queue.pop_back();
 				sd.Lock.Unlock();
-				return;
+				return true;
 			}
 			else
 			{
 				sd.Lock.Unlock();
 			}
 		}
+		return false;
 		CheckAlways(false, "should never reach here, should be able to find a job");
 	}
 	void ConcurrencyModuleImp::HandleJob(InternalJobData& job)
@@ -316,6 +330,17 @@ namespace Yes
 		JobThreadPrivateData.Action = FiberCleanupAction::RelesaeLock;
 		JobThreadPrivateData.PreviousFiber = Fiber::GetCurrentFiber();
 		JobThreadPrivateData.ReleaseParams.Lock = lock;
+		Fiber::SwitchTo(AllocFiber());
+	}
+	void ConcurrencyModuleImp::RescheduleFibers(Fiber* fibers[], size_t count)
+	{
+		std::vector<InternalJobData> datum(count);
+		for (size_t i = 0; i < count; ++i)
+		{
+			datum[i].IsFiber = true;
+			datum[i].Data.Fiber = fibers[i];
+		}
+		AddInternalJobs(datum.data(), count);
 	}
 	void ConcurrencyModuleImp::JobFiberBody(void*)
 	{

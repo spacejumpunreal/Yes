@@ -1,6 +1,6 @@
-#include "Graphics/MeshUtil.h"
-#include "Public/Misc/Math.h"
-#include "Public/Misc/Container.h"
+#include "Runtime/Public/Graphics/MeshUtil.h"
+#include "Runtime/Public/Misc/Math.h"
+#include "Runtime/Public/Misc/Container.h"
 #include <unordered_map>
 
 namespace Yes

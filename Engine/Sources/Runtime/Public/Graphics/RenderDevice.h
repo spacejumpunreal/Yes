@@ -1,9 +1,9 @@
 #pragma once
 
-#include "Yes.h"
-#include "Misc/SharedObject.h"
-#include "Misc/Math.h"
-#include "Graphics/ImageUtil.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/SharedObject.h"
+#include "Runtime/Public/Misc/Math.h"
+#include "Runtime/Public/Graphics/ImageUtil.h"
 #include <vector>
 
 namespace Yes
@@ -47,7 +47,7 @@ namespace Yes
 #define DefineLabel(label) label
 	enum class RenderCommandType
 	{
-#include "Graphics/RenderCommandTypeList.inl"
+#include "Runtime/Graphics/RenderCommandTypeList.inl"
 		RenderCommandTypeCount,
 	};
 #undef DefineLabel

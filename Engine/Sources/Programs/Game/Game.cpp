@@ -1,9 +1,9 @@
-#include "Core/System.h"
-#include "Core/TickModule.h"
-#include "Core/FileModule.h"
-#include "Misc/Time.h"
-#include "Memory/RangeAllocator.h"
-#include "Misc/Functional.h"
+#include "Runtime/Public/Core/System.h"
+#include "Runtime/Public/Core/TickModule.h"
+#include "Runtime/Public/Core/FileModule.h"
+#include "Runtime/Public/Misc/Time.h"
+#include "Runtime/Public/Memory/RangeAllocator.h"
+#include "Runtime/Public/Misc/Functional.h"
 
 #include <map>
 #include <list>

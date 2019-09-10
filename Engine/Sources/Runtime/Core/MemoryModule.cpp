@@ -1,6 +1,6 @@
-#include "Yes.h"
-#include "Core/MemoryModule.h"
-#include "Core/System.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Core/MemoryModule.h"
+#include "Runtime/Public/Core/System.h"
 
 namespace Yes
 {

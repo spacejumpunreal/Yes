@@ -1,11 +1,11 @@
-#include "Platform/DX12/DX12RenderCommand.h"
-#include "Platform/DX12/DX12RenderDeviceResources.h"
-#include "Platform/DX12/DX12ExecuteContext.h"
-#include "Platform/DX12/DX12RenderPass.h"
-#include "Platform/DX12/DX12DrawcallArgument.h"
-#include "Public/Memory/ObjectPool.h"
-#include "Public/Misc/Utils.h"
-#include "Public/Memory/SizeUtils.h"
+#include "Runtime/Platform/DX12/DX12RenderCommand.h"
+#include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
+#include "Runtime/Platform/DX12/DX12ExecuteContext.h"
+#include "Runtime/Platform/DX12/DX12RenderPass.h"
+#include "Runtime/Platform/DX12/DX12DrawcallArgument.h"
+#include "Runtime/Public/Memory/ObjectPool.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public/Memory/SizeUtils.h"
 
 namespace Yes
 {
@@ -34,7 +34,7 @@ namespace Yes
 		static ICommandFactory* factories[] =
 		{
 	#define DefineLabel(label) new DX12CommandFactory<DX12##label>()
-	#include "Graphics/RenderCommandTypeList.inl"
+	#include "Runtime/Graphics/RenderCommandTypeList.inl"
 	#undef DefineLabel
 		};
 		mFactories = factories;

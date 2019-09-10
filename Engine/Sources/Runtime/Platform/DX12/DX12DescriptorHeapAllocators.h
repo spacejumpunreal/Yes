@@ -1,7 +1,6 @@
 #pragma once
-#include "Yes.h"
-
-#include "Platform/DX12/DX12ResourceSpace.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 #include <deque>
 
 namespace Yes

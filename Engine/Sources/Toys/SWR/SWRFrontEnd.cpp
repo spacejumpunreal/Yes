@@ -1,14 +1,15 @@
 #pragma once
-#include "Yes.h"
-#include "SWR.h"
-#include "SWRCommon.h"
-#include "SWRFrontEnd.h"
-#include "SWRTiles.h"
-#include "SWRShader.h"
-#include "SWRPipelineState.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/Container.h"
+#include "Toys/SWR/Public/SWR.h"
+#include "Toys/SWR/SWRCommon.h"
+#include "Toys/SWR/SWRFrontEnd.h"
+#include "Toys/SWR/SWRTiles.h"
+#include "Toys/SWR/SWRShader.h"
+#include "Toys/SWR/SWRPipelineState.h"
 
 
-#include "Misc/Container.h"
+
 
 namespace Yes::SWR
 {

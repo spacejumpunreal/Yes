@@ -1,7 +1,6 @@
 #pragma once
-
-#include "Yes.h"
-#include "Public/Platform/IWindowModule.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Platform/IWindowModule.h"
 
 namespace Yes
 {

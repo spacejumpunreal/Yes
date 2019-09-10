@@ -1,7 +1,7 @@
-#include "Platform/DXUtils.h"
+#include "Runtime/Public/Platform/DXUtils.h"
 
-#include "Misc/Utils.h"
-#include "Misc/Debug.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public//Misc/Debug.h"
 #include <d3dcompiler.h>
 
 

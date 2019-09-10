@@ -1,6 +1,6 @@
 #pragma once
-#include "Yes.h"
-#include "Debug.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/Debug.h"
 #include <memory>
 
 #define ARRAY_COUNT(a) (sizeof(a) / sizeof(a[0]))

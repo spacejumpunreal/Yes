@@ -1,5 +1,5 @@
 #pragma once
-#include "Misc/Debug.h"
+#include "Runtime/Public/Misc/Debug.h"
 #include <mutex>
 #include <atomic>
 #include <condition_variable>

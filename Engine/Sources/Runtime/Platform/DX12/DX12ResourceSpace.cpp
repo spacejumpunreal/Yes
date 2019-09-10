@@ -1,7 +1,7 @@
-#include "Platform/DX12/DX12ResourceSpace.h"
-#include "Public/Misc/Debug.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
+#include "Runtime/Public/Misc/Debug.h"
 
-#include "Platform/DX12/d3dx12.h"
+#include "Runtime/Platform/DX12/d3dx12.h"
 #include <algorithm>
 
 

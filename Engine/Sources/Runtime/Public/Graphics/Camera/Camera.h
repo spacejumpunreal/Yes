@@ -1,7 +1,7 @@
 #pragma once
-#include "Yes.h"
+#include "Runtime/Public/Yes.h"
 
-#include "Public/Misc/Math.h"
+#include "Runtime/Public/Misc/Math.h"
 
 namespace Yes
 {

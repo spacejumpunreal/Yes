@@ -1,4 +1,4 @@
-#include "Public/Graphics/Camera/Camera.h"
+#include "Runtime/Public/Graphics/Camera/Camera.h"
 
 #include <cstring>
 namespace Yes

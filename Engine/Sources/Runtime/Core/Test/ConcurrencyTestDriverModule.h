@@ -1,7 +1,7 @@
 #pragma once
-#include "Yes.h"
-#include "Public/Core/IModule.h"
-#include "Public/Concurrency/JobUtils.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Core/IModule.h"
+#include "Runtime/Public/Concurrency/JobUtils.h"
 
 namespace Yes
 {

@@ -1,6 +1,6 @@
 #pragma once
-#include "Yes.h"
-#include "SWR.h"
+#include "Runtime/Public/Yes.h"
+#include "Toys/SWR/Public/SWR.h"
 
 namespace Yes::SWR
 {

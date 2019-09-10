@@ -1,8 +1,10 @@
-#include "SWRTiles.h"
-#include "SWRPipelineState.h"
-#include "SWRJob.h"
-#include "Misc/Math.h"
-#include "Misc/Container.h"
+#include "Runtime/Public/Misc/Math.h"
+#include "Runtime/Public/Misc/Container.h"
+
+#include "Toys/SWR/SWRTiles.h"
+#include "Toys/SWR/SWRPipelineState.h"
+#include "Toys/SWR/SWRJob.h"
+
 #include <algorithm>
 #include <deque>
 #include <mutex>

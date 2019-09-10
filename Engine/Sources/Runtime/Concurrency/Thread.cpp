@@ -1,6 +1,6 @@
-#include "Concurrency/Thread.h"
-#include "Concurrency/Sync.h"
-#include "Misc/Debug.h"
+#include "Runtime/Public/Concurrency/Thread.h"
+#include "Runtime/Public/Concurrency/Sync.h"
+#include "Runtime/Public/Misc/Debug.h"
 #include <atomic>
 #include "Windows.h"
 

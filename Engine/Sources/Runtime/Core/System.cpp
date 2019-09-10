@@ -1,14 +1,14 @@
-#include "Yes.h"
-#include "Core/System.h"
-#include "Misc/Utils.h"
-#include "Misc/Debug.h"
-#include "Misc/Time.h"
-#include "Concurrency/Thread.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Core/System.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Misc/Time.h"
+#include "Runtime/Public/Concurrency/Thread.h"
 
-#include "Core/ModuleRegistry.h"
-#include "Core/MemoryModule.h"
-#include "Core/FileModule.h"
-#include "Core/TickModule.h"
+#include "Runtime/Public/Core/ModuleRegistry.h"
+#include "Runtime/Public/Core/MemoryModule.h"
+#include "Runtime/Public/Core/FileModule.h"
+#include "Runtime/Public/Core/TickModule.h"
 
 #include <unordered_map>
 #include <vector>

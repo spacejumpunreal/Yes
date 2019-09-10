@@ -1,8 +1,8 @@
 #pragma once
-#include "Yes.h"
+#include "Runtime/Public/Yes.h"
 
-#include "Graphics/RenderDevice.h"
-#include "Platform/DX12/DX12BufferAllocator.h"
+#include "Runtime/Public/Graphics/RenderDevice.h"
+#include "Runtime/Platform/DX12/DX12BufferAllocator.h"
 
 namespace Yes
 {

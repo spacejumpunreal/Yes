@@ -1,9 +1,9 @@
-#include "Yes.h"
-#include "Core/System.h"
-#include "Core/TickModule.h"
-#include "Misc/Debug.h"
-#include "Misc/Time.h"
-#include "Misc/StringUtils.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Core/System.h"
+#include "Runtime/Public/Core/TickModule.h"
+#include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Misc/Time.h"
+#include "Runtime/Public/Misc/StringUtils.h"
 
 namespace Yes
 {

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "Yes.h"
+#include "Runtime/Public/Yes.h"
 
-#include "Public/Concurrency/Concurrency.h"
+#include "Runtime/Public/Concurrency/Concurrency.h"
 #include <mutex>
 
 namespace Yes

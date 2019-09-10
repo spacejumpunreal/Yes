@@ -1,18 +1,20 @@
-#include "Yes.h"
-#include "SWR.h"
-#include "SWRCommon.h"
-#include "SWRTexture.h"
-#include "SWRShader.h"
-#include "SWRPipelineState.h"
-#include "SWRFrontEnd.h"
-#include "SWRTiles.h"
-#include "SWRRasterizer.h"
-#include "SWRBackEnd.h"
-#include "SWRJob.h"
+#include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/Container.h"
+#include "Runtime/Public/Misc/Time.h"
+#include "Runtime/Public/Concurrency/Sync.h"
 
-#include "Misc/Container.h"
-#include "Misc/Time.h"
-#include "Concurrency/Sync.h"
+#include "Toys/SWR/Public/SWR.h"
+#include "Toys/SWR/SWRCommon.h"
+#include "Toys/SWR/SWRTexture.h"
+#include "Toys/SWR/SWRShader.h"
+#include "Toys/SWR/SWRPipelineState.h"
+#include "Toys/SWR/SWRFrontEnd.h"
+#include "Toys/SWR/SWRTiles.h"
+#include "Toys/SWR/SWRRasterizer.h"
+#include "Toys/SWR/SWRBackEnd.h"
+#include "Toys/SWR/SWRJob.h"
+
+
 
 #include <cstdio>
 

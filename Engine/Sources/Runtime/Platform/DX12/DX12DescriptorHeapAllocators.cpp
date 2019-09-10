@@ -1,7 +1,7 @@
-#include "Platform/DX12/DX12DescriptorHeapAllocators.h"
-#include "Platform/DX12/DX12Parameters.h"
-#include "Memory/RangeAllocator.h"
-#include "Misc/Debug.h"
+#include "Runtime/Platform/DX12/DX12DescriptorHeapAllocators.h"
+#include "Runtime/Platform/DX12/DX12Parameters.h"
+#include "Runtime/Public/Memory/RangeAllocator.h"
+#include "Runtime/Public/Misc/Debug.h"
 
 namespace Yes
 {
