@@ -2,8 +2,13 @@
 ## waiting mechanism(2019.8.26-2019.9.10)
 - goal there was waiting mechanism, so worker threads can busy wait/find jobs all the time which will make the cpu 100% occupied
 - tmp plan: need a global condition_variable for waiting, but what about private list? portable solution for waiting on 2 locks/cv?
+	- solve: global condition_variable, global available job count, do not allow lock job to worker thread
 
-# transfer the whole engine to use jobsystem(2019.9.10-?)
+# balance job insertion based on existing jobs(2019.9.10-?)
+
+# VS2019
+
+# transfer the whole engine to use jobsystem(?-?)
 - MainThread
 - RenderThread
 

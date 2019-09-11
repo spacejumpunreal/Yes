@@ -7,6 +7,8 @@
 #include <deque>
 #include <atomic>
 #include <mutex>
+#include <execution>
+#include <algorithm>
 
 namespace Yes
 {
@@ -137,7 +139,7 @@ namespace Yes
 		}
 	private:
 		void AddInternalJobs(const InternalJobData* datum, size_t count);
-		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, InternalJobData* jobs, size_t count);
+		void EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, const InternalJobData* jobs, size_t count);
 		void HandleJob(InternalJobData& job);
 		bool WaitFor1Job(InternalJobData& job);
 		void CleanupPreviousFiber();
@@ -170,6 +172,8 @@ namespace Yes
 	//--------------------job management------------------------------------------
 	void ConcurrencyModuleImp::AddJobs(const JobData* datum, size_t count)
 	{
+		if (count == 0)
+			return;
 		std::vector<InternalJobData> ijd;
 		ijd.reserve(count);
 		for (size_t i = 0; i < count; ++i)
@@ -178,20 +182,76 @@ namespace Yes
 		}
 		AddInternalJobs(ijd.data(), count);
 	}
+	struct SortStruct
+	{
+		uint16 ThreadIndex;
+		uint16 Load;
+		friend static bool operator<(const SortStruct& l, const SortStruct& r)
+		{
+			return l.Load < r.Load;
+		}
+	};
 	void ConcurrencyModuleImp::AddInternalJobs(const InternalJobData* datum, size_t count)
 	{
-		std::vector<InternalJobData> tmpDatum;
-		//TODO: should do load balancing here
-		tmpDatum.reserve((count + mThreadCount - 1) / mThreadCount);
+		uint32* tmpLoadsToAdd = new uint32[mThreadCount];
+		{
+			SortStruct* tmpCurrentLoads = new SortStruct[mThreadCount];
+			for (size_t i = 0; i < mThreadCount; ++i)
+			{
+				mPerThreadSharedData[i].Lock.Lock();
+				tmpCurrentLoads[i].ThreadIndex = (uint16)i;
+				tmpCurrentLoads[i].Load = (uint16)mPerThreadSharedData[i].Queue.size();
+				mPerThreadSharedData[i].Lock.Unlock();
+			}
+			std::sort(std::execution::sequenced_policy(), tmpCurrentLoads, mThreadCount + tmpCurrentLoads);
+			uint32 availableCount = (uint32)count;
+			uint32 highIndex = 0;
+			uint32 prevLoad = 0;
+			for (highIndex = 0; highIndex < (uint32)mThreadCount - 1; ++highIndex)
+			{
+				uint32 gap = (tmpCurrentLoads[highIndex + 1].Load - tmpCurrentLoads[highIndex].Load) * (highIndex + 1);
+				if (availableCount >= gap)
+				{
+					availableCount -= gap;
+					prevLoad = tmpCurrentLoads[highIndex + 1].Load;
+				}
+				else
+				{
+					break;
+				}
+			}
+			uint32 targetLoad = prevLoad + availableCount / (highIndex + 1);
+			availableCount = (uint32)count;
+			for (uint32 i = 0; i < mThreadCount; ++i)
+			{
+				if (i <= highIndex)
+				{
+					CheckDebug(targetLoad >= tmpCurrentLoads[i].Load);
+					uint32 toAdd = targetLoad - tmpCurrentLoads[i].Load;
+					if (i != highIndex)
+					{
+						tmpLoadsToAdd[tmpCurrentLoads[i].ThreadIndex] = toAdd;
+						availableCount -= toAdd;
+					}
+					else
+					{
+						tmpLoadsToAdd[tmpCurrentLoads[i].ThreadIndex] = availableCount;
+					}
+				}
+				else
+				{
+					tmpLoadsToAdd[tmpCurrentLoads[i].ThreadIndex] = 0;
+				}
+			}
+			delete[] tmpCurrentLoads;
+		}
+		uint32 offset = 0;
 		for (size_t tid = 0; tid < mThreadCount; ++tid)
 		{
-			for (size_t jid = tid; jid < count; jid += mThreadCount)
-			{
-				tmpDatum.push_back(datum[jid]);
-			}
-			EnqueueJobsOnPerThreadQueue(&mPerThreadSharedData[tid], tmpDatum.data(), tmpDatum.size());
-			tmpDatum.clear();
+			EnqueueJobsOnPerThreadQueue(&mPerThreadSharedData[tid], datum + offset, tmpLoadsToAdd[tid]);
+			offset += tmpLoadsToAdd[tid];
 		}
+		delete[] tmpLoadsToAdd;
 		//handle wakeup
 		bool needWakeup = false;
 		mGlobalLock.lock();
@@ -201,8 +261,10 @@ namespace Yes
 		if (needWakeup)
 			mWaitingList.notify_all();
 	}
-	void ConcurrencyModuleImp::EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, InternalJobData* jobs, size_t count)
+	void ConcurrencyModuleImp::EnqueueJobsOnPerThreadQueue(PerThreadSharedData* sdata, const InternalJobData* jobs, size_t count)
 	{
+		if (count == 0)
+			return;
 		sdata->Lock.Lock();
 		sdata->Queue.reserve(sdata->Queue.size() + count);
 		for (size_t i = 0; i < count; ++i)
