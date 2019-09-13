@@ -6,7 +6,8 @@
 
 # balance job insertion based on existing jobs(2019.9.10-2019.9.11)
 - use very vanilla algorithm: capture all queue loads, do perfect balancing
-# VS2019
+# VS2019(2019.9.13-2019.9.14)
+- generate vs2019 project file(abandon vs2017), and -Wall
 
 # transfer the whole engine to use jobsystem(?-?)
 - MainThread
