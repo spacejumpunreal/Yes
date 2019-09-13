@@ -9,8 +9,8 @@ namespace Yes
 	class IModule
 	{
 	public:
-		virtual void InitializeModule(System* system) {}; // self initialization, other modules not ready
-		virtual void Start(System* system) {} // other module's InitializeModule called already
+		virtual void InitializeModule(System*) {}; // self initialization, other modules not ready
+		virtual void Start(System*) {} // other module's InitializeModule called already
 	};
 }
 

@@ -14,16 +14,17 @@
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Misc/Debug.h"
 
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include "d3dx12.h"
-
 #include <cstdlib>
 #include <cstring>
 #include <algorithm>
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 #define VALIDATION_LEVEL 1
 
@@ -133,7 +134,7 @@ namespace Yes
 		{
 			return mCurrentFrameIndex;
 		}
-		void Start(System* system) override
+		void Start(System*) override
 		{
 			COMRef<IDXGIFactory4> factory;
 			HWND wh;

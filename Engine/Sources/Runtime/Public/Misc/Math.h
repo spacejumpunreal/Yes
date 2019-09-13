@@ -359,7 +359,7 @@ namespace Yes
 				T row1[4];
 				T row2[4];
 				T row3[4];
-			};
+			} r;
 		};
 		Vector3<T>& GetVector3Row(int i)
 		{
@@ -470,8 +470,8 @@ namespace Yes
 			cp.m[3][0] = 0;
 			cp.m[3][1] = 0;
 			cp.m[3][2] = 0;
-			Matrix4x4 r = cp.Inverse3x3();
-			return Matrix4x4::Translate(translation) * r;
+			Matrix4x4 rotation = cp.Inverse3x3();
+			return Matrix4x4::Translate(translation) * rotation;
 		}
 		static Matrix4x4 Identity(T a = 1)
 		{

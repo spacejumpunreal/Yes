@@ -10,6 +10,7 @@
 #include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 #include <deque>
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
@@ -17,6 +18,7 @@
 #include <d3dcompiler.h>
 #include "d3d12.h"
 #include "d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 namespace Yes
 {
@@ -156,7 +158,7 @@ namespace Yes
 		void TransitToState(D3D12_RESOURCE_STATES newState, ID3D12GraphicsCommandList* cmdList);
 		
 	protected:
-		void InitTexture(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc);
+		void InitTexture(size_t width, size_t height, TextureFormat format, D3D12_RESOURCE_DESC* desc);
 		void InitHandles();
 	private:
 		ID3D12Resource* mTexture;

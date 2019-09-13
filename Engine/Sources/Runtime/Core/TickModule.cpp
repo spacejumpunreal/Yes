@@ -10,7 +10,7 @@ namespace Yes
 	class TickModuleImp : public TickModule
 	{
 	public:
-		void Start(System* system) override
+		void Start(System*) override
 		{
 			mStartTime = TimeStamp::Now();
 		}

@@ -5,8 +5,10 @@
 #include "Runtime/Public/Memory/ObjectPool.h"
 #include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include <d3d12.h>
 #include "d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 #include <unordered_map>
 #include <map>

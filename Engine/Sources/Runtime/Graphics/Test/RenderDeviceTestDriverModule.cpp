@@ -61,7 +61,7 @@ namespace Yes
 			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
 		{
 		}
-		virtual void InitializeModule(System* system) override
+		virtual void InitializeModule(System*) override
 		{
 			TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);
@@ -76,10 +76,10 @@ namespace Yes
 
 			mWindowModule = GET_MODULE_AS(WindowsWindowModule, IWindowModule);
 		}
-		virtual void Start(System* system) override
+		virtual void Start(System*) override
 		{
 			//test start
-			ConcurrencyModule* cm = GET_MODULE(ConcurrencyModule);
+			//ConcurrencyModule* cm = GET_MODULE(ConcurrencyModule);
 		}
 		virtual void Tick() override
 		{
@@ -141,7 +141,6 @@ namespace Yes
 				size_t indexStride = 4;
 				size_t NStatue = 1;
 				size_t NMonkey = 5;
-				size_t NFloor = 1;
 				size_t NShadowRT = 3;
 				TRef<RenderDeviceDescriptorHeap> heap = mDevice->CreateDescriptorHeap(false, 1024);
 				size_t availableStart = 0;
@@ -262,25 +261,25 @@ namespace Yes
 						float v = ((float)i) / (N - 1);
 						float pv = std::powf(v, 1.0f / 2.2f);
 						TRef<RawImage> rimage0 = BuildSingleColorTexture(V4F(v, v, v, 1), 4);
-						TRef<RawImage> rimage1 = BuildSingleColorTexture(V4F(pv, pv, pv, 1), 4);
+						rimage1 = BuildSingleColorTexture(V4F(pv, pv, pv, 1), 4);
 						RenderDeviceTextureRef tex0 = mDevice->CreateTexture2D(
 							0, 0,
 							TextureFormat::R8G8B8A8_UNORM,
 							TextureUsage::ShaderResource,
 							rimage0.GetPtr());
-						RenderDeviceTextureRef tex1 = mDevice->CreateTexture2D(
+						RenderDeviceTextureRef tex2 = mDevice->CreateTexture2D(
 							0, 0,
 							TextureFormat::R8G8B8A8_UNORM,
 							TextureUsage::ShaderResource,
 							rimage1.GetPtr());
 						auto range0 = heap->CreateRange(availableStart, 1);
 						availableStart += 1;
-						auto range1 = heap->CreateRange(availableStart, 1);
+						auto range2 = heap->CreateRange(availableStart, 1);
 						availableStart += 1;
 						const RenderDeviceTexture* texx0 = tex0.GetPtr();
-						const RenderDeviceTexture* texx1 = tex1.GetPtr();
+						const RenderDeviceTexture* texx2 = tex2.GetPtr();
 						range0->SetRange(0, 1, &texx0);
-						range1->SetRange(0, 1, &texx1);
+						range2->SetRange(0, 1, &texx2);
 						{
 							mObjects.push_back({});
 							RenderObject& ro = mObjects.back();
@@ -293,8 +292,8 @@ namespace Yes
 							mObjects.push_back({});
 							RenderObject& ro = mObjects.back();
 							ro.Mesh = mesh;
-							ro.Texture = tex1;
-							ro.DescriptorTable = range1;
+							ro.Texture = tex2;
+							ro.DescriptorTable = range2;
 							ro.Transform = M44F::Scale(V3F(1)) * M44F::RotateX(3.1415f / 2.0f) * M44F::RotateY(3.1415f / 2.0f) * M44F::Translate(startPoint + V3F(0, 3, (float)4 * i));
 						}
 					}
@@ -353,7 +352,8 @@ namespace Yes
 		{
 			int fi = mFrame % 3;
 			RenderDevicePass* pass = mDevice->AllocPass(1);
-			pass->SetDepthStencil(mShadowDepth[fi], true, 1.0f, true, 0, true, &mShadowDepth[fi]->GetDefaultViewport());
+			B3F vpb = mShadowDepth[fi]->GetDefaultViewport();
+			pass->SetDepthStencil(mShadowDepth[fi], true, 1.0f, true, 0, true, &vpb);
 			pass->SetArgument(0, mGlobalCB.GetPtr());
 			for (int i = 0; i < mObjects.size(); ++i)
 			{

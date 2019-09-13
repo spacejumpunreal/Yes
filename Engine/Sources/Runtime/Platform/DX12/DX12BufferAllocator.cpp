@@ -2,7 +2,10 @@
 #include "Runtime/Public/Yes.h"
 #include "Runtime/Public/Memory/RangeAllocator.h"
 #include "Runtime/Platform/DX12/DX12BufferAllocator.h"
+
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Runtime/Platform/DX12/d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 namespace Yes
 {
@@ -14,13 +17,17 @@ namespace Yes
 		ID3D12Resource* AllocRange(UINT64 size)
 		{
 			ID3D12Resource* res;
-			CheckSucceeded(Device->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
-				D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(size),
-				D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
-				nullptr,
-				IID_PPV_ARGS(&res)));
+			{
+				auto hp = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+				auto b = CD3DX12_RESOURCE_DESC::Buffer(size);
+				CheckSucceeded(Device->CreateCommittedResource(
+					&hp,
+					D3D12_HEAP_FLAGS::D3D12_HEAP_FLAG_NONE,
+					&b,
+					D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_GENERIC_READ,
+					nullptr,
+					IID_PPV_ARGS(&res)));
+			}
 			return res;
 		}
 		void FreeRange(ID3D12Resource* buffer)
@@ -46,7 +53,7 @@ namespace Yes
 			mImp.Allocate(buffer, start, size, alignment);
 			return DX12GPUBufferRegion(buffer, start, size);
 		}
-		void Free(const DX12GPUBufferRegion& region) override
+		void Free(const DX12GPUBufferRegion&) override
 		{
 			CheckAlways(false, "no need to free");
 		}

@@ -92,7 +92,7 @@ namespace Yes
 	}
 	void DX12RenderPass::Execute(DX12RenderPassContext& context)
 	{
-		UINT activeRTCount;
+		UINT activeRTCount = 0;
 		D3D12_CPU_DESCRIPTOR_HANDLE outputRTHandles[MaxRenderTargets];
 		//output RenderTargets
 		for (int i = 0; i < MaxRenderTargets; ++i)

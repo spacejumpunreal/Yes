@@ -61,7 +61,7 @@ namespace Yes
 				for (int i = 0; i < N; ++i)
 				{
 					mallocator.Allocate(bases[i], start[i], M + 3, alignUsed);
-					int* addr = bases[i] + start[i];
+					//int* addr = bases[i] + start[i];
 					uint64 iaddr = (uint64)start;
 					CheckAlways((iaddr & (alignUsed - 1)) == 0U);
 					bases[i][start[i]] = i;
@@ -99,28 +99,28 @@ namespace Yes
 		}
 		{//random
 			bool log = true;
-			struct Allocated
+			struct AllocatedInfo
 			{
 				int* Base;
 				size_t Offset;
 			};
 			const int RandomN = 1024 * 8;
 			mallocator.Reset();
-			std::map<int, Allocated> time2Allocated;
+			std::map<int, AllocatedInfo> time2Allocated;
 			int time = 0;
 			size_t maxOptionalSize = 64;
 			mallocator = TestedAllocator(maxOptionalSize * 2, maxOptionalSize * 2);
 			size_t optionalAligns[] = { 1, 2, 4, 8, 16 };
 			std::srand(888);
-			int allocated = 0;
+			int allocatedCount = 0;
 			for (int i = 0; i < RandomN * 2; ++i)
 			{
 				int rr = std::rand();
 				if (time2Allocated.size() == 0 || 
-					(allocated < RandomN && (rr & 1) == 0))
+					(allocatedCount < RandomN && (rr & 1) == 0))
 				{
-					++allocated;
-					Allocated& allocated = time2Allocated[time++];
+					++allocatedCount;
+					AllocatedInfo& allocated = time2Allocated[time++];
 					int r = std::rand();
 					size_t allocationSize = (r % maxOptionalSize) + 1;
 					size_t align = optionalAligns[r % ARRAY_COUNT(optionalAligns)];

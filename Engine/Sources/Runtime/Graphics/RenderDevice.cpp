@@ -5,7 +5,7 @@
 namespace Yes
 {
 	//RenderDeviceResource
-	void RenderDeviceResource::SetState(RenderDeviceResourceState state)
+	void RenderDeviceResource::SetState(RenderDeviceResourceState)
 	{
 		CheckAlways(false, "not supposed to be called");
 	}

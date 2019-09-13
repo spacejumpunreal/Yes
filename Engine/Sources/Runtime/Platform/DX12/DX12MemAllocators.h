@@ -1,9 +1,6 @@
 #pragma once
 #include "Runtime/Public/Yes.h"
-
 #include "Runtime/Platform/DX12/DX12ResourceSpace.h"
-
-#include "d3dx12.h"
 
 
 namespace Yes

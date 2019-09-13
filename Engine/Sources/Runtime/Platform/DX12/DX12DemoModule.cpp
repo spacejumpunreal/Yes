@@ -7,12 +7,14 @@
 #include "Runtime/Public/Misc/Utils.h"
 #include "Runtime/Public/Misc/Debug.h"
 
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include "d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 namespace Yes
 {
@@ -261,10 +263,12 @@ namespace Yes
 
 			{
 				UINT vertexBufferSize = sizeof(triangleVertices);
+				CD3DX12_RESOURCE_DESC b = CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize);
+				CD3DX12_HEAP_PROPERTIES h = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
 				CheckSucceeded(mDevice->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					&h,
 					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(vertexBufferSize),
+					&b,
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&mVertexBuffer)));
@@ -290,18 +294,20 @@ namespace Yes
 			//constant buffer
 			{
 				UINT constantBufferSize = CalcConstantBufferSize<ConstantData>();
+				CD3DX12_HEAP_PROPERTIES h = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+				CD3DX12_RESOURCE_DESC b = CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize);
 				CheckSucceeded(mDevice->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					&h,
 					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+					&b,
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&mConstantBuffer[0])));
 
 				CheckSucceeded(mDevice->CreateCommittedResource(
-					&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+					&h,
 					D3D12_HEAP_FLAG_NONE,
-					&CD3DX12_RESOURCE_DESC::Buffer(constantBufferSize),
+					&b,
 					D3D12_RESOURCE_STATE_GENERIC_READ,
 					nullptr,
 					IID_PPV_ARGS(&mConstantBuffer[1])));
@@ -357,8 +363,9 @@ namespace Yes
 			textureDesc.SampleDesc.Quality = 0;
 			textureDesc.Dimension = D3D12_RESOURCE_DIMENSION_TEXTURE2D;
 
+			CD3DX12_HEAP_PROPERTIES heapPropertiesDefault = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
 			CheckSucceeded(mDevice->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT),
+				&heapPropertiesDefault,
 				D3D12_HEAP_FLAG_NONE,
 				&textureDesc,
 				D3D12_RESOURCE_STATE_COPY_DEST,
@@ -366,10 +373,12 @@ namespace Yes
 				IID_PPV_ARGS(&mTexture)));
 
 			const UINT64 uploadBufferSize = GetRequiredIntermediateSize(mTexture.GetPtr(), 0, 1);
+			CD3DX12_HEAP_PROPERTIES heapPropertiesUpload = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD);
+			CD3DX12_RESOURCE_DESC resourceDescBuffer = CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize);
 			CheckSucceeded(mDevice->CreateCommittedResource(
-				&CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_UPLOAD),
+				&heapPropertiesUpload,
 				D3D12_HEAP_FLAG_NONE,
-				&CD3DX12_RESOURCE_DESC::Buffer(uploadBufferSize),
+				&resourceDescBuffer,
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(&mUploadHeap)));
@@ -416,13 +425,11 @@ namespace Yes
 				0,
 				1,
 				&textureData);
-			mCommandList->ResourceBarrier(
-				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition(
-					mTexture.GetPtr(),
-					D3D12_RESOURCE_STATE_COPY_DEST,
-					D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE)
-				);
+			CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				mTexture.GetPtr(),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			mCommandList->ResourceBarrier(1, &barrier);
 			CheckSucceeded(mCommandList->Close());
 			ID3D12CommandList* commandLists[] = { mCommandList.GetPtr() };
 			mCommandQueue->ExecuteCommandLists(ARRAY_COUNT(commandLists), commandLists);
@@ -483,34 +490,37 @@ namespace Yes
 			mCommandList->SetGraphicsRootConstantBufferView(1, mConstantBuffer[1]->GetGPUVirtualAddress());
 			//mCommandList->SetGraphicsRootConstantBufferView(0, handle.ptr);
 			//mCommandList->SetGraphicsRootConstantBufferView(1, handle.ptr);
-			handle.ptr += HeapSize / 2 * mSRVDescriptorSize;
+			handle.ptr += ((UINT)(HeapSize / 2)) * mSRVDescriptorSize;
 			mCommandList->SetGraphicsRootDescriptorTable(2, handle);
 
 			mCommandList->RSSetViewports(1, &mViewport);
 			mCommandList->RSSetScissorRects(1, &mScissorRect);
-			mCommandList->ResourceBarrier(
-				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition(
+			{
+				CD3DX12_RESOURCE_BARRIER rb = CD3DX12_RESOURCE_BARRIER::Transition(
 					mBackbuffers[frameIndex].GetPtr(),
 					D3D12_RESOURCE_STATE_PRESENT,
-					D3D12_RESOURCE_STATE_RENDER_TARGET));
+					D3D12_RESOURCE_STATE_RENDER_TARGET);
+				mCommandList->ResourceBarrier(1, &rb);
+			}
+
 			CD3DX12_CPU_DESCRIPTOR_HANDLE rtvHandle(mRTVHeap->GetCPUDescriptorHandleForHeapStart(), (INT)frameIndex, mRTVDescriptorSize);
 			mCommandList->OMSetRenderTargets(1, &rtvHandle, FALSE, nullptr);
 			mCommandList->ClearRenderTargetView(rtvHandle, mClearColor, 0, nullptr);
 			mCommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 			mCommandList->IASetVertexBuffers(0, 1, &mVertexBufferView);
 			mCommandList->DrawInstanced(6, 1, 0, 0);
-			mCommandList->ResourceBarrier(
-				1,
-				&CD3DX12_RESOURCE_BARRIER::Transition(
+			{
+				CD3DX12_RESOURCE_BARRIER rb = CD3DX12_RESOURCE_BARRIER::Transition(
 					mBackbuffers[frameIndex].GetPtr(),
 					D3D12_RESOURCE_STATE_RENDER_TARGET,
-					D3D12_RESOURCE_STATE_PRESENT));
+					D3D12_RESOURCE_STATE_PRESENT);
+				mCommandList->ResourceBarrier(1, &rb);
+			}
 			CheckSucceeded(mCommandList->Close());
 		}
 
 	public:
-		virtual void InitializeModule(System* system) override
+		virtual void InitializeModule(System*) override
 		{
 			mFrameCounts = 3;
 			mFrameIdx = 0;

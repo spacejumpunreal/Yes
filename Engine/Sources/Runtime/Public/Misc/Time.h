@@ -113,7 +113,7 @@ namespace Yes
 		float mFPS;
 	};
 
-	static void Sleep(TimeDuration t)
+	static inline void Sleep(TimeDuration t)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(int(t.ToMilliSeconds())));
 	}

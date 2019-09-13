@@ -4,8 +4,8 @@
 - tmp plan: need a global condition_variable for waiting, but what about private list? portable solution for waiting on 2 locks/cv?
 	- solve: global condition_variable, global available job count, do not allow lock job to worker thread
 
-# balance job insertion based on existing jobs(2019.9.10-?)
-
+# balance job insertion based on existing jobs(2019.9.10-2019.9.11)
+- use very vanilla algorithm: capture all queue loads, do perfect balancing
 # VS2019
 
 # transfer the whole engine to use jobsystem(?-?)

@@ -7,12 +7,14 @@
 #include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
 #include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <dxgi1_2.h>
 #include <dxgi1_4.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
 #include "d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 #include <deque>
 

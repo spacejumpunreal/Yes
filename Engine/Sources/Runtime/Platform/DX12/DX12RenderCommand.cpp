@@ -78,10 +78,10 @@ namespace Yes
 	{
 		mPSO = pso;
 	}
-	void DX12Drawcall::Prepare(void* ctx)
+	void DX12Drawcall::Prepare(void* /*ctx*/)
 	{
 	}
-	void DX12Drawcall::Execute(void * ctx)
+	void DX12Drawcall::Execute(void* ctx)
 	{
 		DX12RenderPassContext* context = (DX12RenderPassContext*)ctx;
 		ID3D12GraphicsCommandList* gl = context->CommandList;

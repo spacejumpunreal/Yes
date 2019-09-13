@@ -13,7 +13,7 @@ namespace Yes::SWR
 		return new SWRPixelShader(desc);
 	}
 
-	void SWRDefaultOutputMerger(void* current, void* previous, void* next, int numRT)
+	void SWRDefaultOutputMerger(void* current, void*, void* next, int numRT)
 	{
 		auto sz = GetPSOutputSize(numRT);
 		memcpy(next, current, sz);

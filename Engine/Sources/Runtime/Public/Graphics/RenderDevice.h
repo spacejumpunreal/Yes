@@ -5,6 +5,7 @@
 #include "Runtime/Public/Misc/Math.h"
 #include "Runtime/Public/Graphics/ImageUtil.h"
 #include <vector>
+#include <string>
 
 namespace Yes
 {
@@ -58,7 +59,7 @@ namespace Yes
 	public:
 		virtual ~RenderDeviceResource()
 		{}
-		virtual void SetName(wchar_t* name) {}
+		virtual void SetName(wchar_t*) {}
 		virtual bool IsReady() = 0; // check if is ready to use
 		virtual void SetState(RenderDeviceResourceState state);
 		virtual RenderDeviceResourceState GetState();

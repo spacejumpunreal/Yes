@@ -13,7 +13,7 @@ if not os.path.exists(build_root):
 
 if __name__ == "__main__":
     import driver
-    platform = "vs2017" if len(sys.argv) <= 1 else sys.argv[1]
-    if platform == "vs2017":
-        driver.generate_vs_project(source_root, build_root, os.path.join(pwd, "Yes.2017.sln"))
+    platform = "vs2019" if len(sys.argv) <= 1 else sys.argv[1]
+    if platform == "vs2019":
+        driver.generate_vs_project(source_root, build_root, os.path.join(pwd, "Yes.2019.sln"))
 

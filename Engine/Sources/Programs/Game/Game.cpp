@@ -42,7 +42,7 @@ namespace Yes
 {
 
 
-	int Main(int argc, const char** argv)
+	int Main(int, const char**)
 	{
 		TestMath();
 		std::vector<const char*> args

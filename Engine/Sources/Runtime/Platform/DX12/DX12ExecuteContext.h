@@ -4,9 +4,11 @@
 #include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
 #include "Runtime/Public/Misc/SharedObject.h"
 
+/*
 #include <d3d12.h>
 #include "Runtime/Platform/DX12/d3dx12.h"
 #include <vector>
+*/
 
 namespace Yes
 {

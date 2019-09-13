@@ -107,7 +107,7 @@ namespace Yes::SWR
 			mCurrentState->OMShader = omstate;
 		}
 		//2. commands
-		virtual void Clear(float clearColor[4], float depth)
+		virtual void Clear(float /*clearColor*/[4], float /*depth*/)
 		{
 			mCurrentStateInUse = true;
 			//put into queue

@@ -12,7 +12,7 @@ namespace Yes
 	{
 		char* start = (char*)&o;
 		char* end = start + sizeof(T);
-		std::fill(start, end, 0);
+		memset(start, 0, end - start);
 	}
 	inline void FillN(void* dst, size_t n, void* pattern, size_t patternSize)
 	{

@@ -51,7 +51,7 @@ namespace Yes
 	{
 	public:
 		void Reset() override;
-		void Prepare(void* ctx) override {}
+		void Prepare(void*) override {}
 		void Execute(void* ctx) override;
 
 		void AddResourceBarrier(const TRef<RenderDeviceResource>& resources, RenderDeviceResourceState newState) override;

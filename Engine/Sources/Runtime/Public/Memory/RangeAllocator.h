@@ -127,7 +127,7 @@ namespace Yes
 			mAvailableOffset = nextAvailableOffset;
 			++mCurrentRange->RefCount;
 		}
-		void Free(RangeKey key, RangePtr ptr)
+		void Free(RangeKey key, RangePtr /*ptr*/)
 		{
 			--mCount;
 			auto kit = mUsedRanges.find(key);
@@ -177,7 +177,7 @@ namespace Yes
 			mCurrentRange = nullptr;
 		}
 	private:
-		bool CanFreeRange(size_t total)
+		bool CanFreeRange(size_t /*total*/)
 		{
 			return mReserved > mMaxReservation;
 		}
@@ -401,7 +401,7 @@ namespace Yes
 			}
 		}
 	private:
-		bool CanFreeRange(size_t total)
+		bool CanFreeRange(size_t /*total*/)
 		{
 			return mReserved > mMaxReservation;
 		}

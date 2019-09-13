@@ -46,7 +46,7 @@ namespace Yes
 		int mFrameIndex;
 		Semaphore<> mInitState;
 	public:
-		virtual void InitializeModule(System* system) override
+		virtual void InitializeModule(System*) override
 		{
 			Yes::TickModule* tickModule = GET_MODULE(TickModule);
 			tickModule->AddTickable(this);

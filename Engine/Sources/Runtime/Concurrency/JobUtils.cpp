@@ -3,6 +3,7 @@
 #include "Runtime/Public/Core/ConcurrencyModule.h"
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Misc/Debug.h"
+#include <vector>
 
 namespace Yes
 {

@@ -147,8 +147,8 @@ namespace Yes
 			auto t = TimeStamp::Now();
 			tickModule->Tick();
 			auto dt = TimeStamp::Now() - t;
-			auto dtsec = dt.ToSeconds();
-			auto dursec = mPrivate->mFrameDuration.ToSeconds();
+			//auto dtsec = dt.ToSeconds();
+			//auto dursec = mPrivate->mFrameDuration.ToSeconds();
 			auto d = mPrivate->mFrameDuration - dt;
 			auto sec = d.ToSeconds();
 			if (sec > 0)

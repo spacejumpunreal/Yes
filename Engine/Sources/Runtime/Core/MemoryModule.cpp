@@ -8,22 +8,22 @@ namespace Yes
 	struct MemoryModuleImp : public MemoryModule
 	{
 	public:
-		void InitializeModule(System* system)
+		void InitializeModule(System*)
 		{
 			std::fill_n(mAllocators, MaxAllocators, nullptr);
 		}
-		void Start(System* system)
+		void Start(System*)
 		{
 			
 		}
 		void Tick()
 		{}
 
-		virtual IAllocator* GetAllocator(AllocatorTag tag)
+		virtual IAllocator* GetAllocator(AllocatorTag)
 		{
 			return nullptr;
 		}
-		virtual IAllocator* CreateAllocator(AllocatorTag tag)
+		virtual IAllocator* CreateAllocator(AllocatorTag)
 		{
 			return nullptr;
 		}

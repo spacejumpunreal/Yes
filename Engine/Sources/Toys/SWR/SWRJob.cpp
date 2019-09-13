@@ -101,7 +101,7 @@ namespace Yes::SWR
 				}
 			}
 		}
-		void Test(int x)
+		void Test(int)
 		{
 		}
 	protected:
@@ -110,7 +110,7 @@ namespace Yes::SWR
 		std::deque<SWRJobItem>					mTasks;
 		std::condition_variable					mCondition;
 		int32									mWaitCount;
-		friend void _WorkerThread(size_t idx, SWRJobSystemImp* jobSystem)
+		friend void _WorkerThread(size_t, SWRJobSystemImp* jobSystem)
 		{
 			jobSystem->Execute();
 		}

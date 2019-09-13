@@ -23,7 +23,7 @@ namespace Yes::SWR
 		auto imbSize = vCount * vs->OutputStride;
 		//TODO: split this buffer to make this parallel
 		TRef<ISharedBuffer> imb(new ArraySharedBuffer(imbSize));
-		auto buf = imb->GetData();
+		//auto buf = imb->GetData();
 		//1. translate vertex buffer using vertex shader
 		auto vbd = (uint8*)vb->GetData();
 		auto imbd = (uint8*)imb->GetData();

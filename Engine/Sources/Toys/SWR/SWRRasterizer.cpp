@@ -8,7 +8,7 @@ namespace Yes::SWR
 	class SWRRasterizerImp : public SWRRasterizer
 	{
 	public:
-		SWRRasterizerImp(const DeviceDesc* desc, SWRJobSystem* jobSystem)
+		SWRRasterizerImp(const DeviceDesc*, SWRJobSystem* jobSystem)
 			: mJobSystem(jobSystem)
 		{
 		}

@@ -24,7 +24,10 @@ namespace Yes
 	template<size_t N>
 	constexpr size_t HornerHashCompileTime(const char(&str)[N], size_t prime = 31, size_t len = N - 1)
 	{
-		return (len <= 1) ? str[0] : (prime * HornerHashCompileTime(str, prime, len - 1) + (size_t)str[len - 1]);
+		return (len <= 1) ?
+			str[0] :
+			((prime * (0xffffffff & HornerHashCompileTime(str, prime, len - 1))) & 0xffffffff)
+			+ (size_t)str[len - 1];
 	}
 	inline size_t HornerHashRunTime(const char* str, size_t prime)
 	{

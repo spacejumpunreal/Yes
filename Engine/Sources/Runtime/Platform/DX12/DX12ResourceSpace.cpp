@@ -1,7 +1,9 @@
 #include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 #include "Runtime/Public/Misc/Debug.h"
 
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Runtime/Platform/DX12/d3dx12.h"
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 #include <algorithm>
 
 

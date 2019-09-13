@@ -301,8 +301,8 @@ namespace Yes
 				sd.Lock.Unlock();
 			}
 		}
-		return false;
 		CheckAlways(false, "should never reach here, should be able to find a job");
+		return false;
 	}
 	void ConcurrencyModuleImp::HandleJob(InternalJobData& job)
 	{
@@ -407,7 +407,6 @@ namespace Yes
 	void ConcurrencyModuleImp::JobFiberBody(void*)
 	{
 		ConcurrencyModuleImp* m = (ConcurrencyModuleImp*)GET_MODULE(ConcurrencyModule);
-		JobSystemWorkerThread* thread = (JobSystemWorkerThread*)Thread::GetThisThread();
 		m->CleanupPreviousFiber();
 		while (!m->mShouldQuit.load(std::memory_order_relaxed))
 		{
@@ -441,7 +440,7 @@ namespace Yes
 		}
 		mPendingJobs = 0;
 	}
-	void ConcurrencyModuleImp::Start(System* system)
+	void ConcurrencyModuleImp::Start(System*)
 	{
 		mPerThreadSharedData = new PerThreadSharedData[mThreadCount];
 		mThreads = new JobSystemWorkerThread[mThreadCount];

@@ -67,7 +67,7 @@ EndGlobal
 
 Configurations = ("Debug", "Release")
 Platforms = ("x64", "Win32")
-PlatformToolset = "v141"
+PlatformToolset = "v142"
 
 
 def get_latest_windows_sdk_version():
@@ -94,7 +94,7 @@ def get_latest_windows_sdk_version():
     return sorted(subs, cmp_version)[-1]
 
 
-class VS2017Generator(object):
+class VS2019Generator(object):
     def __init__(self, collector, build_dir, solution_path):
         self._targets = collector.targets
         self._source_root_dir = collector.root_dir
@@ -117,15 +117,15 @@ class VS2017Generator(object):
 
     @staticmethod
     def get_vcxproj_file_name(target):
-        return target.get_name() + ".vs2017.vcxproj"
+        return target.get_name() + ".vs2019.vcxproj"
 
     @staticmethod
     def get_filter_file_name(target):
-        return target.get_name() + ".vs2017.vcxproj.filters"
+        return target.get_name() + ".vs2019.vcxproj.filters"
 
     @staticmethod
     def get_target_name(target):
-        return target.get_name() + ".vs2017"
+        return target.get_name() + ".vs2019"
 
     @staticmethod
     def format_guid(guid):
@@ -211,13 +211,15 @@ class VS2017Generator(object):
                     item_def_group.append(
                         XmlNode("ItemDefinitionGroup", (
                             XmlNode("ClCompile", (
-                                XmlNode("WarningLevel", "Level3"),
+                                XmlNode("WarningLevel", "Level4"),
                                 XmlNode("Optimization", "Disabled" if is_debug else "MaxSpeed"),
                                 XmlNode("SDLCheck", "true"),
                                 XmlNode("ConformanceMode", "true"),
                                 XmlNode("MultiProcessorCompilation", "true"),
                                 XmlNode("AdditionalIncludeDirectories", ";".join(additional_include_directories)),
                                 XmlNode("LanguageStandard", "stdcpplatest"),
+                                XmlNode("EnableEnhancedInstructionSet", "AdvancedVectorExtensions2"),
+                                XmlNode("TreatWarningAsError", "true"),
                             )),
                             XmlNode("Link", (
                                 XmlNode("EnableCOMDATFolding", "false" if is_debug else "true"),

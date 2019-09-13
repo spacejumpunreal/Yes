@@ -38,14 +38,14 @@ namespace Yes
 				return x;
 			return fab(x - 1) + fab(x - 2);
 		}
-		virtual void Start(System* sys) override
+		virtual void Start(System*) override
 		{
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
 			TesterSemaphore = m->CreateJobSemaphore(0);
 			JobData jb { TesterJobFunction, NULL };
 			m->AddJobs(&jb, 1);
 		}
-		static void TesterJobFunction(void* data)
+		static void TesterJobFunction(void*)
 		{
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
 			for (int i = 0; i < 100; ++i)
@@ -67,16 +67,16 @@ namespace Yes
 					SyncPoint1 = m->CreateJobUnitePoint(LockTestN, LockTestUniteAction, nullptr);
 					LockTestLock = m->CreateJobLock();
 					JobDataBatch<16> jb(m);
-					for (size_t i = 0; i < LockTestN; ++i)
+					for (size_t j = 0; j < LockTestN; ++j)
 					{
-						jb.PutJobData(LockTestJob, reinterpret_cast<void*>(i));
+						jb.PutJobData(LockTestJob, reinterpret_cast<void*>(j));
 					}
 					jb.Flush();
 					TesterSemaphore->Decrease();
 				}
 			}
 		}
-		static void SpawnTestUniteAction(void* data)
+		static void SpawnTestUniteAction(void*)
 		{
 			ConcurrencyModule* m = GET_MODULE(ConcurrencyModule);
 			printf("****************************************************************\n");
@@ -109,10 +109,10 @@ namespace Yes
 			}
 			m->AddJobs(jd, todo);
 			++DoneJobs;
-			fab(20);
+			fab(23);
 			SyncPoint0->Unite();
 		}
-		static void LockTestJob(void* data)
+		static void LockTestJob(void*)
 		{
 			int tv = 0;
 			LockTestLock->Lock();
@@ -123,7 +123,7 @@ namespace Yes
 			LockTestLock->Unlock();
 			SyncPoint1->Unite();
 		}
-		static void LockTestUniteAction(void* data)
+		static void LockTestUniteAction(void*)
 		{
 			int trueValue = LockTestN * (LockTestN - 1) / 2;
 			LockTestLock->Lock();

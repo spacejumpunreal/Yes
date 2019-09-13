@@ -1,7 +1,9 @@
 #pragma once
 #include "Runtime/Public/Yes.h"
+#include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <d3d12.h>
+#include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 namespace Yes
 {

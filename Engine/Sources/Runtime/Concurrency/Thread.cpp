@@ -39,7 +39,7 @@ namespace Yes
 		d.Function = func;
 		d.Context = param;
 		d.Name = name;
-		HANDLE thisThreadHandle = ::CreateThread(nullptr, stackSize, (LPTHREAD_START_ROUTINE)ThreadBody, &d, 0, NULL);
+		::CreateThread(nullptr, stackSize, (LPTHREAD_START_ROUTINE)ThreadBody, &d, 0, NULL);
 		d.InitV.Decrease();
 	}
 	void Thread::Join()

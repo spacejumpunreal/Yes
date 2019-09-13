@@ -89,25 +89,25 @@ int main()
 	auto dev = CreateSWRDevice(&desc);
 	SWRHandle vb;
 	{
-		BufferDesc desc;
-		desc.Size = sizeof(TestVB);
-		desc.InitialData = TestVB;
-		vb = dev->CreateBuffer(&desc);
+		BufferDesc desc1;
+		desc1.Size = sizeof(TestVB);
+		desc1.InitialData = TestVB;
+		vb = dev->CreateBuffer(&desc1);
 		dev->IASetVertexBuffer(vb);
 	}
 	SWRHandle vs;
 	{
-		VertexShaderDesc desc;
-		desc.InputStride = sizeof(VF_P3F_C3F);
-		desc.OutputStride = sizeof(VF_P3F_C3F);
-		desc.Function = TestVertexShader;
-		vs = dev->CreateVertexShader(&desc);
+		VertexShaderDesc desc2;
+		desc2.InputStride = sizeof(VF_P3F_C3F);
+		desc2.OutputStride = sizeof(VF_P3F_C3F);
+		desc2.Function = TestVertexShader;
+		vs = dev->CreateVertexShader(&desc2);
 		dev->VSSetShader(vs);
 	}
 	SWRHandle ps;
 	{
-		PixelShaderDesc desc;
-		desc.Function = TestPixelShader;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+		PixelShaderDesc desc3;
+		desc3.Function = TestPixelShader;                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
 	}
 	dev->Draw();
 	dev->Present();

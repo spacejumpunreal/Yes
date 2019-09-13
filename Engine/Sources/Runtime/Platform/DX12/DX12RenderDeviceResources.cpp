@@ -101,7 +101,8 @@ namespace Yes
 			return RenderDeviceResourceState::RENDER_TARGET;
 		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_DEPTH_WRITE:
 			return RenderDeviceResourceState::DEPTH_WRITE;
-		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE | D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE:
+		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE:
 			return RenderDeviceResourceState::SHADER_RESOURCE;
 		case D3D12_RESOURCE_STATES::D3D12_RESOURCE_STATE_UNORDERED_ACCESS:
 			return RenderDeviceResourceState::UNORDERED_ACCESS;
@@ -310,7 +311,6 @@ namespace Yes
 			ID3D12Device* device                                   = creator->GetDevice();
 			IDX12GPUMemoryAllocator& tempAllocator                 = creator->GetAsyncUploadBufferAllocator(ResourceType::Buffer);
 			ID3D12GraphicsCommandList* commandList                 = creator->GetCommandList();
-			DX12Mesh* mesh										   = mResource.GetPtr();
 			for (int i = 0; i < 2; ++i)
 			{
 				D3D12_RESOURCE_ALLOCATION_INFO info = device->GetResourceAllocationInfo(0, 1, &mDescs[i]);
@@ -466,10 +466,11 @@ namespace Yes
 			device->GetCopyableFootprints(&mDesc, 0, 1, 0, &subresourceFootprint, &rows, &rowSize, &totalBytes);
 
 			//temp resources
+			CD3DX12_RESOURCE_DESC b = CD3DX12_RESOURCE_DESC::Buffer(totalBytes);
 			CheckSucceeded(device->CreatePlacedResource(
 				mTempMemoryRegion.Heap,
 				mTempMemoryRegion.Offset,
-				&CD3DX12_RESOURCE_DESC::Buffer(totalBytes),
+				&b,
 				D3D12_RESOURCE_STATE_GENERIC_READ,
 				nullptr,
 				IID_PPV_ARGS(&mTempResource)));
@@ -503,7 +504,7 @@ namespace Yes
 		, mUsage(usage)
 		, mIsReady(true)
 	{
-		InitTexture(width, height, format, usage, desc);
+		InitTexture(width, height, format, desc);
 		InitHandles();
 	}
 	DX12Texture2D::DX12Texture2D(ID3D12Resource* resource, TextureFormat format, TextureUsage usage)
@@ -520,9 +521,9 @@ namespace Yes
 	{
 		ReleaseCOM(mTexture);
 	}
-	void DX12Texture2D::InitTexture(size_t width, size_t height, TextureFormat format, TextureUsage usage, D3D12_RESOURCE_DESC* desc)
+	void DX12Texture2D::InitTexture(size_t width, size_t height, TextureFormat format, D3D12_RESOURCE_DESC* desc)
 	{
-		ResourceType tp;
+		ResourceType tp = ResourceType::Buffer;
 		D3D12_RESOURCE_FLAGS flags = D3D12_RESOURCE_FLAGS::D3D12_RESOURCE_FLAG_NONE;
 		switch (mUsage)
 		{
@@ -642,7 +643,8 @@ namespace Yes
 		D3D12_RESOURCE_STATES& devState = DX12ResourceStateHelper::mDeviceState;
 		if (DX12ResourceStateHelper::mDeviceState != newState)
 		{
-			cmdList->ResourceBarrier(1, &CD3DX12_RESOURCE_BARRIER::Transition(mTexture, devState, newState));
+			CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(mTexture, devState, newState);
+			cmdList->ResourceBarrier(1, &barrier);
 			devState = newState;
 		}
 	}
