@@ -40,8 +40,6 @@ namespace Yes
 
 namespace Yes
 {
-
-
 	int Main(int, const char**)
 	{
 		TestMath();

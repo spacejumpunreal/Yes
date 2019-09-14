@@ -22,6 +22,7 @@ class BuildTarget(object):
         self.exported_dirs = []
         self.excluded_paths = []
         self.guid = uuid.uuid4()
+        self.order = 0
 
     def collect_source_files(self):
         headers = []

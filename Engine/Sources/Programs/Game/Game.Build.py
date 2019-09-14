@@ -8,3 +8,4 @@ class Game(BuildTarget):
         self.is_library = False
         self.dependencies.append("Runtime")
         self.dependencies.append("SWR")
+        self.order = -1

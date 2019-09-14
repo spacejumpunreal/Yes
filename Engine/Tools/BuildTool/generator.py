@@ -41,8 +41,8 @@ FILTER_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 
 SLN_TEMPLATE = """
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio 15
-VisualStudioVersion = 15.0.27130.2036
+# Visual Studio 16
+VisualStudioVersion = 16.0.29306.81
 MinimumVisualStudioVersion = 10.0.40219.1
 {ProjectsBlock}
 Global
@@ -139,11 +139,11 @@ class VS2019Generator(object):
         print "source_root_dir:", self._source_root_dir
         print "build_dir", self._build_dir
 
-        generate_prj_files = {}
+        generate_prj_files = []
         for _, target in self._targets.iteritems():
             # write vcxproj
             vcxproj_file = os.path.join(self._build_dir, self.get_vcxproj_file_name(target))
-            generate_prj_files[target] = vcxproj_file
+            generate_prj_files.append((target, target.order, vcxproj_file))
             prj_config = XmlNode("ItemGroup", (), {"Label": "ProjectConfigurations"})
             for c in Configurations:
                 for p in Platforms:
@@ -355,7 +355,8 @@ class VS2019Generator(object):
             frags.append(s)
 
         solution_parent = os.path.dirname(self._solution_path)
-        for target, vcxproj_file in generate_prj_files.iteritems():
+        sorted_prj_files = sorted(generate_prj_files, key=lambda x: x[1])
+        for target, _, vcxproj_file in sorted_prj_files:
             s = 'Project("{ProjectType}") = "{TargetName}", "{VCXProjPath}", "{PrjGUID}"\nEndProject\n'.format(
                 ProjectType="{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}",
                 TargetName=self.get_target_name(target),
