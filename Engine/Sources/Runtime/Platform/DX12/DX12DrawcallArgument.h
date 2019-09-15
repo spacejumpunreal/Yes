@@ -1,6 +1,5 @@
 #pragma once
 #include "Runtime/Public/Yes.h"
-
 #include "Runtime/Public/Graphics/RenderDevice.h"
 #include "Runtime/Platform/DX12/DX12BufferAllocator.h"
 
