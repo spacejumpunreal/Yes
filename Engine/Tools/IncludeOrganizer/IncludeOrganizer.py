@@ -50,6 +50,7 @@ def extract_include_path(line):
 
 
 class LineStruct(object):
+    THIS_PATH = -1
     SYSTEM_PATH = 0
     USER_PATH = 1
     system_weights = {
@@ -60,8 +61,11 @@ class LineStruct(object):
         "Graphics": 3,
     }
 
-    def __init__(self, line):
+    def __init__(self, line, is_this_path):
         self.line = line
+        if is_this_path:
+            self.type = self.THIS_PATH
+            return
         raw_path, flag = extract_include_path(line)
         self.type = self.SYSTEM_PATH if flag else self.USER_PATH
         if self.type == self.SYSTEM_PATH:
@@ -76,8 +80,10 @@ class LineStruct(object):
         self.tail_path = raw_path_parts[-1]
 
 
-def fix_includes(lines):
-    infos = map(LineStruct, lines)
+def fix_includes(lines, this_path):
+    def builder(line):
+        return LineStruct(line, this_path == line)
+    infos = map(builder, lines)
 
     def key_compare(l, r):
         d = l.type - r.type
@@ -107,26 +113,38 @@ def simple_line_fix(line):
     return line
 
 
-def runtime_dir_fix(source_files):
+def runtime_dir_fix(source_files, base_dir):
     for p in source_files:
+        this_path = os.path.relpath(p, base_dir)
         with open(p, "rb") as rf:
             lines = rf.readlines()
         if len(lines) == 0:
             continue
         for i, l in enumerate(lines):
             lines[i] = simple_line_fix(l)
+        pth, ext = os.path.splitext(this_path)
+        if ext in {'cpp', 'c'}:
+            this_include = pth + '.h' + os.linesep
+        else:
+            this_include = ""
         with open(p, "wb") as wf:
             sections = split_into_sections(lines)
             for s in sections:
                 if s.is_include:
-                    fixed_lines = fix_includes(lines[s.section_start:s.section_end])
+                    fixed_lines = fix_includes(lines[s.section_start:s.section_end], this_include)
                     wf.writelines(fixed_lines)
                 else:
                     wf.writelines(lines[s.section_start:s.section_end])
 
 
-if __name__ == "__main__":
+def main():
+    base_dir = r"C:\checkout\Yes\Engine\Sources\Runtime"
     collected = collect_files_in_dir(
-        r"C:\checkout\Yes\Engine\Sources\Runtime",
+        base_dir,
         r"C:\checkout\Yes\Engine\Sources\Runtime\Todo")
-    runtime_dir_fix(collected)
+    runtime_dir_fix(collected, base_dir)
+
+
+if __name__ == "__main__":
+    main()
+
