@@ -53,7 +53,7 @@ namespace Yes
 	#else
 			"module=DX12RenderDeviceModule",
 			"module=RenderDeviceTestDriverModule",
-			"module=ConcurrencyTestDriverModule",
+			//"module=ConcurrencyTestDriverModule",
 	#endif	
 		};
 		auto sys = new Yes::System();
