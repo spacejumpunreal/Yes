@@ -5,18 +5,20 @@ import os
 import sys
 
 
-def collect_files_in_dir(base_dir, excludes):
+def collect_files_in_dir(base_dir, exclude_dirs, exclude_filenames):
     source_files = set()
     for root, _, files in os.walk(base_dir):
-        if root in excludes:
+        if root in exclude_dirs:
             continue
         for f in files:
+            if f in exclude_filenames:
+                continue
             source_files.add(os.path.join(root, f))
     return source_files
 
 
 def is_include_line(line):
-    return line.startswith("#include ")
+    return line.startswith("#include ") and line.find('ExternalIncludeGuard') == -1
 
 
 class SectionInfo(object):
@@ -58,8 +60,9 @@ class LineStruct(object):
         "Public": -1,
         "Core": 0,
         "Misc": 1,
-        "Platform": 2,
-        "Graphics": 3,
+        "Concurrency": 2,
+        "Platform": 3,
+        "Graphics": 4,
     }
 
     def __init__(self, line, this_path, fix_options):
@@ -90,9 +93,8 @@ class LineStruct(object):
             self.type = self.THIS_PATH
 
         self.module = []
-        for i in xrange(1, min(len(raw_path_parts) - 2, 5)):
-            LineStruct.system_weights.get(raw_path_parts[i], 10000)
-            self.module.append(raw_path_parts)
+        for i in xrange(1, min(len(raw_path_parts) - 2 + 1, 5)):
+            self.module.append(LineStruct.system_weights.get(raw_path_parts[i], 10000))
         self.tail_path = raw_path_parts[-1]
 
 
@@ -107,9 +109,14 @@ def fix_includes(lines, this_path, fix_options):
             return d
         if l.type == LineStruct.SYSTEM_PATH:
             return cmp(l.line, r.line)
-        d = cmp(l.module, r.module)
-        if d != 0:
-            return d
+        lenl = len(l.module)
+        lenr = len(r.module)
+        for i in xrange(0, min(lenl, lenr)):
+            d = l.module[i] - r.module[i]
+            if d != 0:
+                return d
+        if lenl != lenr:
+            return lenl - lenr
         return cmp(l.tail_path, r.tail_path)
     infos.sort(cmp=key_compare)
     return map(lambda x: x.line, infos)
@@ -131,16 +138,23 @@ def simple_line_fix(line):
 
 def runtime_dir_fix(source_files, base_dir, fix_configs):
     for p in source_files:
-        this_path = os.path.relpath(p, base_dir)
         with open(p, "rb") as rf:
             lines = rf.readlines()
         if len(lines) == 0:
             continue
         for i, l in enumerate(lines):
             lines[i] = simple_line_fix(l)
-        pth, ext = os.path.splitext(this_path)
+
+        pth, ext = os.path.splitext(p)
         if ext in {'.cpp', '.c'}:
-            this_include = pth + '.h' + os.linesep
+            rel_path = os.path.relpath(pth + '.h', base_dir)
+            rel_path = rel_path.replace('\\', '/')
+            for tag, real_path in fix_configs:
+                if os.path.exists(os.path.join(real_path, rel_path)):
+                    this_include = tag + rel_path
+                    break
+            else:
+                this_include = ""
         else:
             this_include = ""
         with open(p, "wb") as wf:
@@ -161,7 +175,8 @@ def main():
     ]
     collected = collect_files_in_dir(
         base_dir,
-        r"C:\checkout\Yes\Engine\Sources\Runtime\Todo")
+        r"C:\checkout\Yes\Engine\Sources\Runtime\Todo",
+        {r'd3dx12.h'})
     runtime_dir_fix(collected, base_dir, fix_configs)
 
 
