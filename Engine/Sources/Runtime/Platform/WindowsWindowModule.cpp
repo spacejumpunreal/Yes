@@ -4,12 +4,12 @@
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Misc/Debug.h"
 #include "Runtime/Public/Misc/Utils.h"
-#include "Runtime/Public/Concurrency/Thread.h"
 #include "Runtime/Public/Concurrency/Sync.h"
+#include "Runtime/Public/Concurrency/Thread.h"
 #include "Runtime/Public/Platform/InputState.h"
 
-#include "Windows.h"
-#include "windowsx.h"
+#include <Windows.h>
+#include <windowsx.h>
 
 namespace Yes
 {

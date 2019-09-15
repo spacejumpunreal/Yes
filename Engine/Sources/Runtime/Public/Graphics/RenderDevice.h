@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Runtime/Public/Yes.h"
-#include "Runtime/Public/Misc/SharedObject.h"
 #include "Runtime/Public/Misc/Math.h"
+#include "Runtime/Public/Misc/SharedObject.h"
 #include "Runtime/Public/Graphics/ImageUtil.h"
-#include <vector>
 #include <string>
+#include <vector>
 
 namespace Yes
 {

@@ -1,8 +1,8 @@
 #include "Runtime/Public/Concurrency/Thread.h"
-#include "Runtime/Public/Concurrency/Sync.h"
 #include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Concurrency/Sync.h"
+#include <Windows.h>
 #include <atomic>
-#include "Windows.h"
 
 namespace Yes
 {

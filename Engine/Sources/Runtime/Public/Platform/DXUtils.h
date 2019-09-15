@@ -3,8 +3,8 @@
 #include "Runtime/Public/Yes.h"
 
 #include "Runtime/Public/Misc/Utils.h"
-#include <dxgi1_2.h>
 #include <d3d12.h>
+#include <dxgi1_2.h>
 
 namespace Yes
 {

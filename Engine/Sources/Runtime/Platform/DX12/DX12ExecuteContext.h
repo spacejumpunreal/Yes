@@ -1,12 +1,12 @@
 #pragma once
 #include "Runtime/Public/Yes.h"
-#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
-#include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
 #include "Runtime/Public/Misc/SharedObject.h"
+#include "Runtime/Platform/DX12/DX12RenderDeviceResources.h"
+#include "Runtime/Platform/DX12/DX12ResourceSpace.h"
 
 /*
-#include <d3d12.h>
 #include "Runtime/Platform/DX12/d3dx12.h"
+#include <d3d12.h>
 #include <vector>
 */
 

@@ -5,7 +5,7 @@
 #include <cstdio>
 
 #if YES_WINDOWS
-#include "Windows.h"
+#include <Windows.h>
 #endif
 
 namespace Yes

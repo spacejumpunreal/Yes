@@ -1,19 +1,19 @@
 #include "Runtime/Public/Platform/DX12/DX12DemoModule.h"
-#include "Runtime/Public/Platform/WindowsWindowModule.h"
 #include "Runtime/Public/Core/FileModule.h"
-#include "Runtime/Public/Core/TickModule.h"
-#include "Runtime/Public/Platform/DXUtils.h"
 #include "Runtime/Public/Core/System.h"
-#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public/Core/TickModule.h"
 #include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Misc/Utils.h"
+#include "Runtime/Public/Platform/DXUtils.h"
+#include "Runtime/Public/Platform/WindowsWindowModule.h"
 
 #include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
-#include "Windows.h"
-#include <dxgi1_2.h>
-#include <dxgi1_4.h>
+#include "Runtime/Platform/DX12/d3dx12.h"
+#include <Windows.h>
 #include <d3d12.h>
 #include <d3dcompiler.h>
-#include "d3dx12.h"
+#include <dxgi1_2.h>
+#include <dxgi1_4.h>
 #include "Runtime/Public/Misc/EndExternalIncludeGuard.h"
 
 namespace Yes

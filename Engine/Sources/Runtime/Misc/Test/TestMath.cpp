@@ -1,6 +1,6 @@
 #include "Runtime/Public/Yes.h"
-#include "Runtime/Public/Misc/Math.h"
 #include "Runtime/Public/Misc/Debug.h"
+#include "Runtime/Public/Misc/Math.h"
 namespace Yes
 {
 	void TestMath()

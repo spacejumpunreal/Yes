@@ -1,9 +1,9 @@
 #include "Runtime/Core/Test/ConcurrencyTestDriverModule.h"
+#include "Runtime/Public/Core/ConcurrencyModule.h"
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Core/TickModule.h"
-#include "Runtime/Public/Core/ConcurrencyModule.h"
-#include "Runtime/Public/Concurrency/Thread.h"
 #include "Runtime/Public/Concurrency/JobUtils.h"
+#include "Runtime/Public/Concurrency/Thread.h"
 
 #include <atomic>
 
