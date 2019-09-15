@@ -13,7 +13,6 @@
 #include "Runtime/Public/Memory/ObjectPool.h"
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Misc/Debug.h"
-
 #include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Windows.h"
 #include <dxgi1_2.h>
