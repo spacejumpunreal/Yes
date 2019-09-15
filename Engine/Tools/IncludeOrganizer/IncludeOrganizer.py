@@ -99,7 +99,9 @@ def simple_line_fix(line):
     elif line.startswith('#include "windowsx.h"'):
         return '#include <windowsx.h>' + os.linesep
     elif line.startswith('#include "d3dx12.h'):
-        return '#include "Runtime/Platform/DX12/d3dx12.h' + os.linesep
+        return '#include "Runtime/Platform/DX12/d3dx12.h"' + os.linesep
+    elif line.startswith('#include "d3d12.h'):
+        return '#include <d3d12.h>' + os.linesep
     elif line.startswith('#include "Yes.h"'):
         return '#include "Runtime/Public/Yes.h"'
     return line
