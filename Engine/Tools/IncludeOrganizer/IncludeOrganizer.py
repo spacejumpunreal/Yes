@@ -5,9 +5,11 @@ import os
 import sys
 
 
-def collect_files_in_dir(base_dir):
+def collect_files_in_dir(base_dir, excludes):
     source_files = set()
     for root, _, files in os.walk(base_dir):
+        if root in excludes:
+            continue
         for f in files:
             source_files.add(os.path.join(root, f))
     return source_files
@@ -35,6 +37,18 @@ def split_into_sections(lines):
     return sections
 
 
+def extract_include_path(line):
+    # should starts with #include ., but may end with comments
+    #.#include <".
+    i = 10
+    while i != len(line) - 2:
+        if line[i] != '"' and line[i] != '>':
+            i += 1
+        else:
+            break
+    return line[10:i], line[i] == '>'
+
+
 class LineStruct(object):
     SYSTEM_PATH = 0
     USER_PATH = 1
@@ -48,11 +62,10 @@ class LineStruct(object):
 
     def __init__(self, line):
         self.line = line
-        raw_path = line[8:].strip()
-        if raw_path.startswith("<"):
-            self.type = self.SYSTEM_PATH
+        raw_path, flag = extract_include_path(line)
+        self.type = self.SYSTEM_PATH if flag else self.USER_PATH
+        if self.type == self.SYSTEM_PATH:
             return
-        self.type = self.USER_PATH
         raw_path_parts = raw_path.split('/', 5)  # Runtime/Public/MainModule/SubModule/TailPath
         if raw_path_parts[0] != 'Runtime':
             raise RuntimeWarning("include path in Runtime should starts with Runtime")
@@ -70,6 +83,8 @@ def fix_includes(lines):
         d = l.type - r.type
         if d != 0:
             return d
+        if l.type == 0:
+            return cmp(l.line, r.line)
         d = cmp(l.module, r.module)
         if d != 0:
             return d
@@ -78,19 +93,38 @@ def fix_includes(lines):
     return map(lambda x: x.line, infos)
 
 
+def simple_line_fix(line):
+    if line.startswith('#include "Windows.h"'):
+        return '#include <Windows.h>' + os.linesep
+    elif line.startswith('#include "windowsx.h"'):
+        return '#include <windowsx.h>' + os.linesep
+    elif line.startswith('#include "d3dx12.h'):
+        return '#include "Runtime/Platform/DX12/d3dx12.h' + os.linesep
+    elif line.startswith('#include "Yes.h"'):
+        return '#include "Runtime/Public/Yes.h"'
+    return line
+
+
 def runtime_dir_fix(source_files):
     for p in source_files:
+        with open(p, "rb") as rf:
+            lines = rf.readlines()
+        if len(lines) == 0:
+            continue
+        for i, l in enumerate(lines):
+            lines[i] = simple_line_fix(l)
         with open(p, "wb") as wf:
-            lines = p.readlines()
             sections = split_into_sections(lines)
             for s in sections:
                 if s.is_include:
-                    fixed_lines = fix_includes(lines[s.section_start, s.section_end])
+                    fixed_lines = fix_includes(lines[s.section_start:s.section_end])
                     wf.writelines(fixed_lines)
                 else:
-                    wf.writelines(lines[s.section_start, s.section_end])
+                    wf.writelines(lines[s.section_start:s.section_end])
 
 
 if __name__ == "__main__":
-    collected = collect_files_in_dir(r"C:\checkout\Yes\Engine\Sources\Runtime")
+    collected = collect_files_in_dir(
+        r"C:\checkout\Yes\Engine\Sources\Runtime",
+        r"C:\checkout\Yes\Engine\Sources\Runtime\Todo")
     runtime_dir_fix(collected)
