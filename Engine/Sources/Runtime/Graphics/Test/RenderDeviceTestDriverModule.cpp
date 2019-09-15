@@ -13,7 +13,6 @@
 #include "Runtime/Public/Platform/DX12/DX12RenderDeviceModule.h"
 #include "Runtime/Public/Platform/InputState.h"
 #include "Runtime/Public/Graphics/Camera/Camera.h"
-
 #include <vector>
 
 #define LOG_INPUT 0
