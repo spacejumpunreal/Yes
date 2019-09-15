@@ -5,6 +5,7 @@
 
 namespace Yes
 {
+	class IDX12DescriptorHeapAllocator;
 	class DX12ConstantBufferArgument : public RenderDeviceConstantBuffer
 	{
 	public:
