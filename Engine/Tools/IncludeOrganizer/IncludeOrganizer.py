@@ -50,9 +50,10 @@ def extract_include_path(line):
 
 
 class LineStruct(object):
+    PREFIX_PATH = -2
     THIS_PATH = -1
-    SYSTEM_PATH = 0
-    USER_PATH = 1
+    USER_PATH = 0
+    SYSTEM_PATH = 1
     system_weights = {
         "Public": -1,
         "Core": 0,
@@ -61,18 +62,33 @@ class LineStruct(object):
         "Graphics": 3,
     }
 
-    def __init__(self, line, is_this_path):
+    def __init__(self, line, this_path, fix_options):
         self.line = line
-        if is_this_path:
-            self.type = self.THIS_PATH
-            return
         raw_path, flag = extract_include_path(line)
         self.type = self.SYSTEM_PATH if flag else self.USER_PATH
         if self.type == self.SYSTEM_PATH:
             return
         raw_path_parts = raw_path.split('/', 5)  # Runtime/Public/MainModule/SubModule/TailPath
         if raw_path_parts[0] != 'Runtime':
-            raise RuntimeWarning("include path in Runtime should starts with Runtime")
+            fixed = False
+            for tag, real_path in fix_options:
+                tp = os.path.join(real_path, raw_path)
+                if os.path.exists(tp):
+                    fixed = True
+                    ttt = list(tag.split('/'))
+                    if ttt[-1] == '':
+                        ttt.pop(-1)
+                    raw_path_parts = ttt + raw_path_parts
+                    raw_path = tag + raw_path
+                    self.line = '#include "%s"' % raw_path
+                    break
+            assert fixed, "bad include path:    " + line
+        if line.startswith('#include "Runtime/Public/Yes.h'):
+            self.type = self.PREFIX_PATH
+            return
+        if raw_path == this_path:
+            self.type = self.THIS_PATH
+
         self.module = []
         for i in xrange(1, min(len(raw_path_parts) - 2, 5)):
             LineStruct.system_weights.get(raw_path_parts[i], 10000)
@@ -80,16 +96,16 @@ class LineStruct(object):
         self.tail_path = raw_path_parts[-1]
 
 
-def fix_includes(lines, this_path):
+def fix_includes(lines, this_path, fix_options):
     def builder(line):
-        return LineStruct(line, this_path == line)
+        return LineStruct(line, this_path, fix_options)
     infos = map(builder, lines)
 
     def key_compare(l, r):
         d = l.type - r.type
         if d != 0:
             return d
-        if l.type == 0:
+        if l.type == LineStruct.SYSTEM_PATH:
             return cmp(l.line, r.line)
         d = cmp(l.module, r.module)
         if d != 0:
@@ -113,7 +129,7 @@ def simple_line_fix(line):
     return line
 
 
-def runtime_dir_fix(source_files, base_dir):
+def runtime_dir_fix(source_files, base_dir, fix_configs):
     for p in source_files:
         this_path = os.path.relpath(p, base_dir)
         with open(p, "rb") as rf:
@@ -123,7 +139,7 @@ def runtime_dir_fix(source_files, base_dir):
         for i, l in enumerate(lines):
             lines[i] = simple_line_fix(l)
         pth, ext = os.path.splitext(this_path)
-        if ext in {'cpp', 'c'}:
+        if ext in {'.cpp', '.c'}:
             this_include = pth + '.h' + os.linesep
         else:
             this_include = ""
@@ -131,7 +147,7 @@ def runtime_dir_fix(source_files, base_dir):
             sections = split_into_sections(lines)
             for s in sections:
                 if s.is_include:
-                    fixed_lines = fix_includes(lines[s.section_start:s.section_end], this_include)
+                    fixed_lines = fix_includes(lines[s.section_start:s.section_end], this_include, fix_configs)
                     wf.writelines(fixed_lines)
                 else:
                     wf.writelines(lines[s.section_start:s.section_end])
@@ -139,10 +155,14 @@ def runtime_dir_fix(source_files, base_dir):
 
 def main():
     base_dir = r"C:\checkout\Yes\Engine\Sources\Runtime"
+    fix_configs = [
+        ("Runtime/", base_dir),
+        ("Runtime/Public/", os.path.join(base_dir, "Public")),
+    ]
     collected = collect_files_in_dir(
         base_dir,
         r"C:\checkout\Yes\Engine\Sources\Runtime\Todo")
-    runtime_dir_fix(collected, base_dir)
+    runtime_dir_fix(collected, base_dir, fix_configs)
 
 
 if __name__ == "__main__":
