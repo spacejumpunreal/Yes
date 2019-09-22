@@ -12,17 +12,17 @@
 	- Declare Input/Output TaskDatum, access pattern
 	- Define TaskDatum
 	- Define TaskFunction
-## class FrameTaskEvent
+## class FrameEvent
 - What: something like dx12 Fence, a sync object with an increasing counter
 - Responsibility:
-	- WaitUntilReached(int)
+	- Wait()
 	- Signal()
 	
 ## class FrameTaskScheduler
 - What: manager that manages everyting, the memory, the execution order
 - Responsibility:
-	- implement AddTaskDefinition()
-	- implement AddTaskEvent()
+	- implement RegisterTaskDefinition()
+	- implement RegisterTaskEvent()
 	- implement GetTaskEvent(string)
 	- implement StartFrame(const FrameTaskDefinition* endTask[], size_t n)
 - Internal
