@@ -1,15 +1,12 @@
 #pragma once
 #include "Runtime/Public/Yes.h"
 #include "Runtime/Public/Core/IModule.h"
-
+#include "Runtime/Public/Core/ITickable.h"
 #include <functional>
 
 namespace Yes
 {
-	struct ITickable
-	{
-		virtual void Tick() = 0;
-	};
+
 	class TickModule : public IModule
 	{
 	public:

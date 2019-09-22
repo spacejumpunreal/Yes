@@ -8,11 +8,21 @@
 - use very vanilla algorithm: capture all queue loads, do perfect balancing
 # VS2019(2019.9.13-2019.9.14)
 - generate vs2019 project file(abandon vs2017), and -Wall
+# IncludeOrganizer(2019.9.15-2019.9.15)
+- rearrange includes
 
-# transfer the whole engine to use jobsystem(?-?)
+# transfer the whole engine to use jobsystem(2019.9.15-?)
+- FrameLogicModule
+	- how to express timeline
+	- timeline is not straight enough, data flow is! Data driven design
+	- sort of like frame module and gpu pass oraganization
+	- why explicit loop body is bad: it forbids module level parallization
+- TimerModule
 - MainThread
 - RenderThread
+- elegent quit
 
+# allocator system
 # Vulkan
 
 # SWR

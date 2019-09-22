@@ -208,12 +208,17 @@ class VS2019Generator(object):
                 for p in Platforms:
                     is_debug = c == "Debug"
                     cd = {"Condition": "'$(Configuration)|$(Platform)'=='%s|%s'" % (c, p)}
+                    macros = ["_DEBUG" if is_debug else "NDEBUG"]
+                    if p == "Win32":
+                        macros.append("WIN32")
+                    macros.append("%(PreprocessorDefinitions)")
                     item_def_group.append(
                         XmlNode("ItemDefinitionGroup", (
                             XmlNode("ClCompile", (
                                 XmlNode("WarningLevel", "Level4"),
                                 XmlNode("Optimization", "Disabled" if is_debug else "MaxSpeed"),
                                 XmlNode("SDLCheck", "true"),
+                                XmlNode("PreprocessorDefinitions", ";".join(macros)),
                                 XmlNode("ConformanceMode", "true"),
                                 XmlNode("MultiProcessorCompilation", "true"),
                                 XmlNode("AdditionalIncludeDirectories", ";".join(additional_include_directories)),

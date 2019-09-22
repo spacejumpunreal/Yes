@@ -15,3 +15,9 @@ using uint8 = uint8_t;
 using int8 = int8_t;
 
 #define YES_WINDOWS 1
+
+#ifdef NDEBUG
+#define YES_DEBUG 0
+#else
+#define YES_DEBUG 1
+#endif

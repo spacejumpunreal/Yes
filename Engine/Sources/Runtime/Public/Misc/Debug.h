@@ -3,7 +3,6 @@
 #include <cassert>
 #include <cstdarg>
 #include <cstdio>
-
 #if YES_WINDOWS
 #include <Windows.h>
 #endif

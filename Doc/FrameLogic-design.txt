@@ -1,0 +1,61 @@
+# Classes
+
+## class FrameContext
+- What: a global variable for current frame
+- Responsibility
+	- provider access to all kind of data
+	- a billboard
+
+## class FrameTaskDefinition
+- What: the description of A Task, registered to the system
+- Responsibility:
+	- Declare Input/Output TaskDatum, access pattern
+	- Define TaskDatum
+	- Define TaskFunction
+## class FrameTaskEvent
+- What: something like dx12 Fence, a sync object with an increasing counter
+- Responsibility:
+	- WaitUntilReached(int)
+	- Signal()
+	
+## class FrameTaskScheduler
+- What: manager that manages everyting, the memory, the execution order
+- Responsibility:
+	- implement AddTaskDefinition()
+	- implement AddTaskEvent()
+	- implement GetTaskEvent(string)
+	- implement StartFrame(const FrameTaskDefinition* endTask[], size_t n)
+- Internal
+	- check TaskDatum access pattern
+	- allocate transient datum
+	- graph building
+		- don't need to know the whole graph(unlike GPU dependency graph, we do not handle memory aliasing)
+			- just maintain a "ready to fly" task list, each task instance have waiting count
+			- can Add some cycle detect algorithm
+			- Task can also use Job system to do some async/multi thread computing
+		- need to know
+			- who are the tasks dependending on some specific Task XXX
+			- each task's dependency counts
+		- assumed use case
+			- there aren't many "popular"*(directly depended by many) tasks
+			- we can do some wait optimizations: you don't depend on tasks that your dependencies depend on!!
+			- some there has to be optimizations(to avoid user optimization(which will be error prone and easily broken on change))
+	- synchronization: if done with a centeral structure then there is completely no need to sync anything
+
+# what a frame do
+- gamelogic(in several stages)
+- create
+- destroy
+- render
+
+# time stages of a frame
+- StartFrame()
+	- create FrameState here
+	- collect tasks, analyze dependency
+	- put no dependency tasks into JobSystem
+- GameLogic
+	- TickBeforeCreate
+	- HandleAllDestroyRequests
+	- HandleAllCreateRequests
+	- TickAfterCreate
+- Render

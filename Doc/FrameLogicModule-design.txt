@@ -1,0 +1,5 @@
+# module function
+- register ticks(only the starter are enough)
+- hold frame specific global states/data
+
+- 
