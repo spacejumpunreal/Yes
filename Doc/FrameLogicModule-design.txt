@@ -1,5 +1,35 @@
-# module function
-- register ticks(only the starter are enough)
-- hold frame specific global states/data
+# class FrameLogicModule
+- API
+	- StartFrame:
+		- apply queued SetRootTasks
+		- build Producer2Consumer table
+		- build Consumer2Producer table, simplify dependency check
+	- RegisterFrameEvent(eventName)
+	- RegisterTask(out, function, inputs, count)
+	- SetRootTasks(names, count)
+- Data
+	- QueuedModification
+		- SetRootTasksRequests
+		- RegisterTaskRequests
+		- RegisterEvents
+	- Current
+		- TaskMapTable(Name2Id)
+		- TaskTable(list of struct Task)
+		- Events
+		- RootTasks
 
-- 
+# struct Task
+- Data
+	- dependency tasks indices
+	- direct consumers
+	- Function
+		
+	
+
+# class FrameContext
+- API
+	- GetFrameEvent(name)
+	- GetPreviousFrame()
+- Data
+	- PreviousFrame
+	- 
