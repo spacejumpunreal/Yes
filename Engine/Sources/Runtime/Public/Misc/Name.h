@@ -17,7 +17,7 @@ namespace Yes
 			, mString(str)
 #endif
 		{}
-		Name(const char* str)
+		Name(const char* str = "")
 			: mHash(HornerHashRunTime(str, NameHashPrime))
 			, mSize(strlen(str))
 #if YES_DEBUG
@@ -30,8 +30,6 @@ namespace Yes
 		{
 			return l.mSize == r.mSize && l.mHash == r.mHash;
 		}
-	
-
 	private:
 		size_t			mHash;
 		size_t			mSize;
@@ -39,5 +37,17 @@ namespace Yes
 	public:
 		const char* mString;
 #endif
+	};
+}
+
+namespace std
+{
+	template<>
+	struct hash<Yes::Name>
+	{
+		size_t operator()(const Yes::Name& n) const
+		{
+			return n.GetHash();
+		}
 	};
 }

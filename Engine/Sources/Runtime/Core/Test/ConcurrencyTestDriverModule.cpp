@@ -29,8 +29,6 @@ namespace Yes
 	
 	struct ConcurrencyTestDriverModuleImp : public ConcurrencyTestDriverModule, public ITickable
 	{
-	private:
-
 	public:
 		static int fab(int x)
 		{

@@ -1,22 +1,33 @@
 # class FrameLogicModule
 - API
-	- StartFrame:
-		- apply queued SetRootTasks
-		- build Producer2Consumer table
-		- build Consumer2Producer table, simplify dependency check
-	- RegisterFrameEvent(eventName)
-	- RegisterTask(out, function, inputs, count)
-	- SetRootTasks(names, count)
+	- System Inittime
+		- RegisterFrameEvent(eventName)
+	- System Runtime
+		- StartFrame():
+			- apply queued registere task requests
+			- apply queued SetRootTasks
+			- build Consumer2Producer table
+				- reduce/simplify dependency(leave only direct dependencies)
+				- so we know only necessary direct dependencies
+		
+		- RegisterTask(out, function, inputs, count)
+		- SetRootTasks(names, count)
 - Data
-	- QueuedModification
-		- SetRootTasksRequests
-		- RegisterTaskRequests
-		- RegisterEvents
-	- Current
-		- TaskMapTable(Name2Id)
-		- TaskTable(list of struct Task)
-		- Events
-		- RootTasks
+	- QueuedModification/Source
+		- mQueuedSetRootTasks
+		- mRegisteredTasks
+		- mRegisteredEvents
+		- mDirty
+	- Events(won't change)
+		- mEventName2Index
+		- mEventArray;
+	- TaskGraphConfigCache
+		- mTaskGraphConfig
+		
+# TaskGraphConfig
+- Data
+	- std::vector<TaskDetail>
+		
 
 # struct Task
 - Data
@@ -31,5 +42,6 @@
 	- GetFrameEvent(name)
 	- GetPreviousFrame()
 - Data
-	- PreviousFrame
-	- 
+	- mPreviousFrame
+	- mFinishedDependencies
+	- mTaskGraphConfig

@@ -3,7 +3,6 @@
 #include "Runtime/Public/Core/FileModule.h"
 #include "Runtime/Public/Misc/Time.h"
 #include "Runtime/Public/Memory/RangeAllocator.h"
-#include "Runtime/Public/Misc/Functional.h"
 
 #include <map>
 #include <list>
@@ -47,13 +46,14 @@ namespace Yes
 		{
 			"NumberOfJobsThreads=4",
 			R"(FileModuleBasePath=C:\checkout\Yes\Resources\)",
+			"module=FrameLogicModule",
 			"module=WindowsWindowModule",
 	#if DEMO
 			"module=DX12DemoModule",
 	#else
 			"module=DX12RenderDeviceModule",
 			"module=RenderDeviceTestDriverModule",
-			//"module=ConcurrencyTestDriverModule",
+			"module=FrameLogicTestDriverModule",
 	#endif	
 		};
 		auto sys = new Yes::System();

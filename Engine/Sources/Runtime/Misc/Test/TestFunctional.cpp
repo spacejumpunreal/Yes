@@ -1,4 +1,6 @@
-#include "Runtime/Public/Misc/Functional.h"
+#if TEST_FUNCTIONAL
+
+#include "Runtime/Public/Misc/Functional/TypeList.h"
 #include <cstdio>
 #include <functional>
 #include <iostream>
@@ -79,3 +81,5 @@ namespace Yes
 		
 	}
 }
+
+#endif
