@@ -2,6 +2,7 @@
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Core/FileModule.h"
 #include "Runtime/Public/Core/MemoryModule.h"
+#include "Runtime/Public/Core/FrameLogicModule.h"
 #include "Runtime/Public/Core/ModuleRegistry.h"
 #include "Runtime/Public/Core/TickModule.h"
 #include "Runtime/Public/Misc/Debug.h"
@@ -79,8 +80,10 @@ namespace Yes
 		mPrivate->ParseArgs(argc, argv);
 		new Thread(InitAsMainThread{});
 		mPrivate->mArgs.insert(std::make_pair("module", "ConcurrencyModule"));
-		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
 		mPrivate->mArgs.insert(std::make_pair("module", "FileModule"));
+		mPrivate->mArgs.insert(std::make_pair("module", "FrameLogicModule"));
+		mPrivate->mArgs.insert(std::make_pair("module", "TickModule"));
+		
 		//find need to initialize modules from args
 		ArgMap::iterator s, e;
 		std::tie(s, e) = mPrivate->mArgs.equal_range("module");
@@ -112,8 +115,10 @@ namespace Yes
 			std::string n = i.Name;
 			if (!modulesToInitialize.count(n))
 				continue;
+			modulesToInitialize.erase(n);
 			mPrivate->mModules[i.ModuleID]->Start(this);
 		}
+		CheckAlways(modulesToInitialize.size() == 0, "There are modules not registered but requested to be initialized");
 	}
 
 	IModule* System::GetModule(ModuleID moduleID)
@@ -139,18 +144,11 @@ namespace Yes
 	}
 	void System::Loop()
 	{
-		TickModule* tickModule = GET_MODULE(TickModule);
+		FrameLogicModule* frameLogic = GET_MODULE(FrameLogicModule);
 		while (true)
 		{
-			auto t = TimeStamp::Now();
-			tickModule->Tick();
-			auto dt = TimeStamp::Now() - t;
-			//auto dtsec = dt.ToSeconds();
-			//auto dursec = mPrivate->mFrameDuration.ToSeconds();
-			auto d = mPrivate->mFrameDuration - dt;
-			auto sec = d.ToSeconds();
-			if (sec > 0)
-				Sleep(d);
+			frameLogic->StartFrame();
+			Sleep(mPrivate->mFrameDuration);
 		}
 	}
 }

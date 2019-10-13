@@ -1,6 +1,6 @@
 #include "Runtime/Public/Yes.h"
 #include "Runtime/Public/Platform/WindowsWindowModule.h"
-
+#include "Runtime/Public/Core/FrameLogicModule.h"
 #include "Runtime/Public/Core/System.h"
 #include "Runtime/Public/Misc/Debug.h"
 #include "Runtime/Public/Misc/Utils.h"
@@ -41,21 +41,22 @@ namespace Yes
 		Thread mThread;
 		int mClientWidth;
 		int mClientHeight;
-		InputState mOutputInputStates;
+		int mLastMousePosition[2];
 		InputState mInternalInputStates;
 		int mFrameIndex;
 		Semaphore<> mInitState;
 	public:
 		virtual void InitializeModule(System*) override
 		{
-			Yes::TickModule* tickModule = GET_MODULE(TickModule);
-			tickModule->AddTickable(this);
 			mClientWidth = 800;
 			mClientHeight = 600;
-			ZeroFill(mOutputInputStates);
 			ZeroFill(mInternalInputStates);
 			mThread.Run(WindowThreadFunction, this, L"WindowsPlatformUIThread");
 			mInitState.Decrease();
+		}
+		virtual void Start(System*) override
+		{
+			GET_MODULE(FrameLogicModule)->RegisterTask(Task);
 		}
 		void* GetWindowHandle() override
 		{
@@ -66,20 +67,19 @@ namespace Yes
 			width = mClientWidth;
 			height = mClientHeight;
 		}
-		const InputState* GetInputState() override
+		static InputStateDatum* Task(IFrameContext*)
 		{
-			return &mOutputInputStates;
-		}
-		void Tick() override
-		{
-			InputState& ostate = mOutputInputStates;
-			int lastX = ostate.AbsoluteMousePosition[0];
-			int lastY = ostate.AbsoluteMousePosition[1];
-			ostate = mInternalInputStates;
-			ostate.DeltaAbsoluteMousePosition[0] = ostate.AbsoluteMousePosition[0] - lastX;
-			ostate.DeltaAbsoluteMousePosition[1] = ostate.AbsoluteMousePosition[1] - lastY;
-			ostate.DeltaNormalizedMousePosition[0] = ostate.DeltaAbsoluteMousePosition[0] / (float)mClientWidth;
-			ostate.DeltaNormalizedMousePosition[1] = ostate.DeltaAbsoluteMousePosition[1] / (float)mClientHeight;
+			WindowsWindowModuleImp* m = GET_MODULE_AS(WindowsWindowModule, WindowsWindowModuleImp);
+			InputStateDatum* ret = new InputStateDatum();
+			InputState& r = ret->InputState;
+			r = m->mInternalInputStates;
+			r.DeltaAbsoluteMousePosition[0] = r.AbsoluteMousePosition[0] - m->mLastMousePosition[0];
+			r.DeltaAbsoluteMousePosition[1] = r.AbsoluteMousePosition[1] - m->mLastMousePosition[1];
+			r.DeltaNormalizedMousePosition[0] = r.DeltaAbsoluteMousePosition[0] / (float)m->mClientWidth;
+			r.DeltaNormalizedMousePosition[1] = r.DeltaAbsoluteMousePosition[1] / (float)m->mClientHeight;
+			m->mLastMousePosition[0] = r.AbsoluteMousePosition[0];
+			m->mLastMousePosition[1] = r.AbsoluteMousePosition[1];
+			return ret;
 		}
 	private:
 		static void WindowThreadFunction(void* s)

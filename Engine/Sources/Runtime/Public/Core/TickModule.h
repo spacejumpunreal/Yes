@@ -10,8 +10,6 @@ namespace Yes
 	class TickModule : public IModule
 	{
 	public:
-		virtual void AddTickable(ITickable* tickable) = 0;
-		virtual void DelTickable(ITickable* tickable) = 0;
 		template<typename Functor, typename... Args>
 		void AddCallback(float delay, Functor&& f, Args&&... args)
 		{

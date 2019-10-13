@@ -133,11 +133,11 @@ namespace Yes
 		{
 			return lhs.mPtr != rhs.mPtr;
 		}
-		T* operator->() const
+		FORCEINLINE T* operator->() const
 		{
 			return mPtr;
 		}
-		T* GetPtr() const
+		FORCEINLINE T* GetPtr() const
 		{
 			return mPtr;
 		}

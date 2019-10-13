@@ -14,5 +14,6 @@ namespace Yes
 		ADD_MODULE_DEPENDENCY(RenderDeviceTestDriverModule);
 		ADD_MODULE_DEPENDENCY(WindowsWindowModule);
 		ADD_MODULE_DEPENDENCY(ConcurrencyTestDriverModule);
+		ADD_MODULE_DEPENDENCY(FrameLogicTestDriverModule);
 	}
 }

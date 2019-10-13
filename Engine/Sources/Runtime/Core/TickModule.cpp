@@ -4,6 +4,8 @@
 #include "Runtime/Public/Misc/Debug.h"
 #include "Runtime/Public/Misc/StringUtils.h"
 #include "Runtime/Public/Misc/Time.h"
+#include "Runtime/Public/Core/FrameLogicModule.h"
+#include "Runtime/Public/Core/IDatum.h"
 
 namespace Yes
 {
@@ -14,22 +16,17 @@ namespace Yes
 		{
 			mStartTime = TimeStamp::Now();
 		}
-		void AddTickable(ITickable* tickable)
+		struct TickDatum : public IDatum
 		{
-			DelTickable(tickable);
-			mTickables.emplace_back(tickable);
-		}
-		void DelTickable(ITickable* tickable)
-		{
-			mTickables.remove(tickable);
-		}
+			static TickDatum* Task(IFrameContext*)
+			{
+				GET_MODULE(TickModuleImp)->Tick();
+				return new TickDatum();
+			}
+		};
 		void Tick()
 		{
 			mElapsedSeconds = (float)(TimeStamp::Now() - mStartTime).ToSeconds();
-			for (auto i = mTickables.begin(); i != mTickables.end(); ++i)
-			{
-				(**i).Tick();
-			}
 			auto it = mCallbacks.begin();
 			std::vector <std::function<void()>> pending;
 			for (; it != mCallbacks.end(); ++it)
@@ -51,12 +48,10 @@ namespace Yes
 			Check(delay > 0, "deal with non-positive callbacks yourself");
 
 			mCallbacks.emplace(delay + mElapsedSeconds, std::forward<std::function<void()>>(f));
-			
 		}
 	private:
 		TimeStamp mStartTime;
 		float mElapsedSeconds = 0;
-		std::list<ITickable*> mTickables;
 		std::multimap<float, std::function<void()>> mCallbacks;
 		std::vector<std::pair<float, std::function<void()>>> mNewAdd;
 

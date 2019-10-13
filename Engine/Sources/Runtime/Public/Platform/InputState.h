@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Runtime/Public/Yes.h"
-
+#include "Runtime/Public/Core/IDatum.h"
 #include <unordered_map>
 
 namespace Yes
@@ -22,6 +22,10 @@ namespace Yes
 		int AbsoluteMousePosition[2];
 		float DeltaNormalizedMousePosition[2];
 		int DeltaAbsoluteMousePosition[2];
-		//void Diff(std::unordered_map<KeyCode, bool>& diffResult);
+	};
+
+	struct InputStateDatum : public IDatum
+	{
+		InputState InputState;
 	};
 }

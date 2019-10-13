@@ -4,6 +4,7 @@
 
 namespace Yes
 {
+	struct FrameLogicTestDriverDatum;
 	class FrameLogicTestDriverModule : public IModule
 	{
 		DECLARE_MODULE_IN_CLASS(FrameLogicTestDriverModule);

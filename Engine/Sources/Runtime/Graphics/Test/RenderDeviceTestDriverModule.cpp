@@ -13,6 +13,7 @@
 #include "Runtime/Public/Graphics/ImageUtil.h"
 #include "Runtime/Public/Graphics/RenderDevice.h"
 #include "Runtime/Public/Graphics/Camera/Camera.h"
+#include "Runtime/Public/Core/FrameLogicModule.h"
 #include <vector>
 
 #define LOG_INPUT 0
@@ -27,8 +28,12 @@ namespace Yes
 		TRef<RenderDeviceConstantBuffer> LocalConstant;
 		M44F Transform;
 	};
-
-	class RenderDeviceTestDriverModuleImp : public RenderDeviceTestDriverModule, public ITickable
+	class RenderDeviceTestDriverDatum : public IDatum
+	{
+	public:
+		static RenderDeviceTestDriverDatum* Task(IFrameContext*, InputStateDatum* inputState);
+	};
+	class RenderDeviceTestDriverModuleImp : public RenderDeviceTestDriverModule
 	{
 	private:
 		RenderDevice* mDevice = nullptr;
@@ -56,14 +61,11 @@ namespace Yes
 	public:
 		RenderDeviceTestDriverModuleImp()
 			: mEyeCamera(Camera::BuildPerspectiveCamera(3.14159f / 2, 1, 0.5, 200))
-			//: mEyeCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
 			, mShadowCamera(Camera::BuildOrthogonalCamera(1, 50, 0, 100))
 		{
 		}
 		virtual void InitializeModule(System*) override
 		{
-			TickModule* tickModule = GET_MODULE(TickModule);
-			tickModule->AddTickable(this);
 			mFileModule = GET_MODULE(FileModule);
 			mTempBuffer = new float[ConstantBufferSlots];
 			mGlobalBuffer = (byte*)new float[ConstantBufferSlots];
@@ -77,10 +79,9 @@ namespace Yes
 		}
 		virtual void Start(System*) override
 		{
-			//test start
-			//ConcurrencyModule* cm = GET_MODULE(ConcurrencyModule);
+			GET_MODULE(FrameLogicModule)->RegisterTask(RenderDeviceTestDriverDatum::Task);
 		}
-		virtual void Tick() override
+		void Tick(const InputState* inputState)
 		{
 			if (mDevice == nullptr)
 			{
@@ -88,7 +89,7 @@ namespace Yes
 				mDevice = dynamic_cast<RenderDevice*>(dev);
 				Setup();
 			}
-			HandleInput();
+			HandleInput(inputState);
 			if (!mAllResourceReady)
 				CheckResources();
 			else
@@ -420,9 +421,8 @@ namespace Yes
 			mDevice->EndFrame();
 			++mFrame;
 		}
-		void HandleInput()
+		void HandleInput(const InputState* input)
 		{
-			const InputState* input = mWindowModule->GetInputState();
 #if LOG_INPUT
 
 			printf("MousePos:(%f,%f)\n",
@@ -472,4 +472,11 @@ namespace Yes
 		DEFINE_MODULE_IN_CLASS(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp, 1000);
+
+	RenderDeviceTestDriverDatum* RenderDeviceTestDriverDatum::Task(IFrameContext*, InputStateDatum* inputState)
+	{
+		RenderDeviceTestDriverDatum* data = new RenderDeviceTestDriverDatum();
+		GET_MODULE_AS(RenderDeviceTestDriverModule, RenderDeviceTestDriverModuleImp)->Tick(&inputState->InputState);
+		return data;
+	}
 }

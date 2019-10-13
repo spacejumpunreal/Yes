@@ -11,16 +11,7 @@
 
 namespace Yes
 {
-	class IDatum
-	{
-	public:
-		template<typename T>
-		T& As()
-		{
-			return *(T*)GetData();
-		}
-		virtual void* GetData() { return this; }
-	};
+	class IDatum;
 
 	class FrameEvent : private JobWaitingList
 	{

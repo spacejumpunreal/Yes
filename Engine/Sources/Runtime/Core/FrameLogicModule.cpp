@@ -6,6 +6,7 @@
 #include "Runtime/Public/Core/ConcurrencyModule.h"
 #include "Runtime/Public/Misc/SharedObject.h"
 #include "Runtime/Public/Memory/AllocUtils.h"
+#include "Runtime/Public/Concurrency/Sync.h"
 #include <limits>
 #include <vector>
 #include <bitset>
@@ -16,7 +17,10 @@
 
 namespace Yes
 {
+	static const size_t MaxInflightFrames = 1;
+
 	using JobDispatcher = JobDataBatch<32>;
+	class FrameLogicModuleImp;
 	static const Name NameFrameEnded("FrameEnded");
 	void FrameEvent::Wait()
 	{
@@ -48,9 +52,11 @@ namespace Yes
 	{
 		size_t							TaskCount;
 		void**							Functions;
-		CompactAA<uint32>				Consumers;
-		CompactAA<uint32>				Dependencies;
-		TaskGraphConfig(size_t n, TaskDesc* desc[], std::vector<uint32>* consumers, std::vector<uint32>* deps);
+		uint32*							InSignals;
+		uint32							ConclusionIndex;
+		CompactAA<uint32>				OutSignals;
+		CompactAA<uint32>				InArgs;
+		TaskGraphConfig(size_t n, TaskDesc* desc[], uint32 conclusionIndex, std::vector<uint32>* outSignals, uint32* inSignals, std::vector<uint32>* inArgs);
 		~TaskGraphConfig();
 	};
 
@@ -91,12 +97,13 @@ namespace Yes
 		FrameContext(size_t frameIndex, IFrameContext* prev, TaskGraphConfig* config, size_t nEvents);
 		FrameEvent* GetFrameEvent(const Name& name);
 		IFrameContext* GetPreviousFrame() { return mPrev; }
-		void StartInitialTask(IFrameContext* ctx);
+		void StartInitialTask();
 		void OnTaskDone(uint32 taskIndex, IDatum* datum);
-		void End();
 	private:
+		void End();
 		void ScheduleTask(uint32 taskIndex, JobDispatcher& batch);
 	private:
+		friend class FrameLogicModuleImp;
 		std::atomic<uint32>*			mWaitCounts;
 		IDatum**						mDatums;
 		FrameEvent*						mEvents;
@@ -126,23 +133,29 @@ namespace Yes
 		IFrameContext*									mLastFrameConctext;
 		TRef<TaskGraphConfig>							mTaskGraphConfig;
 		std::atomic<uint32>								mLauchedFrames;
-		std::atomic<uint32>								mEndedFrames;
+		Semaphore<std::mutex>							mAvailableFrames;
 	DEFINE_MODULE_IN_CLASS(FrameLogicModule, FrameLogicModuleImp);
 	};
 	DEFINE_MODULE_REGISTRY(FrameLogicModule, FrameLogicModuleImp, -1000);
 
 	TaskGraphConfig::TaskGraphConfig(
 		size_t n, TaskDesc* desc[],
-		std::vector<uint32>* consumers,
-		std::vector<uint32>* dirctDeps)
+		uint32 conclusionIndex,
+		std::vector<uint32>* outSignals,
+		uint32* inSignals,
+		std::vector<uint32>* inArgs)
 		: TaskCount(n)
-		, Consumers(consumers, n)
-		, Dependencies(dirctDeps, n)
+		, InSignals(inSignals)
+		, ConclusionIndex(conclusionIndex)
+		, OutSignals(outSignals, n)
+		, InArgs(inArgs, n)
 	{
-		Functions = new void* [n];
+		Functions = new void*[n];
+		InSignals = new uint32[n];
 		for (size_t i = 0; i < n; ++i)
 		{
 			Functions[i] = desc[i]->Function;
+			InSignals[i] = inSignals[i];
 		}
 	}
 	TaskGraphConfig::~TaskGraphConfig()
@@ -158,7 +171,7 @@ namespace Yes
 		mWaitCounts = new std::atomic<uint32>[n];
 		for (uint32 i = 0; i < n; ++i)
 		{
-			mWaitCounts[i].store(mTaskConfig->Dependencies.Size(i), std::memory_order_relaxed);
+			mWaitCounts[i].store(mTaskConfig->InSignals[i], std::memory_order_relaxed);
 		}
 		mDatums = new IDatum*[n];
 		mEvents = new FrameEvent[nEvents];
@@ -168,27 +181,27 @@ namespace Yes
 		FrameLogicModuleImp* m = GET_MODULE_AS(FrameLogicModule, FrameLogicModuleImp);
 		const Name2Index& mp = m->EventNameMap();
 		auto it = mp.find(name);
+		CheckDebug(it != mp.end());
 		return &mEvents[it->second];
 	}
-	void FrameContext::StartInitialTask(IFrameContext* ctx)
+	void FrameContext::StartInitialTask()
 	{
 		JobDispatcher batch(GET_MODULE(ConcurrencyModule));
 		for (uint32 i = 0; i < (uint32)mTaskConfig->TaskCount; ++i)
 		{
-			if (mTaskConfig->Dependencies.Size(i) == 0)
+			if (mTaskConfig->InSignals[i] == 0)
 			{
 				batch.PutJobData(
 					(ThreadFunctionPrototype)&FrameTaskInvokeContext::InvokeAndCleanup,
-					FrameTaskInvokeContext::Create(mTaskConfig->Functions[i], ctx, i, nullptr, 0));
+					FrameTaskInvokeContext::Create(mTaskConfig->Functions[i], this, i, nullptr, 0));
 			}
 		}
 	}
 	void FrameContext::OnTaskDone(uint32 taskIndex, IDatum* datum)
 	{
-		//mTaskConfig->DirectConsumersCounts[tid];
 		mDatums[taskIndex] = datum;
-		uint32 cCounts = mTaskConfig->Consumers.Size(taskIndex);
-		uint32* cArray = mTaskConfig->Consumers[taskIndex];
+		uint32 cCounts = mTaskConfig->OutSignals.Size(taskIndex);
+		uint32* cArray = mTaskConfig->OutSignals[taskIndex];
 		JobDispatcher batch(GET_MODULE(ConcurrencyModule));
 		for (uint32 i = 0; i < cCounts; ++i)
 		{
@@ -200,6 +213,8 @@ namespace Yes
 				ScheduleTask(tidx, batch);
 			}
 		}
+		if (taskIndex == mTaskConfig->ConclusionIndex)
+			End();
 	}
 	void FrameContext::End()
 	{
@@ -209,8 +224,8 @@ namespace Yes
 	void FrameContext::ScheduleTask(uint32 taskIndex, JobDispatcher& batch)
 	{
 		const size_t MaxArgsOnStack = 9;
-		uint32 nDeps = mTaskConfig->Dependencies.Size(taskIndex);
-		uint32* depArray = mTaskConfig->Dependencies[taskIndex];
+		uint32 nDeps = mTaskConfig->InArgs.Size(taskIndex);
+		uint32* depArray = mTaskConfig->InArgs[taskIndex];
 		CheckAlways(nDeps < MaxArgsOnStack);
 		IDatum* args[MaxArgsOnStack];
 		IDatum** pArgs = args;
@@ -222,37 +237,40 @@ namespace Yes
 			(ThreadFunctionPrototype)& FrameTaskInvokeContext::InvokeAndCleanup,
 			FrameTaskInvokeContext::Create(mTaskConfig->Functions[taskIndex], this, taskIndex, args, nDeps));
 	}
-	struct DefaultConclusionTask
+	struct EmptyConclusionTask
 	{
-		static DefaultConclusionTask* Job(IFrameContext* ctx)
+		static EmptyConclusionTask* Task(IFrameContext*)
 		{
-			ctx->End();
-			return new DefaultConclusionTask();
+			return new EmptyConclusionTask();
 		}
 	};
 
 	FrameLogicModuleImp::FrameLogicModuleImp()
 		: mConclusionTask(std::type_index(typeid(FrameLogicModuleImp)))
 		, mLastFrameConctext(nullptr)
+		, mAvailableFrames(MaxInflightFrames)
 	{
-		RegisterTask(DefaultConclusionTask::Job);
-		SetConclusionTask<DefaultConclusionTask>();
+		RegisterTask(EmptyConclusionTask::Task);
+		RegisterFrameEvent(NameFrameEnded);
+		SetConclusionTask<EmptyConclusionTask>();
 	}
 
 	void FrameLogicModuleImp::StartFrame()
 	{
+		mAvailableFrames.Decrease();
 		mLock.Lock();
 		if (mTaskGraphConfig.GetPtr() == nullptr)
 			RecreateTaskGraphConfig();
 		mLock.Unlock();
-		IFrameContext* newCtx = new FrameContext(mLauchedFrames++, mLastFrameConctext, mTaskGraphConfig.GetPtr(), mEventName2Index.size());
+		FrameContext* newCtx = new FrameContext(mLauchedFrames++, mLastFrameConctext, mTaskGraphConfig.GetPtr(), mEventName2Index.size());
 		mLastFrameConctext = newCtx;
+		newCtx->StartInitialTask();
 	}
 	void FrameLogicModuleImp::EndFrame(IFrameContext* ctx)
 	{
 		FrameEvent* ev = ctx->GetFrameEvent(NameFrameEnded);
 		ev->Signal();
-		++mEndedFrames;
+		mAvailableFrames.Increase();
 	}
 	void FrameLogicModuleImp::RegisterFrameEvent(const Name& name)
 	{//called in init time, no need for lock
@@ -262,10 +280,11 @@ namespace Yes
 	{
 		mLock.Lock();
 		auto& x = mRegisteredTasks[types[0]];
+		CheckAlways(func != 0);
 		x.Function = func;
 		x.Output = types[0];
 		CheckAlways(types[1] == std::type_index(typeid(IFrameContext*)), "invalid task signature: first argument should be IFrameContext*");
-		x.Inputs.insert(x.Inputs.end(), types + 2, types + tCount - 2);
+		x.Inputs.insert(x.Inputs.end(), types + 2, types + tCount);
 		mLock.Unlock();
 	}
 	void FrameLogicModuleImp::SetConclusionTaskImp(TypeId name)
@@ -286,6 +305,7 @@ namespace Yes
 		RegisteredTasksItr j = mRegisteredTasks.begin();
 		TypeId2Index taskId2Index;
 		std::vector<TaskDesc*> relevantTaskDescs;
+		
 		{//0. find all relevant tasks
 			std::unordered_set<TypeId> doneSet;
 			std::vector<TypeId> open;
@@ -297,6 +317,8 @@ namespace Yes
 				auto ret = doneSet.insert(oname);
 				if (!ret.second)
 					continue;
+				auto it = mRegisteredTasks.find(oname);
+				CheckAlways(it != mRegisteredTasks.end(), "Missing referenced task:%s", oname.name());
 				TaskDesc& desc = mRegisteredTasks[oname];
 				taskId2Index[oname] = (uint32)relevantTaskDescs.size();
 				relevantTaskDescs.push_back(&desc);
@@ -308,14 +330,19 @@ namespace Yes
 		{
 			CheckAlways(false, "need to raise the max number of tasks limit");
 		}
-		//1. find explicit and implicit dependencies for all tasks
+		//1. find complete(for simplified signaling) and direct(for prepare) dependency for tasks
 		std::vector<DepSet> allDependencies(activeCount);
-		std::vector<std::vector<uint32>> directDeps(activeCount);
+		std::vector<std::vector<uint32>> inArgs(activeCount);
 		{
 			std::unordered_set<TaskDesc*> doneTasks;
 			std::vector<TaskDesc*> open;
 			for (int i = (int)activeCount - 1; i >= 0 ; --i)
 			{
+				for (TypeId inputTaskId : relevantTaskDescs[i]->Inputs)
+				{
+					TypeId to = relevantTaskDescs[taskId2Index[inputTaskId]]->Output;
+					inArgs[i].push_back(taskId2Index[to]);
+				}
 				doneTasks.clear();
 				open.clear();
 				open.push_back(relevantTaskDescs[i]);
@@ -326,7 +353,6 @@ namespace Yes
 					for (TypeId& name : td->Inputs)
 					{
 						uint32 idx = taskId2Index[name];
-						directDeps[i].push_back(idx);
 						auto ret = doneTasks.insert(relevantTaskDescs[idx]);
 						if (!ret.second)
 							continue;
@@ -337,8 +363,8 @@ namespace Yes
 			}
 		}
 		//2. for each task, sort according to all dependency cout from high fan-in to low fan-in, find minimal direct dependency set
-		std::vector<std::vector<uint32>> consumers(activeCount);
-		std::vector<uint32> depCounts(activeCount);
+		std::vector<std::vector<uint32>> outSignals(activeCount);
+		std::vector<uint32> inSignals(activeCount);
 		{
 			std::vector<DepSortPair> deps;
 			for (size_t i = 0; i < activeCount; ++i)
@@ -346,10 +372,11 @@ namespace Yes
 				deps.clear();
 				for (uint32 bitIdx = 0; bitIdx < MaxActiveTasks; ++bitIdx)
 				{
-					if (allDependencies[i][bitIdx])
+					if (bitIdx != i && allDependencies[i][bitIdx])
 					{
-						deps.emplace_back(std::make_pair(allDependencies[bitIdx], bitIdx));
-						++depCounts[i];
+						DepSet tmp = allDependencies[bitIdx];
+						tmp[bitIdx] = true;
+						deps.emplace_back(std::make_pair(tmp, bitIdx));
 					}
 				}
 				std::sort(deps.begin(), deps.end(), SortWithDependencyCount);
@@ -360,16 +387,22 @@ namespace Yes
 					if (common.any())
 					{
 						leftDeps ^= common;
-						consumers[p.second].push_back((uint32)i);
+						outSignals[p.second].push_back((uint32)i);
+						++inSignals[i];
 					}
 					if (!leftDeps.any())
 						break;
 				}
 			}
 		}
+		uint32 conclusionIndex = taskId2Index[mConclusionTask];
+		CheckAlways(outSignals[conclusionIndex].size() == 0);
 		mTaskGraphConfig = new TaskGraphConfig(
 			activeCount, 
-			relevantTaskDescs.data(), 
-			consumers.data(), directDeps.data());
+			relevantTaskDescs.data(),
+			conclusionIndex,
+			outSignals.data(),
+			inSignals.data(),
+			inArgs.data());
 	}
 }

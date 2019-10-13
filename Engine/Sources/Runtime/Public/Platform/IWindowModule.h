@@ -6,12 +6,11 @@
 
 namespace Yes
 {
-	struct InputState;
-	class IWindowModule : public IModule, public ITickable
+	struct InputStateDatum;
+	class IWindowModule : public IModule
 	{
 	public:
 		virtual void* GetWindowHandle() = 0;
 		virtual void GetWindowRect(int& width, int& height) = 0;
-		virtual const InputState* GetInputState() = 0;
 	};
 }

@@ -1,11 +1,13 @@
 #include "Runtime/Public/Platform/DX12/DX12DemoModule.h"
 #include "Runtime/Public/Core/FileModule.h"
 #include "Runtime/Public/Core/System.h"
-#include "Runtime/Public/Core/TickModule.h"
+#include "Runtime/Public/Core/FrameLogicModule.h"
+#include "Runtime/Public/Core/IDatum.h"
 #include "Runtime/Public/Misc/Debug.h"
 #include "Runtime/Public/Misc/Utils.h"
 #include "Runtime/Public/Platform/DXUtils.h"
 #include "Runtime/Public/Platform/WindowsWindowModule.h"
+
 
 #include "Runtime/Public/Misc/BeginExternalIncludeGuard.h"
 #include "Runtime/Platform/DX12/d3dx12.h"
@@ -23,7 +25,7 @@ namespace Yes
 		float param0[4];
 		float param1[4];
 	};
-	class DX12DemoModuleImp : public IModule, public ITickable
+	class DX12DemoModuleImp : public IModule
 	{
 	private:
 		COMRef<IDXGISwapChain3> mSwapChain;
@@ -490,7 +492,7 @@ namespace Yes
 			mCommandList->SetGraphicsRootConstantBufferView(1, mConstantBuffer[1]->GetGPUVirtualAddress());
 			//mCommandList->SetGraphicsRootConstantBufferView(0, handle.ptr);
 			//mCommandList->SetGraphicsRootConstantBufferView(1, handle.ptr);
-			handle.ptr += ((UINT)(HeapSize / 2)) * mSRVDescriptorSize;
+			handle.ptr += ((UINT64)(HeapSize / 2)) * mSRVDescriptorSize;
 			mCommandList->SetGraphicsRootDescriptorTable(2, handle);
 
 			mCommandList->RSSetViewports(1, &mViewport);
@@ -535,10 +537,20 @@ namespace Yes
 			InitResources();
 			InitPSO();
 			SyncGPU();
-			TickModule* tickModule = GET_MODULE(TickModule);
-			tickModule->AddTickable(this);
 		}
-		virtual void Tick() override
+		virtual void Start(System*) override
+		{
+			GET_MODULE(FrameLogicModule)->RegisterTask(DX12DemoDatum::Task);
+		}
+		struct DX12DemoDatum : public IDatum
+		{
+			static DX12DemoDatum* Task(IFrameContext*)
+			{
+				GET_MODULE_AS(DX12DemoModule, DX12DemoModuleImp)->Tick();
+				return new DX12DemoDatum();
+			}
+		};
+		void Tick()
 		{
 			++mFrameIdx;
 			UpdateConstantBuffer(mFrameIdx);
