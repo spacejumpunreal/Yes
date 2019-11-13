@@ -29,7 +29,7 @@ namespace Yes
 		std::vector<const char*> args
 		{
 			"NumberOfJobsThreads=4",
-			R"(FileModuleBasePath=d:\checkout\Yes\Resources\)",
+			R"(FileModuleBasePath=Resources)",
 			"module=WindowsWindowModule",
 			"module=DX12RenderDeviceModule",
 			"module=RenderDeviceTestDriverModule",
