@@ -39,6 +39,12 @@ FILTER_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
 
 """
 
+USER_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+{PropertyGroups}
+</Project>
+"""
+
 SLN_TEMPLATE = """
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 16
@@ -95,9 +101,10 @@ def get_latest_windows_sdk_version():
 
 
 class VS2019Generator(object):
-    def __init__(self, collector, build_dir, solution_path):
+    def __init__(self, collector, repo_dir, build_dir, solution_path):
         self._targets = collector.targets
         self._source_root_dir = collector.root_dir
+        self._repo_dir = repo_dir
         self._build_dir = build_dir
         self._solution_path = solution_path
 
@@ -122,6 +129,10 @@ class VS2019Generator(object):
     @staticmethod
     def get_filter_file_name(target):
         return target.get_name() + ".vs2019.vcxproj.filters"
+
+    @staticmethod
+    def get_user_file_name(target):
+        return target.get_name() + ".vs2019.vcxproj.user"
 
     @staticmethod
     def get_target_name(target):
@@ -320,6 +331,27 @@ class VS2019Generator(object):
             with open(filter_file, "wb") as wf:
                 wf.write(content)
 
+            def create_item_group_users():
+                frags = []
+                for config in Configurations:
+                    for platform in Platforms:
+                        cond_str = "'$(Configuration)|$(Platform)'=='%s|%s'" % (config, platform)
+                        node = XmlNode(
+                            "PropertyGroup",
+                            (
+                                XmlNode("DebuggerFlavor", "WindowsLocalDebugger"),
+                                XmlNode("LocalDebuggerWorkingDirectory", self._repo_dir),
+                            ),
+                            {"Condition": cond_str},
+                        )
+                        frags.append(node.format(indent, 1))
+                return "".join(frags)
+            content = USER_TEMPLATE.format(
+                PropertyGroups=create_item_group_users()
+            )
+            user_file_name = os.path.join(self._build_dir, self.get_user_file_name(target))
+            with open(user_file_name, "wb") as wf:
+                wf.write(content)
         # write sln
         # SolutionConfigurationPlatforms
         frags = []

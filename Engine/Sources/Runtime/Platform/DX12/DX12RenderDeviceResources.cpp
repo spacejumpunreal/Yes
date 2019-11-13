@@ -38,6 +38,19 @@ namespace Yes
 		case TextureFormat::D24_UNORM_S8_UINT:
 			return DXGI_FORMAT::DXGI_FORMAT_D24_UNORM_S8_UINT;
 		case TextureFormat::D32_UNORM_S8_UINT:
+			return DXGI_FORMAT::DXGI_FORMAT_R32G8X24_TYPELESS;
+		default:
+			CheckAlways(false);
+		}
+		return DXGI_FORMAT::DXGI_FORMAT_R8G8B8A8_UNORM;
+	}
+	static DXGI_FORMAT GetDepthStencilFormat(TextureFormat format)
+	{
+		switch (format)
+		{
+		case TextureFormat::D24_UNORM_S8_UINT:
+			return DXGI_FORMAT::DXGI_FORMAT_D24_UNORM_S8_UINT;
+		case TextureFormat::D32_UNORM_S8_UINT:
 			return DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 		default:
 			CheckAlways(false);
@@ -65,7 +78,7 @@ namespace Yes
 			case TextureFormat::D24_UNORM_S8_UINT:
 				return DXGI_FORMAT::DXGI_FORMAT_X24_TYPELESS_G8_UINT;
 			case TextureFormat::D32_UNORM_S8_UINT:
-				return DXGI_FORMAT::DXGI_FORMAT_X32_TYPELESS_G8X24_UINT;
+				return DXGI_FORMAT::DXGI_FORMAT_D32_FLOAT_S8X24_UINT;
 			default:
 				CheckAlways(false);
 			}
@@ -553,11 +566,7 @@ namespace Yes
 		D3D12_CLEAR_VALUE cv = {};
 		cv.Format = apiFormat;
 		D3D12_CLEAR_VALUE* pcv = &cv;
-		if (mUsage == TextureUsage::DepthStencil)
-		{
-			cv.DepthStencil = { 1.0f, 0 };
-		}
-		else if (mUsage == TextureUsage::RenderTarget)
+		if (mUsage == TextureUsage::RenderTarget)
 		{
 			for (int i = 0; i < 4; ++i)
 			{
@@ -610,7 +619,7 @@ namespace Yes
 			IDX12DescriptorHeapAllocator& allocator = manager.GetPersistentDescriptorHeapAllocator(ResourceType::DepthStencil, false);
 			DX12DescriptorHeapSpace1& heapSpace = mHeapSpace[(int)TextureUsage::DepthStencil] = allocator.Allocate(1);
 			D3D12_DEPTH_STENCIL_VIEW_DESC desc = {};
-			desc.Format = GetTextureFormat(mFormat);
+			desc.Format = GetDepthStencilFormat(mFormat);
 			desc.Flags = D3D12_DSV_FLAG_NONE;
 			desc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
 			dev->CreateDepthStencilView(mTexture, &desc, heapSpace.GetCPUHandle(0));
